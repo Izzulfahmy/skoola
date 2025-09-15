@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"skoola/internal/auth"
-	"skoola/internal/student" // <-- TAMBAHKAN INI
+	"skoola/internal/student"
 	"skoola/internal/teacher"
 
 	"github.com/go-chi/chi/v5"
@@ -45,7 +45,7 @@ func main() {
 	authService := auth.NewService(teacherRepo)
 	authHandler := auth.NewHandler(authService)
 
-	// Inisialisasi lapisan student <-- TAMBAHKAN BLOK INI
+	// Inisialisasi lapisan student
 	studentRepo := student.NewRepository(db)
 	studentService := student.NewService(studentRepo, validate)
 	studentHandler := student.NewHandler(studentService)
@@ -74,14 +74,16 @@ func main() {
 		r.Delete("/{teacherID}", teacherHandler.Delete)
 	})
 
-	// Grup route baru untuk students <-- TAMBAHKAN BLOK INI
+	// Grup route untuk students
 	r.Route("/students", func(r chi.Router) {
-		// Terapkan middleware yang sama untuk melindungi endpoint siswa
 		r.Use(TenantContextMiddleware)
 		r.Use(auth.AuthMiddleware)
 
 		r.Post("/", studentHandler.Create)
 		r.Get("/", studentHandler.GetAll)
+		r.Get("/{studentID}", studentHandler.GetByID)   // <-- Tambah
+		r.Put("/{studentID}", studentHandler.Update)    // <-- Tambah
+		r.Delete("/{studentID}", studentHandler.Delete) // <-- Tambah
 	})
 
 	// 5. Jalankan Server
