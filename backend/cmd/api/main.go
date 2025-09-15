@@ -12,7 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/lib/pq" // Driver PostgreSQL
+	"github.com/go-playground/validator/v10" // <-- PASTIKAN INI DI-IMPORT
+	_ "github.com/lib/pq"                    // Driver PostgreSQL
 )
 
 func main() {
@@ -31,9 +32,13 @@ func main() {
 	}
 	fmt.Println("Berhasil terhubung ke database!")
 
+	// Buat instance validator baru
+	validate := validator.New() // <-- TAMBAHKAN INI
+
 	// 2. Inisialisasi semua lapisan (Wiring Dependencies)
 	teacherRepo := teacher.NewRepository(db)
-	teacherService := teacher.NewService(teacherRepo)
+	// Teruskan instance validator ke NewService
+	teacherService := teacher.NewService(teacherRepo, validate) // <-- UBAH BARIS INI
 	teacherHandler := teacher.NewHandler(teacherService)
 
 	// 3. Setup Router menggunakan Chi
@@ -55,9 +60,7 @@ func main() {
 		r.Get("/", teacherHandler.GetAll)
 		r.Get("/{teacherID}", teacherHandler.GetByID)
 		r.Put("/{teacherID}", teacherHandler.Update)
-
-		// Hubungkan endpoint DELETE ke handler Delete.
-		r.Delete("/{teacherID}", teacherHandler.Delete) // <-- TAMBAHKAN INI
+		r.Delete("/{teacherID}", teacherHandler.Delete)
 	})
 
 	// 5. Jalankan Server
