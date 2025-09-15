@@ -54,8 +54,12 @@ func main() {
 		// Hubungkan endpoint POST ke handler yang sesuai
 		r.Post("/", teacherHandler.Create)
 
-		// Anda bisa menambahkan endpoint lain di sini (GET, PUT, DELETE)
-		// r.Get("/", teacherHandler.GetAll)
+		// Hubungkan endpoint GET ke handler yang baru
+		r.Get("/", teacherHandler.GetAll)
+
+		// Route untuk path dengan parameter ID.
+		// {teacherID} adalah placeholder untuk ID guru.
+		r.Get("/{teacherID}", teacherHandler.GetByID) // <-- TAMBAHKAN INI
 	})
 
 	// 5. Jalankan Server

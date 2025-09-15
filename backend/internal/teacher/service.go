@@ -21,6 +21,8 @@ type CreateTeacherInput struct {
 // Service mendefinisikan interface untuk logika bisnis guru.
 type Service interface {
 	Create(ctx context.Context, schemaName string, input CreateTeacherInput) error
+	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
+	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error) // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -75,6 +77,28 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 	}
 
 	return nil
+}
+
+// GetAll adalah implementasi untuk mengambil semua data guru.
+func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, error) {
+	// Untuk saat ini, service hanya meneruskan panggilan ke repository.
+	// Di masa depan, di sini bisa ditambahkan logika caching, otorisasi, dll.
+	teachers, err := s.repo.GetAll(ctx, schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data guru di service: %w", err)
+	}
+
+	return teachers, nil
+}
+
+// GetByID adalah implementasi untuk mengambil satu data guru berdasarkan ID.
+func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error) {
+	teacher, err := s.repo.GetByID(ctx, schemaName, id)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data guru by id di service: %w", err)
+	}
+
+	return teacher, nil
 }
 
 // stringToPtr adalah fungsi helper kecil untuk mengubah string menjadi pointer string.
