@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"skoola/internal/auth"
+	"skoola/internal/student" // <-- TAMBAHKAN INI
 	"skoola/internal/teacher"
 
 	"github.com/go-chi/chi/v5"
@@ -34,13 +35,20 @@ func main() {
 	validate := validator.New()
 
 	// 2. Inisialisasi semua lapisan (Wiring Dependencies)
+
+	// Inisialisasi lapisan teacher
 	teacherRepo := teacher.NewRepository(db)
 	teacherService := teacher.NewService(teacherRepo, validate)
 	teacherHandler := teacher.NewHandler(teacherService)
 
-	// Inisialisasi untuk otentikasi
+	// Inisialisasi lapisan auth
 	authService := auth.NewService(teacherRepo)
 	authHandler := auth.NewHandler(authService)
+
+	// Inisialisasi lapisan student <-- TAMBAHKAN BLOK INI
+	studentRepo := student.NewRepository(db)
+	studentService := student.NewService(studentRepo, validate)
+	studentHandler := student.NewHandler(studentService)
 
 	// 3. Setup Router menggunakan Chi
 	r := chi.NewRouter()
@@ -52,23 +60,28 @@ func main() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	// === ROUTE PUBLIK ===
-	// Endpoint login tidak memerlukan token otentikasi.
 	r.Post("/login", authHandler.Login)
 
-	// === ROUTE YANG DILINDUNGI === 🛡️
-	// Grup route ini sekarang dilindungi oleh middleware otentikasi.
+	// === ROUTE YANG DILINDUNGI ===
 	r.Route("/teachers", func(r chi.Router) {
-		// Middleware dijalankan secara berurutan.
-		// 1. TenantContextMiddleware mengambil tenant dari header.
 		r.Use(TenantContextMiddleware)
-		// 2. AuthMiddleware memeriksa token JWT.
-		r.Use(auth.AuthMiddleware) // <-- BARIS INI DITAMBAHKAN
+		r.Use(auth.AuthMiddleware)
 
 		r.Post("/", teacherHandler.Create)
 		r.Get("/", teacherHandler.GetAll)
 		r.Get("/{teacherID}", teacherHandler.GetByID)
 		r.Put("/{teacherID}", teacherHandler.Update)
 		r.Delete("/{teacherID}", teacherHandler.Delete)
+	})
+
+	// Grup route baru untuk students <-- TAMBAHKAN BLOK INI
+	r.Route("/students", func(r chi.Router) {
+		// Terapkan middleware yang sama untuk melindungi endpoint siswa
+		r.Use(TenantContextMiddleware)
+		r.Use(auth.AuthMiddleware)
+
+		r.Post("/", studentHandler.Create)
+		r.Get("/", studentHandler.GetAll)
 	})
 
 	// 5. Jalankan Server
