@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"skoola/internal/auth" // <-- TAMBAHKAN INI
+	"skoola/internal/auth"
 	"skoola/internal/teacher"
 
 	"github.com/go-chi/chi/v5"
@@ -38,7 +38,7 @@ func main() {
 	teacherService := teacher.NewService(teacherRepo, validate)
 	teacherHandler := teacher.NewHandler(teacherService)
 
-	// Inisialisasi untuk otentikasi <-- TAMBAHKAN BLOK INI
+	// Inisialisasi untuk otentikasi
 	authService := auth.NewService(teacherRepo)
 	authHandler := auth.NewHandler(authService)
 
@@ -53,12 +53,16 @@ func main() {
 
 	// === ROUTE PUBLIK ===
 	// Endpoint login tidak memerlukan token otentikasi.
-	r.Post("/login", authHandler.Login) // <-- TAMBAHKAN INI
+	r.Post("/login", authHandler.Login)
 
-	// === ROUTE YANG DILINDUNGI ===
+	// === ROUTE YANG DILINDUNGI === 🛡️
+	// Grup route ini sekarang dilindungi oleh middleware otentikasi.
 	r.Route("/teachers", func(r chi.Router) {
+		// Middleware dijalankan secara berurutan.
+		// 1. TenantContextMiddleware mengambil tenant dari header.
 		r.Use(TenantContextMiddleware)
-		// r.Use(AuthMiddleware) // <-- Nanti kita akan tambahkan ini
+		// 2. AuthMiddleware memeriksa token JWT.
+		r.Use(auth.AuthMiddleware) // <-- BARIS INI DITAMBAHKAN
 
 		r.Post("/", teacherHandler.Create)
 		r.Get("/", teacherHandler.GetAll)
