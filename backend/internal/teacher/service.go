@@ -2,6 +2,7 @@ package teacher
 
 import (
 	"context"
+	"database/sql" // <-- IMPORT INI DIPERLUKAN
 	"fmt"
 
 	"github.com/google/uuid"     // Untuk generate ID unik
@@ -18,11 +19,20 @@ type CreateTeacherInput struct {
 	NomorTelepon string `json:"nomor_telepon"`
 }
 
+// UpdateTeacherInput adalah DTO untuk memperbarui data guru.
+type UpdateTeacherInput struct {
+	NamaLengkap  string `json:"nama_lengkap"`
+	NIP          string `json:"nip"`
+	Alamat       string `json:"alamat"`
+	NomorTelepon string `json:"nomor_telepon"`
+}
+
 // Service mendefinisikan interface untuk logika bisnis guru.
 type Service interface {
 	Create(ctx context.Context, schemaName string, input CreateTeacherInput) error
 	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
-	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error) // <-- TAMBAHKAN INI
+	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
+	Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -99,6 +109,33 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*T
 	}
 
 	return teacher, nil
+}
+
+// Update adalah implementasi untuk memperbarui data guru.
+func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error {
+	// 1. Pertama, dapatkan data guru yang ada saat ini.
+	// Ini memastikan guru tersebut ada sebelum kita mencoba memperbaruinya.
+	teacher, err := s.repo.GetByID(ctx, schemaName, id)
+	if err != nil {
+		return fmt.Errorf("gagal mencari guru untuk diupdate: %w", err)
+	}
+	if teacher == nil {
+		return sql.ErrNoRows // Kembalikan error jika guru tidak ditemukan.
+	}
+
+	// 2. Terapkan perubahan dari input ke data yang sudah ada.
+	teacher.NamaLengkap = input.NamaLengkap
+	teacher.NIP = stringToPtr(input.NIP) // Gunakan lagi helper kita
+	teacher.Alamat = stringToPtr(input.Alamat)
+	teacher.NomorTelepon = stringToPtr(input.NomorTelepon)
+
+	// 3. Panggil repository untuk menyimpan perubahan ke database.
+	err = s.repo.Update(ctx, schemaName, teacher)
+	if err != nil {
+		return fmt.Errorf("gagal mengupdate guru di service: %w", err)
+	}
+
+	return nil
 }
 
 // stringToPtr adalah fungsi helper kecil untuk mengubah string menjadi pointer string.

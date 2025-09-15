@@ -59,7 +59,10 @@ func main() {
 
 		// Route untuk path dengan parameter ID.
 		// {teacherID} adalah placeholder untuk ID guru.
-		r.Get("/{teacherID}", teacherHandler.GetByID) // <-- TAMBAHKAN INI
+		r.Get("/{teacherID}", teacherHandler.GetByID)
+
+		// Hubungkan endpoint PUT ke handler Update.
+		r.Put("/{teacherID}", teacherHandler.Update) // <-- TAMBAHKAN INI
 	})
 
 	// 5. Jalankan Server

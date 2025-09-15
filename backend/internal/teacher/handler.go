@@ -1,10 +1,11 @@
 package teacher
 
 import (
+	"database/sql" // <-- IMPORT INI DIPERLUKAN
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-chi/chi/v5" // <-- IMPORT INI DIPERLUKAN
+	"github.com/go-chi/chi/v5"
 )
 
 // Handler menangani request HTTP untuk entitas guru.
@@ -112,4 +113,46 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(teacher)
+}
+
+// Update adalah handler untuk endpoint PUT /teachers/{id}.
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	// 1. Ambil schemaName dari context.
+	schemaName := r.Context().Value("schemaName")
+	if schemaName == nil || schemaName.(string) == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Ambil parameter ID dari URL.
+	teacherID := chi.URLParam(r, "teacherID")
+	if teacherID == "" {
+		http.Error(w, "ID guru tidak boleh kosong", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Decode body request JSON ke dalam struct UpdateTeacherInput.
+	var input UpdateTeacherInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Panggil service untuk menjalankan logika update.
+	err := h.service.Update(r.Context(), schemaName.(string), teacherID, input)
+	if err != nil {
+		// Cek apakah errornya adalah karena data tidak ditemukan.
+		if err == sql.ErrNoRows {
+			http.Error(w, "Guru tidak ditemukan untuk diupdate", http.StatusNotFound)
+			return
+		}
+		// Jika error lain, anggap sebagai error server.
+		http.Error(w, "Gagal mengupdate data guru: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Kirim respons berhasil.
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK) // Status 200 OK
+	json.NewEncoder(w).Encode(map[string]string{"message": "Guru berhasil diperbarui"})
 }
