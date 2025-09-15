@@ -2,7 +2,7 @@ package teacher
 
 import (
 	"context"
-	"database/sql" // <-- IMPORT INI DIPERLUKAN
+	"database/sql"
 	"fmt"
 
 	"github.com/google/uuid"     // Untuk generate ID unik
@@ -32,7 +32,8 @@ type Service interface {
 	Create(ctx context.Context, schemaName string, input CreateTeacherInput) error
 	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
-	Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error // <-- TAMBAHKAN INI
+	Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error
+	Delete(ctx context.Context, schemaName string, id string) error // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -48,29 +49,24 @@ func NewService(repo Repository) Service {
 
 // Create adalah implementasi method untuk membuat guru baru.
 func (s *service) Create(ctx context.Context, schemaName string, input CreateTeacherInput) error {
-	// 1. Lakukan validasi dasar (bisa dikembangkan lebih lanjut)
 	if input.Email == "" || input.Password == "" || input.NamaLengkap == "" {
 		return fmt.Errorf("email, password, dan nama lengkap tidak boleh kosong")
 	}
 
-	// 2. Hash password sebelum disimpan
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
 	if err != nil {
 		return fmt.Errorf("gagal melakukan hash password: %w", err)
 	}
 
-	// 3. Generate ID unik untuk user dan teacher
 	userID := uuid.New().String()
 	teacherID := uuid.New().String()
 
-	// 4. Siapkan struct User dan Teacher untuk dikirim ke repository
 	user := &User{
 		ID:           userID,
 		Email:        input.Email,
 		PasswordHash: string(hashedPassword),
 	}
 
-	// FIX: Menggunakan helper untuk mengubah string menjadi *string jika tidak kosong
 	teacher := &Teacher{
 		ID:           teacherID,
 		UserID:       userID,
@@ -80,7 +76,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 		NomorTelepon: stringToPtr(input.NomorTelepon),
 	}
 
-	// 5. Panggil repository untuk menyimpan data ke database
 	err = s.repo.Create(ctx, schemaName, user, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal membuat guru di service: %w", err)
@@ -91,8 +86,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 
 // GetAll adalah implementasi untuk mengambil semua data guru.
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, error) {
-	// Untuk saat ini, service hanya meneruskan panggilan ke repository.
-	// Di masa depan, di sini bisa ditambahkan logika caching, otorisasi, dll.
 	teachers, err := s.repo.GetAll(ctx, schemaName)
 	if err != nil {
 		return nil, fmt.Errorf("gagal mengambil data guru di service: %w", err)
@@ -113,8 +106,6 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*T
 
 // Update adalah implementasi untuk memperbarui data guru.
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error {
-	// 1. Pertama, dapatkan data guru yang ada saat ini.
-	// Ini memastikan guru tersebut ada sebelum kita mencoba memperbaruinya.
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
 		return fmt.Errorf("gagal mencari guru untuk diupdate: %w", err)
@@ -123,16 +114,35 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 		return sql.ErrNoRows // Kembalikan error jika guru tidak ditemukan.
 	}
 
-	// 2. Terapkan perubahan dari input ke data yang sudah ada.
 	teacher.NamaLengkap = input.NamaLengkap
-	teacher.NIP = stringToPtr(input.NIP) // Gunakan lagi helper kita
+	teacher.NIP = stringToPtr(input.NIP)
 	teacher.Alamat = stringToPtr(input.Alamat)
 	teacher.NomorTelepon = stringToPtr(input.NomorTelepon)
 
-	// 3. Panggil repository untuk menyimpan perubahan ke database.
 	err = s.repo.Update(ctx, schemaName, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal mengupdate guru di service: %w", err)
+	}
+
+	return nil
+}
+
+// Delete adalah implementasi untuk menghapus data guru.
+func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
+	// 1. Pastikan guru ada sebelum mencoba menghapus.
+	// Ini memberikan pesan error yang lebih konsisten jika ID tidak ditemukan.
+	teacher, err := s.repo.GetByID(ctx, schemaName, id)
+	if err != nil {
+		return fmt.Errorf("gagal mencari guru untuk dihapus: %w", err)
+	}
+	if teacher == nil {
+		return sql.ErrNoRows // Guru tidak ditemukan.
+	}
+
+	// 2. Panggil repository untuk menghapus data.
+	err = s.repo.Delete(ctx, schemaName, id)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus guru di service: %w", err)
 	}
 
 	return nil

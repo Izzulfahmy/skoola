@@ -51,18 +51,13 @@ func main() {
 		// Terapkan middleware untuk identifikasi tenant pada grup route ini
 		r.Use(TenantContextMiddleware)
 
-		// Hubungkan endpoint POST ke handler yang sesuai
 		r.Post("/", teacherHandler.Create)
-
-		// Hubungkan endpoint GET ke handler yang baru
 		r.Get("/", teacherHandler.GetAll)
-
-		// Route untuk path dengan parameter ID.
-		// {teacherID} adalah placeholder untuk ID guru.
 		r.Get("/{teacherID}", teacherHandler.GetByID)
+		r.Put("/{teacherID}", teacherHandler.Update)
 
-		// Hubungkan endpoint PUT ke handler Update.
-		r.Put("/{teacherID}", teacherHandler.Update) // <-- TAMBAHKAN INI
+		// Hubungkan endpoint DELETE ke handler Delete.
+		r.Delete("/{teacherID}", teacherHandler.Delete) // <-- TAMBAHKAN INI
 	})
 
 	// 5. Jalankan Server
