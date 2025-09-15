@@ -8,17 +8,17 @@ import (
 	"net/http"
 	"time"
 
-	"skoola/internal/teacher" // Sesuaikan dengan path modul Anda
+	"skoola/internal/auth" // <-- TAMBAHKAN INI
+	"skoola/internal/teacher"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-playground/validator/v10" // <-- PASTIKAN INI DI-IMPORT
-	_ "github.com/lib/pq"                    // Driver PostgreSQL
+	"github.com/go-playground/validator/v10"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	// 1. Koneksi ke Database
-	// Ganti dengan connection string PostgreSQL Anda yang sebenarnya.
 	connStr := "user=postgres password=@Vinceru2 dbname=skoola_db sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -26,35 +26,39 @@ func main() {
 	}
 	defer db.Close()
 
-	// Cek koneksi
 	if err := db.Ping(); err != nil {
 		log.Fatal("Database tidak dapat dijangkau:", err)
 	}
 	fmt.Println("Berhasil terhubung ke database!")
 
-	// Buat instance validator baru
-	validate := validator.New() // <-- TAMBAHKAN INI
+	validate := validator.New()
 
 	// 2. Inisialisasi semua lapisan (Wiring Dependencies)
 	teacherRepo := teacher.NewRepository(db)
-	// Teruskan instance validator ke NewService
-	teacherService := teacher.NewService(teacherRepo, validate) // <-- UBAH BARIS INI
+	teacherService := teacher.NewService(teacherRepo, validate)
 	teacherHandler := teacher.NewHandler(teacherService)
+
+	// Inisialisasi untuk otentikasi <-- TAMBAHKAN BLOK INI
+	authService := auth.NewService(teacherRepo)
+	authHandler := auth.NewHandler(authService)
 
 	// 3. Setup Router menggunakan Chi
 	r := chi.NewRouter()
 
-	// Gunakan beberapa middleware standar yang berguna
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// 4. Definisikan routing untuk API
+	// === ROUTE PUBLIK ===
+	// Endpoint login tidak memerlukan token otentikasi.
+	r.Post("/login", authHandler.Login) // <-- TAMBAHKAN INI
+
+	// === ROUTE YANG DILINDUNGI ===
 	r.Route("/teachers", func(r chi.Router) {
-		// Terapkan middleware untuk identifikasi tenant pada grup route ini
 		r.Use(TenantContextMiddleware)
+		// r.Use(AuthMiddleware) // <-- Nanti kita akan tambahkan ini
 
 		r.Post("/", teacherHandler.Create)
 		r.Get("/", teacherHandler.GetAll)
@@ -71,22 +75,16 @@ func main() {
 	}
 }
 
-// TenantContextMiddleware adalah middleware untuk mengekstrak ID tenant
-// dari header dan menyisipkannya ke dalam request context.
 func TenantContextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Di aplikasi nyata, ini bisa dari JWT, subdomain, dll.
-		// Untuk contoh ini, kita ambil dari header `X-Tenant-ID`.
 		tenantID := r.Header.Get("X-Tenant-ID")
 		if tenantID == "" {
 			http.Error(w, "Header X-Tenant-ID wajib diisi", http.StatusBadRequest)
 			return
 		}
 
-		// Sisipkan tenantID ke dalam context
 		ctx := context.WithValue(r.Context(), "schemaName", tenantID)
 
-		// Lanjutkan ke handler berikutnya dengan context yang sudah diperbarui
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
