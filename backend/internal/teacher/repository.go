@@ -8,21 +8,15 @@ import (
 
 // Repository mendefinisikan interface untuk interaksi database guru.
 type Repository interface {
-	// Create membuat user baru dan data guru di dalam satu transaksi.
-	// Menggunakan schemaName untuk menargetkan skema tenant yang benar.
 	Create(ctx context.Context, schemaName string, user *User, teacher *Teacher) error
-
-	// GetAll mengambil semua data guru dari skema tenant yang ditentukan.
 	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
-
-	// GetByID mengambil satu data guru berdasarkan ID dari skema tenant yang ditentukan.
 	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
-
-	// Update memperbarui data guru di database berdasarkan ID.
 	Update(ctx context.Context, schemaName string, teacher *Teacher) error
+	Delete(ctx context.Context, schemaName string, teacherID string) error
 
-	// Delete menghapus data user (dan guru yang terkait) berdasarkan ID guru.
-	Delete(ctx context.Context, schemaName string, teacherID string) error // <-- TAMBAHKAN INI
+	// GetByEmail mencari satu data user berdasarkan alamat email.
+	// Kita butuh ini untuk proses login.
+	GetByEmail(ctx context.Context, schemaName string, email string) (*User, error) // <-- TAMBAHKAN INI
 }
 
 // postgresRepository adalah implementasi dari Repository menggunakan PostgreSQL.
@@ -184,33 +178,64 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, teac
 }
 
 // Delete adalah implementasi untuk menghapus data guru.
-// Metode ini menghapus dari tabel 'users' dan bergantung pada 'ON DELETE CASCADE'
-// untuk secara otomatis menghapus data dari tabel 'teachers'.
 func (r *postgresRepository) Delete(ctx context.Context, schemaName string, teacherID string) error {
-	// 1. Set search_path untuk menargetkan skema tenant yang benar.
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	// 2. Siapkan query untuk menghapus user berdasarkan ID guru.
-	// Kita menggunakan subquery untuk menemukan user_id yang sesuai.
 	query := `DELETE FROM users WHERE id = (SELECT user_id FROM teachers WHERE id = $1)`
 
-	// 3. Eksekusi query.
 	result, err := r.db.ExecContext(ctx, query, teacherID)
 	if err != nil {
 		return fmt.Errorf("gagal mengeksekusi query delete: %w", err)
 	}
 
-	// 4. Cek apakah ada baris yang benar-benar dihapus.
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("gagal memeriksa baris yang terpengaruh: %w", err)
 	}
 	if rowsAffected == 0 {
-		return sql.ErrNoRows // ID tidak ditemukan.
+		return sql.ErrNoRows
 	}
 
 	return nil
+}
+
+// GetByEmail adalah implementasi untuk mengambil data user berdasarkan email.
+func (r *postgresRepository) GetByEmail(ctx context.Context, schemaName string, email string) (*User, error) {
+	// 1. Set search_path untuk menargetkan skema tenant yang benar.
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	// 2. Siapkan query SQL untuk mengambil user berdasarkan email.
+	// Kita butuh semua field ini untuk verifikasi.
+	query := `SELECT id, email, password_hash, role FROM users WHERE email = $1`
+
+	// 3. Eksekusi query menggunakan QueryRowContext.
+	row := r.db.QueryRowContext(ctx, query, email)
+
+	// 4. Siapkan variabel untuk menampung hasilnya.
+	var user User
+
+	// 5. Pindai (Scan) data.
+	err := row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Role,
+	)
+
+	// 6. Tangani error, terutama jika user tidak ditemukan.
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // User tidak ditemukan, ini bukan error.
+		}
+		return nil, fmt.Errorf("gagal memindai data user by email: %w", err)
+	}
+
+	// 7. Jika berhasil, kembalikan pointer ke data user.
+	return &user, nil
 }

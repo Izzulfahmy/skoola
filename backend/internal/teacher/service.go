@@ -3,12 +3,18 @@ package teacher
 import (
 	"context"
 	"database/sql"
+	"errors" // <-- PASTIKAN PACKAGE INI DI-IMPORT
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// ErrValidation adalah error khusus yang kita kembalikan saat validasi input gagal.
+// Dengan membuatnya menjadi variabel publik (diawali huruf besar),
+// package lain (seperti handler) bisa memeriksanya.
+var ErrValidation = errors.New("validation failed")
 
 // CreateTeacherInput adalah DTO (Data Transfer Object) untuk membawa data dari handler ke service.
 type CreateTeacherInput struct {
@@ -38,38 +44,42 @@ type Service interface {
 }
 
 type service struct {
-	repo     Repository          // Dependensi ke repository
-	validate *validator.Validate // <-- TAMBAHKAN INI
+	repo     Repository
+	validate *validator.Validate
 }
 
 // NewService membuat instance baru dari service.
-func NewService(repo Repository, validate *validator.Validate) Service { // <-- TAMBAHKAN PARAMETER
+func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{
 		repo:     repo,
-		validate: validate, // <-- TAMBAHKAN INI
+		validate: validate,
 	}
 }
 
 // Create adalah implementasi method untuk membuat guru baru.
 func (s *service) Create(ctx context.Context, schemaName string, input CreateTeacherInput) error {
-	// 1. Ganti validasi lama dengan validator yang lebih canggih.
 	if err := s.validate.Struct(input); err != nil {
-		// Jika ada error validasi, kembalikan error yang lebih spesifik.
-		// Ini adalah error dari klien (400 Bad Request), bukan error server (500).
-		return fmt.Errorf("validasi gagal: %w", err)
+		// Cek apakah errornya adalah dari tipe validator.ValidationErrors
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			// Buat pesan error yang lebih deskriptif dari error validasi pertama
+			for _, fieldErr := range validationErrors {
+				// Contoh pesan: "validation failed: field 'Email' gagal pada tag 'email'"
+				return fmt.Errorf("%w: field '%s' failed on the '%s' tag", ErrValidation, fieldErr.Field(), fieldErr.Tag())
+			}
+		}
+		// Jika bukan error validasi yang spesifik, tetap kembalikan error umum
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 
-	// 2. Hash password sebelum disimpan
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
 	if err != nil {
 		return fmt.Errorf("gagal melakukan hash password: %w", err)
 	}
 
-	// 3. Generate ID unik untuk user dan teacher
 	userID := uuid.New().String()
 	teacherID := uuid.New().String()
 
-	// 4. Siapkan struct User dan Teacher untuk dikirim ke repository
 	user := &User{
 		ID:           userID,
 		Email:        input.Email,
@@ -85,7 +95,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 		NomorTelepon: stringToPtr(input.NomorTelepon),
 	}
 
-	// 5. Panggil repository untuk menyimpan data ke database
 	err = s.repo.Create(ctx, schemaName, user, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal membuat guru di service: %w", err)
@@ -114,12 +123,16 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*T
 
 // Update adalah implementasi untuk memperbarui data guru.
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error {
-	// Tambahkan validasi di sini juga
 	if err := s.validate.Struct(input); err != nil {
-		return fmt.Errorf("validasi gagal: %w", err)
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, fieldErr := range validationErrors {
+				return fmt.Errorf("%w: field '%s' failed on the '%s' tag", ErrValidation, fieldErr.Field(), fieldErr.Tag())
+			}
+		}
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 
-	// 1. Pertama, dapatkan data guru yang ada saat ini.
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
 		return fmt.Errorf("gagal mencari guru untuk diupdate: %w", err)
@@ -128,13 +141,11 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 		return sql.ErrNoRows
 	}
 
-	// 2. Terapkan perubahan dari input ke data yang sudah ada.
 	teacher.NamaLengkap = input.NamaLengkap
 	teacher.NIP = stringToPtr(input.NIP)
 	teacher.Alamat = stringToPtr(input.Alamat)
 	teacher.NomorTelepon = stringToPtr(input.NomorTelepon)
 
-	// 3. Panggil repository untuk menyimpan perubahan ke database.
 	err = s.repo.Update(ctx, schemaName, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal mengupdate guru di service: %w", err)

@@ -3,6 +3,7 @@ package teacher
 import (
 	"database/sql"
 	"encoding/json"
+	"errors" // <-- PASTIKAN PACKAGE INI DI-IMPORT
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -36,6 +37,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.Create(r.Context(), schemaName.(string), input)
 	if err != nil {
+		// PERIKSA JENIS ERROR DI SINI!
+		if errors.Is(err, ErrValidation) {
+			// Jika ini adalah error validasi, kirim 400 Bad Request.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Untuk semua error lainnya, anggap sebagai error server.
 		http.Error(w, "Gagal membuat guru: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -116,10 +125,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.Update(r.Context(), schemaName.(string), teacherID, input)
 	if err != nil {
+		// PERIKSA JENIS ERROR DI SINI!
+		if errors.Is(err, ErrValidation) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		if err == sql.ErrNoRows {
 			http.Error(w, "Guru tidak ditemukan untuk diupdate", http.StatusNotFound)
 			return
 		}
+
 		http.Error(w, "Gagal mengupdate data guru: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -131,21 +147,18 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete adalah handler untuk endpoint DELETE /teachers/{id}.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	// 1. Ambil schemaName dari context.
 	schemaName := r.Context().Value("schemaName")
 	if schemaName == nil || schemaName.(string) == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant", http.StatusUnauthorized)
 		return
 	}
 
-	// 2. Ambil parameter ID dari URL.
 	teacherID := chi.URLParam(r, "teacherID")
 	if teacherID == "" {
 		http.Error(w, "ID guru tidak boleh kosong", http.StatusBadRequest)
 		return
 	}
 
-	// 3. Panggil service untuk menjalankan logika delete.
 	err := h.service.Delete(r.Context(), schemaName.(string), teacherID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -156,8 +169,5 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Kirim respons berhasil.
-	// Untuk DELETE, respons terbaik adalah 204 No Content, yang artinya
-	// "berhasil, dan tidak ada konten apa pun untuk dikirim kembali".
 	w.WriteHeader(http.StatusNoContent)
 }
