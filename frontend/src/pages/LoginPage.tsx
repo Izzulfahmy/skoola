@@ -1,17 +1,19 @@
 // file: src/pages/LoginPage.tsx
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // <-- Impor useNavigate
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, Row, Col, Typography, message } from 'antd';
 import { loginUser } from '../api/auth';
 import type { LoginInput } from '../types';
 import { AxiosError } from 'axios';
-import { useAuth } from '../context/AuthContext'; // <-- Impor hook useAuth
+import { useAuth } from '../context/AuthContext';
 
 const { Title } = Typography;
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth(); // <-- Gunakan hook untuk mendapatkan fungsi login
+  const { login } = useAuth();
+  const navigate = useNavigate(); // <-- Inisialisasi hook navigasi
 
   const onFinish = async (values: LoginInput) => {
     setLoading(true);
@@ -19,14 +21,14 @@ const LoginPage = () => {
       const tenantId = 'sekolah_pertama';
       const response = await loginUser(values, tenantId);
       
-      message.success('Login berhasil!');
-      
-      // Panggil fungsi login dari context untuk menyimpan token secara global
+      message.success('Login berhasil! Mengarahkan ke dashboard...');
       login(response.token);
+      
+      // Arahkan ke dashboard setelah login berhasil
+      navigate('/dashboard'); // <-- TAMBAHKAN INI
 
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
-      // Ambil pesan error dari backend Go Anda
       const serverErrorMessage = (axiosError.response?.data as any)?.error || axiosError.response?.data || 'Email atau password salah';
       message.error(serverErrorMessage);
     } finally {
