@@ -1,13 +1,14 @@
+// file: backend/internal/student/handler.go
 package student
 
 import (
-	"database/sql" // <-- Tambah import ini
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"skoola/internal/auth" // Kita butuh akses ke kunci konteks
+	"skoola/internal/middleware" // <-- 1. UBAH IMPORT DARI auth MENJADI middleware
 
-	"github.com/go-chi/chi/v5" // <-- Tambah import ini
+	"github.com/go-chi/chi/v5"
 )
 
 // Handler menangani request HTTP untuk entitas siswa.
@@ -24,8 +25,8 @@ func NewHandler(s Service) *Handler {
 
 // Create adalah handler untuk endpoint POST /students.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	// Ambil schemaName dari context, yang sudah disisipkan oleh AuthMiddleware
-	schemaName, ok := r.Context().Value(auth.SchemaNameKey).(string)
+	// 2. GUNAKAN middleware.SchemaNameKey
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
 		return
@@ -37,7 +38,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Panggil service untuk membuat siswa baru
 	newStudent, err := h.service.Create(r.Context(), schemaName, input)
 	if err != nil {
 		if errors.Is(err, ErrValidation) {
@@ -48,15 +48,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Kirim respons berhasil dengan data siswa yang baru dibuat
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated) // 201 Created
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newStudent)
 }
 
 // GetAll adalah handler untuk endpoint GET /students.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	schemaName, ok := r.Context().Value(auth.SchemaNameKey).(string)
+	// 3. PERBAIKI JUGA DI SINI
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
 		return
@@ -69,14 +69,19 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK) // 200 OK
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(students)
 }
 
 // GetByID adalah handler untuk endpoint GET /students/{id}.
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	schemaName, _ := r.Context().Value(auth.SchemaNameKey).(string)
-	studentID := chi.URLParam(r, "studentID") // Kita akan definisikan 'studentID' di router
+	// 4. DAN DI SINI
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
+	studentID := chi.URLParam(r, "studentID")
 
 	student, err := h.service.GetByID(r.Context(), schemaName, studentID)
 	if err != nil {
@@ -95,7 +100,12 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 // Update adalah handler untuk endpoint PUT /students/{id}.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	schemaName, _ := r.Context().Value(auth.SchemaNameKey).(string)
+	// 5. DAN DI SINI
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
 	studentID := chi.URLParam(r, "studentID")
 
 	var input UpdateStudentInput
@@ -125,7 +135,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete adalah handler untuk endpoint DELETE /students/{id}.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	schemaName, _ := r.Context().Value(auth.SchemaNameKey).(string)
+	// 6. DAN TERAKHIR DI SINI
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
 	studentID := chi.URLParam(r, "studentID")
 
 	err := h.service.Delete(r.Context(), schemaName, studentID)

@@ -1,3 +1,4 @@
+// file: backend/internal/auth/middleware.go
 package auth
 
 import (
@@ -5,15 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	"skoola/internal/middleware" // <-- 1. IMPORT PAKET BARU
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Definisikan tipe baru untuk kunci konteks
-type contextKey string
-
-const UserIDKey = contextKey("userID")
-const UserRoleKey = contextKey("userRole")
-const SchemaNameKey = contextKey("schemaName")
+// 2. Definisi kunci konteks (contextKey, UserIDKey, dll.) telah dihapus dari sini.
 
 // Middleware struct untuk menampung dependensi seperti kunci rahasia.
 type Middleware struct {
@@ -50,7 +48,6 @@ func (m *Middleware) AuthMiddleware(next http.Handler) http.Handler {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, http.ErrAbortHandler
 			}
-			// Gunakan m.jwtSecret, bukan variabel global lagi
 			return m.jwtSecret, nil
 		})
 
@@ -62,11 +59,11 @@ func (m *Middleware) AuthMiddleware(next http.Handler) http.Handler {
 
 		// 5. Cek apakah token valid dan ambil claims-nya
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// 6. Simpan informasi dari token ke dalam context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, UserIDKey, claims["sub"])
-			ctx = context.WithValue(ctx, UserRoleKey, claims["role"])
-			ctx = context.WithValue(ctx, SchemaNameKey, claims["sch"])
+			// 3. GUNAKAN KUNCI DARI PAKET middleware
+			ctx = context.WithValue(ctx, middleware.UserIDKey, claims["sub"])
+			ctx = context.WithValue(ctx, middleware.UserRoleKey, claims["role"])
+			ctx = context.WithValue(ctx, middleware.SchemaNameKey, claims["sch"])
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
@@ -76,11 +73,11 @@ func (m *Middleware) AuthMiddleware(next http.Handler) http.Handler {
 }
 
 // Authorize adalah fungsi tingkat tinggi yang membuat middleware otorisasi.
-// Fungsi ini tetap bisa berdiri sendiri (tidak perlu menjadi method).
 func Authorize(allowedRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userRole, ok := r.Context().Value(UserRoleKey).(string)
+			// 4. GUNAKAN KUNCI DARI PAKET middleware
+			userRole, ok := r.Context().Value(middleware.UserRoleKey).(string)
 			if !ok {
 				http.Error(w, "Peran pengguna tidak ditemukan di dalam token", http.StatusInternalServerError)
 				return
