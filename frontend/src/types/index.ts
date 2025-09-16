@@ -14,3 +14,11 @@ export interface Teacher {
   created_at: string;
   updated_at: string;
 }
+export interface CreateTeacherInput {
+  email: string;
+  password?: string; // Password opsional di form, tapi wajib di backend
+  nama_lengkap: string;
+  nip?: string;
+  alamat?: string;
+  nomor_telepon?: string;
+}
