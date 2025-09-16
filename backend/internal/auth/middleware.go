@@ -1,4 +1,3 @@
-// file: internal/auth/middleware.go
 package auth
 
 import (
@@ -9,15 +8,27 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Definisikan tipe baru untuk kunci konteks, sama seperti di main.go
+// Definisikan tipe baru untuk kunci konteks
 type contextKey string
 
 const UserIDKey = contextKey("userID")
 const UserRoleKey = contextKey("userRole")
 const SchemaNameKey = contextKey("schemaName")
 
-// AuthMiddleware adalah middleware untuk memverifikasi token JWT.
-func AuthMiddleware(next http.Handler) http.Handler {
+// Middleware struct untuk menampung dependensi seperti kunci rahasia.
+type Middleware struct {
+	jwtSecret []byte
+}
+
+// NewMiddleware membuat instance baru dari auth middleware.
+func NewMiddleware(jwtSecret string) *Middleware {
+	return &Middleware{
+		jwtSecret: []byte(jwtSecret),
+	}
+}
+
+// AuthMiddleware sekarang adalah method dari struct Middleware.
+func (m *Middleware) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. Ambil header Authorization
 		authHeader := r.Header.Get("Authorization")
@@ -27,7 +38,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// 2. Header harus berformat "Bearer <token>"
-		// Kita pisahkan untuk mendapatkan tokennya saja.
 		headerParts := strings.Split(authHeader, " ")
 		if len(headerParts) != 2 || strings.ToLower(headerParts[0]) != "bearer" {
 			http.Error(w, "Format header otorisasi salah", http.StatusUnauthorized)
@@ -36,13 +46,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		tokenString := headerParts[1]
 
 		// 3. Parse dan verifikasi token
-		// Kita menggunakan jwt.Parse untuk memvalidasi tanda tangan token.
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Pastikan metode signing-nya adalah HMAC (sesuai dengan yang kita gunakan saat membuat token)
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, http.ErrAbortHandler // Metode signing tidak valid
+				return nil, http.ErrAbortHandler
 			}
-			return JWTSecretKey, nil
+			// Gunakan m.jwtSecret, bukan variabel global lagi
+			return m.jwtSecret, nil
 		})
 
 		// 4. Tangani error saat parsing
@@ -53,17 +62,44 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		// 5. Cek apakah token valid dan ambil claims-nya
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// 6. (Sangat Berguna) Simpan informasi dari token ke dalam context.
-			// Handler selanjutnya bisa mengakses informasi user tanpa perlu query database lagi.
+			// 6. Simpan informasi dari token ke dalam context
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, UserIDKey, claims["sub"])
 			ctx = context.WithValue(ctx, UserRoleKey, claims["role"])
 			ctx = context.WithValue(ctx, SchemaNameKey, claims["sch"])
 
-			// Lanjutkan ke handler berikutnya dengan context yang sudah diperbarui
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
 			http.Error(w, "Token tidak valid", http.StatusUnauthorized)
 		}
 	})
+}
+
+// Authorize adalah fungsi tingkat tinggi yang membuat middleware otorisasi.
+// Fungsi ini tetap bisa berdiri sendiri (tidak perlu menjadi method).
+func Authorize(allowedRoles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userRole, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok {
+				http.Error(w, "Peran pengguna tidak ditemukan di dalam token", http.StatusInternalServerError)
+				return
+			}
+
+			isAllowed := false
+			for _, role := range allowedRoles {
+				if userRole == role {
+					isAllowed = true
+					break
+				}
+			}
+
+			if !isAllowed {
+				http.Error(w, "Anda tidak memiliki hak akses untuk sumber daya ini", http.StatusForbidden)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

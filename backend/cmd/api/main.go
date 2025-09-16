@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"skoola/internal/auth"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
+
+	"github.com/joho/godotenv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,14 +22,28 @@ import (
 )
 
 func main() {
-	// 1. Koneksi ke Database
-	connStr := "user=postgres password=@Vinceru2 dbname=skoola_db sslmode=disable"
+	// 1. Muat konfigurasi dari file .env
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Peringatan: Gagal memuat file .env. Menggunakan environment variables sistem.")
+	}
+
+	// 2. Baca semua konfigurasi dari environment
+	connStr := os.Getenv("DB_CONNECTION_STRING")
+	if connStr == "" {
+		log.Fatal("DB_CONNECTION_STRING tidak ditemukan di environment")
+	}
+	jwtSecret := os.Getenv("JWT_SECRET_KEY")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET_KEY tidak ditemukan di environment")
+	}
+
+	// 3. Koneksi ke Database
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Gagal terhubung ke database:", err)
 	}
 	defer db.Close()
-
 	if err := db.Ping(); err != nil {
 		log.Fatal("Database tidak dapat dijangkau:", err)
 	}
@@ -34,25 +51,22 @@ func main() {
 
 	validate := validator.New()
 
-	// 2. Inisialisasi semua lapisan (Wiring Dependencies)
-
-	// Inisialisasi lapisan teacher
+	// 4. Inisialisasi semua lapisan dengan dependensi yang benar
 	teacherRepo := teacher.NewRepository(db)
 	teacherService := teacher.NewService(teacherRepo, validate)
 	teacherHandler := teacher.NewHandler(teacherService)
 
-	// Inisialisasi lapisan auth
-	authService := auth.NewService(teacherRepo)
+	// Perbarui inisialisasi auth
+	authService := auth.NewService(teacherRepo, jwtSecret)
 	authHandler := auth.NewHandler(authService)
+	authMiddleware := auth.NewMiddleware(jwtSecret) // Buat instance middleware
 
-	// Inisialisasi lapisan student
 	studentRepo := student.NewRepository(db)
 	studentService := student.NewService(studentRepo, validate)
 	studentHandler := student.NewHandler(studentService)
 
-	// 3. Setup Router menggunakan Chi
+	// 5. Setup Router
 	r := chi.NewRouter()
-
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -64,36 +78,38 @@ func main() {
 
 	// === ROUTE YANG DILINDUNGI ===
 	r.Route("/teachers", func(r chi.Router) {
-		r.Use(TenantContextMiddleware)
-		r.Use(auth.AuthMiddleware)
-
-		r.Post("/", teacherHandler.Create)
-		r.Get("/", teacherHandler.GetAll)
-		r.Get("/{teacherID}", teacherHandler.GetByID)
-		r.Put("/{teacherID}", teacherHandler.Update)
-		r.Delete("/{teacherID}", teacherHandler.Delete)
+		r.Use(authMiddleware.AuthMiddleware) // Gunakan method dari instance
+		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
+		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
+		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
+		r.With(auth.Authorize("admin")).Put("/{teacherID}", teacherHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{teacherID}", teacherHandler.Delete)
 	})
 
-	// Grup route untuk students
 	r.Route("/students", func(r chi.Router) {
-		r.Use(TenantContextMiddleware)
-		r.Use(auth.AuthMiddleware)
-
-		r.Post("/", studentHandler.Create)
-		r.Get("/", studentHandler.GetAll)
-		r.Get("/{studentID}", studentHandler.GetByID)   // <-- Tambah
-		r.Put("/{studentID}", studentHandler.Update)    // <-- Tambah
-		r.Delete("/{studentID}", studentHandler.Delete) // <-- Tambah
+		r.Use(authMiddleware.AuthMiddleware) // Gunakan method dari instance
+		r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
+		r.With(auth.Authorize("admin", "teacher")).Get("/{studentID}", studentHandler.GetByID)
+		r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
+		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
 
-	// 5. Jalankan Server
-	port := "8080"
+	// 6. Jalankan Server
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080" // Default port jika tidak diset
+	}
 	log.Printf("Server berjalan di port %s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("Gagal menjalankan server: %v", err)
 	}
 }
 
+// TenantContextMiddleware tidak lagi digunakan pada route yang dilindungi
+// karena informasinya sudah diambil dari token JWT oleh AuthMiddleware.
+// Namun, kita bisa tetap menyimpannya di sini jika suatu saat dibutuhkan
+// untuk route publik yang memerlukan tenant.
 func TenantContextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID := r.Header.Get("X-Tenant-ID")
@@ -101,9 +117,7 @@ func TenantContextMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Header X-Tenant-ID wajib diisi", http.StatusBadRequest)
 			return
 		}
-
 		ctx := context.WithValue(r.Context(), "schemaName", tenantID)
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

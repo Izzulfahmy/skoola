@@ -17,10 +17,6 @@ var (
 	ErrInvalidCredentials = errors.New("email atau password salah")
 )
 
-// JWTSecretKey adalah kunci rahasia untuk menandatangani token.
-// DI APLIKASI PRODUKSI, INI HARUS DIAMBIL DARI ENVIRONMENT VARIABLE!
-var JWTSecretKey = []byte("kunci-rahasia-yang-sangat-aman-dan-panjang")
-
 // Service mendefinisikan interface untuk layanan otentikasi.
 type Service interface {
 	Login(ctx context.Context, schemaName string, input LoginInput) (string, error)
@@ -34,12 +30,14 @@ type LoginInput struct {
 
 type service struct {
 	teacherRepo teacher.Repository // Dependensi ke repository untuk mencari user
+	jwtSecret   []byte             // Kunci rahasia JWT disimpan di sini
 }
 
-// NewService membuat instance baru dari service otentikasi.
-func NewService(teacherRepo teacher.Repository) Service {
+// NewService sekarang menerima jwtSecret sebagai argumen.
+func NewService(teacherRepo teacher.Repository, jwtSecret string) Service {
 	return &service{
 		teacherRepo: teacherRepo,
+		jwtSecret:   []byte(jwtSecret), // Simpan kuncinya di sini
 	}
 }
 
@@ -57,25 +55,22 @@ func (s *service) Login(ctx context.Context, schemaName string, input LoginInput
 	// 2. Bandingkan password yang diberikan dengan hash di database
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
 	if err != nil {
-		// Jika error, kemungkinan besar karena password tidak cocok.
 		return "", ErrInvalidCredentials
 	}
 
 	// 3. Jika password cocok, buat token JWT
-	// Tentukan 'claims' atau data yang ingin kita simpan di dalam token
 	claims := jwt.MapClaims{
-		"sub":  user.ID,                               // Subject (ID user)
-		"role": user.Role,                             // Peran user
-		"sch":  schemaName,                            // Skema/Tenant
-		"exp":  time.Now().Add(time.Hour * 24).Unix(), // Waktu kedaluwarsa (24 jam)
-		"iat":  time.Now().Unix(),                     // Waktu token dibuat
+		"sub":  user.ID,
+		"role": user.Role,
+		"sch":  schemaName,
+		"exp":  time.Now().Add(time.Hour * 24).Unix(),
+		"iat":  time.Now().Unix(),
 	}
 
-	// Buat token baru dengan claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// Tandatangani token dengan kunci rahasia untuk menghasilkan string token
-	tokenString, err := token.SignedString(JWTSecretKey)
+	// Gunakan s.jwtSecret, bukan variabel global lagi
+	tokenString, err := token.SignedString(s.jwtSecret)
 	if err != nil {
 		return "", fmt.Errorf("gagal membuat token: %w", err)
 	}
