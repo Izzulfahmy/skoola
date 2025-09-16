@@ -13,11 +13,11 @@ import (
 	"skoola/internal/student"
 	"skoola/internal/teacher"
 
-	"github.com/joho/godotenv"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors" // <-- 1. TAMBAHKAN IMPORT INI
 	"github.com/go-playground/validator/v10"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -59,7 +59,7 @@ func main() {
 	// Perbarui inisialisasi auth
 	authService := auth.NewService(teacherRepo, jwtSecret)
 	authHandler := auth.NewHandler(authService)
-	authMiddleware := auth.NewMiddleware(jwtSecret) // Buat instance middleware
+	authMiddleware := auth.NewMiddleware(jwtSecret)
 
 	studentRepo := student.NewRepository(db)
 	studentService := student.NewService(studentRepo, validate)
@@ -67,6 +67,18 @@ func main() {
 
 	// 5. Setup Router
 	r := chi.NewRouter()
+
+	// 2. TAMBAHKAN BLOK MIDDLEWARE CORS DI SINI
+	// ===============================================
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // Izinkan frontend Anda
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+	// ===============================================
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -78,7 +90,7 @@ func main() {
 
 	// === ROUTE YANG DILINDUNGI ===
 	r.Route("/teachers", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware) // Gunakan method dari instance
+		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
@@ -87,7 +99,7 @@ func main() {
 	})
 
 	r.Route("/students", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware) // Gunakan method dari instance
+		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{studentID}", studentHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
@@ -98,7 +110,7 @@ func main() {
 	// 6. Jalankan Server
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
-		port = "8080" // Default port jika tidak diset
+		port = "8080"
 	}
 	log.Printf("Server berjalan di port %s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
@@ -106,10 +118,6 @@ func main() {
 	}
 }
 
-// TenantContextMiddleware tidak lagi digunakan pada route yang dilindungi
-// karena informasinya sudah diambil dari token JWT oleh AuthMiddleware.
-// Namun, kita bisa tetap menyimpannya di sini jika suatu saat dibutuhkan
-// untuk route publik yang memerlukan tenant.
 func TenantContextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID := r.Header.Get("X-Tenant-ID")
