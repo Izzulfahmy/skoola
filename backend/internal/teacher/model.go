@@ -17,6 +17,7 @@ type User struct {
 type Teacher struct {
 	ID           string    `json:"id"`
 	UserID       string    `json:"user_id"`
+	Email        string    `json:"email"` // <-- TAMBAHKAN FIELD INI
 	NamaLengkap  string    `json:"nama_lengkap"`
 	NIP          *string   `json:"nip"` // Pointer agar bisa NULL
 	Alamat       *string   `json:"alamat"`

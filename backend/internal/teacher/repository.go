@@ -13,10 +13,7 @@ type Repository interface {
 	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
 	Update(ctx context.Context, schemaName string, teacher *Teacher) error
 	Delete(ctx context.Context, schemaName string, teacherID string) error
-
-	// GetByEmail mencari satu data user berdasarkan alamat email.
-	// Kita butuh ini untuk proses login.
-	GetByEmail(ctx context.Context, schemaName string, email string) (*User, error) // <-- TAMBAHKAN INI
+	GetByEmail(ctx context.Context, schemaName string, email string) (*User, error)
 }
 
 // postgresRepository adalah implementasi dari Repository menggunakan PostgreSQL.
@@ -70,10 +67,12 @@ func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]T
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
+	// UBAH QUERY UNTUK JOIN DENGAN TABEL USERS
 	query := `
-		SELECT id, user_id, nama_lengkap, nip, alamat, nomor_telepon, created_at, updated_at
-		FROM teachers
-		ORDER BY nama_lengkap ASC
+		SELECT t.id, t.user_id, u.email, t.nama_lengkap, t.nip, t.alamat, t.nomor_telepon, t.created_at, t.updated_at
+		FROM teachers t
+		JOIN users u ON t.user_id = u.id
+		ORDER BY t.nama_lengkap ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -84,9 +83,11 @@ func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]T
 	var teachers []Teacher
 	for rows.Next() {
 		var teacher Teacher
+		// TAMBAHKAN &teacher.Email DI DALAM SCAN
 		err := rows.Scan(
 			&teacher.ID,
 			&teacher.UserID,
+			&teacher.Email,
 			&teacher.NamaLengkap,
 			&teacher.NIP,
 			&teacher.Alamat,
@@ -114,17 +115,21 @@ func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id 
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
+	// UBAH QUERY UNTUK JOIN DENGAN TABEL USERS
 	query := `
-		SELECT id, user_id, nama_lengkap, nip, alamat, nomor_telepon, created_at, updated_at
-		FROM teachers
-		WHERE id = $1
+		SELECT t.id, t.user_id, u.email, t.nama_lengkap, t.nip, t.alamat, t.nomor_telepon, t.created_at, t.updated_at
+		FROM teachers t
+		JOIN users u ON t.user_id = u.id
+		WHERE t.id = $1
 	`
 	row := r.db.QueryRowContext(ctx, query, id)
 
 	var teacher Teacher
+	// TAMBAHKAN &teacher.Email DI DALAM SCAN
 	err := row.Scan(
 		&teacher.ID,
 		&teacher.UserID,
+		&teacher.Email,
 		&teacher.NamaLengkap,
 		&teacher.NIP,
 		&teacher.Alamat,
@@ -145,17 +150,26 @@ func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id 
 
 // Update adalah implementasi untuk memperbarui data guru.
 func (r *postgresRepository) Update(ctx context.Context, schemaName string, teacher *Teacher) error {
+	// 1. Mulai transaksi
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback() // Rollback jika ada error
+
+	// 2. Set schema untuk transaksi ini
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
-	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+	if _, err := tx.ExecContext(ctx, setSchemaQuery); err != nil {
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	query := `
+	// 3. Query pertama: Update tabel 'teachers'
+	teacherQuery := `
 		UPDATE teachers
 		SET nama_lengkap = $1, nip = $2, alamat = $3, nomor_telepon = $4, updated_at = NOW()
 		WHERE id = $5
 	`
-	result, err := r.db.ExecContext(ctx, query,
+	_, err = tx.ExecContext(ctx, teacherQuery,
 		teacher.NamaLengkap,
 		teacher.NIP,
 		teacher.Alamat,
@@ -166,15 +180,24 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, teac
 		return fmt.Errorf("gagal mengeksekusi query update teacher: %w", err)
 	}
 
+	// 4. Query kedua: Update tabel 'users'
+	userQuery := `UPDATE users SET email = $1 WHERE id = $2`
+	result, err := tx.ExecContext(ctx, userQuery, teacher.Email, teacher.UserID)
+	if err != nil {
+		return fmt.Errorf("gagal mengeksekusi query update user email: %w", err)
+	}
+
+	// 5. Cek apakah ada baris yang terpengaruh (validasi)
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("gagal memeriksa baris yang terpengaruh: %w", err)
 	}
 	if rowsAffected == 0 {
-		return sql.ErrNoRows
+		return sql.ErrNoRows // ID tidak ditemukan
 	}
 
-	return nil
+	// 6. Jika semua berhasil, commit transaksi
+	return tx.Commit()
 }
 
 // Delete adalah implementasi untuk menghapus data guru.
@@ -204,23 +227,14 @@ func (r *postgresRepository) Delete(ctx context.Context, schemaName string, teac
 
 // GetByEmail adalah implementasi untuk mengambil data user berdasarkan email.
 func (r *postgresRepository) GetByEmail(ctx context.Context, schemaName string, email string) (*User, error) {
-	// 1. Set search_path untuk menargetkan skema tenant yang benar.
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	// 2. Siapkan query SQL untuk mengambil user berdasarkan email.
-	// Kita butuh semua field ini untuk verifikasi.
 	query := `SELECT id, email, password_hash, role FROM users WHERE email = $1`
-
-	// 3. Eksekusi query menggunakan QueryRowContext.
 	row := r.db.QueryRowContext(ctx, query, email)
-
-	// 4. Siapkan variabel untuk menampung hasilnya.
 	var user User
-
-	// 5. Pindai (Scan) data.
 	err := row.Scan(
 		&user.ID,
 		&user.Email,
@@ -228,14 +242,11 @@ func (r *postgresRepository) GetByEmail(ctx context.Context, schemaName string, 
 		&user.Role,
 	)
 
-	// 6. Tangani error, terutama jika user tidak ditemukan.
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // User tidak ditemukan, ini bukan error.
 		}
 		return nil, fmt.Errorf("gagal memindai data user by email: %w", err)
 	}
-
-	// 7. Jika berhasil, kembalikan pointer ke data user.
 	return &user, nil
 }

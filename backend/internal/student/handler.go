@@ -6,26 +6,22 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"skoola/internal/middleware" // <-- 1. UBAH IMPORT DARI auth MENJADI middleware
+	"skoola/internal/middleware" // <-- Pastikan ini mengimpor 'middleware'
 
 	"github.com/go-chi/chi/v5"
 )
 
-// Handler menangani request HTTP untuk entitas siswa.
 type Handler struct {
 	service Service
 }
 
-// NewHandler membuat instance baru dari Handler siswa.
 func NewHandler(s Service) *Handler {
 	return &Handler{
 		service: s,
 	}
 }
 
-// Create adalah handler untuk endpoint POST /students.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	// 2. GUNAKAN middleware.SchemaNameKey
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
@@ -53,9 +49,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newStudent)
 }
 
-// GetAll adalah handler untuk endpoint GET /students.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	// 3. PERBAIKI JUGA DI SINI
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
@@ -73,11 +67,9 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(students)
 }
 
-// GetByID adalah handler untuk endpoint GET /students/{id}.
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	// 4. DAN DI SINI
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
-	if !ok || schemaName == "" {
+	if !ok {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
 		return
 	}
@@ -98,11 +90,9 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(student)
 }
 
-// Update adalah handler untuk endpoint PUT /students/{id}.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	// 5. DAN DI SINI
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
-	if !ok || schemaName == "" {
+	if !ok {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
 		return
 	}
@@ -120,7 +110,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err == sql.ErrNoRows || errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Siswa tidak ditemukan untuk diupdate", http.StatusNotFound)
 			return
 		}
@@ -133,11 +123,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Siswa berhasil diperbarui"})
 }
 
-// Delete adalah handler untuk endpoint DELETE /students/{id}.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	// 6. DAN TERAKHIR DI SINI
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
-	if !ok || schemaName == "" {
+	if !ok {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
 		return
 	}
@@ -145,7 +133,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.Delete(r.Context(), schemaName, studentID)
 	if err != nil {
-		if err == sql.ErrNoRows || errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Siswa tidak ditemukan untuk dihapus", http.StatusNotFound)
 			return
 		}

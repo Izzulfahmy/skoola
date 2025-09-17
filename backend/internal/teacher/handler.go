@@ -6,27 +6,22 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-
-	"skoola/internal/middleware" // <-- 1. IMPORT PAKET middleware
+	"skoola/internal/middleware" // <-- Pastikan ini mengimpor 'middleware'
 
 	"github.com/go-chi/chi/v5"
 )
 
-// Handler menangani request HTTP untuk entitas guru.
 type Handler struct {
 	service Service
 }
 
-// NewHandler membuat instance baru dari Handler.
 func NewHandler(s Service) *Handler {
 	return &Handler{
 		service: s,
 	}
 }
 
-// Create adalah handler untuk endpoint POST /teachers.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	// 2. Gunakan kunci dari paket middleware untuk mengambil schemaName
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
 		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
@@ -54,7 +49,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Guru berhasil dibuat"})
 }
 
-// GetAll adalah handler untuk endpoint GET /teachers.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
@@ -73,7 +67,6 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teachers)
 }
 
-// GetByID adalah handler untuk endpoint GET /teachers/{id}.
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
@@ -103,7 +96,6 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teacher)
 }
 
-// Update adalah handler untuk endpoint PUT /teachers/{id}.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
@@ -144,7 +136,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Guru berhasil diperbarui"})
 }
 
-// Delete adalah handler untuk endpoint DELETE /teachers/{id}.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
