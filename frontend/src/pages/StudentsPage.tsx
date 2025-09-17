@@ -1,2 +1,134 @@
-const StudentsPage = () => <div><h1>Halaman Data Siswa</h1></div>;
+// file: src/pages/StudentsPage.tsx
+import { useEffect, useState } from 'react';
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm } from 'antd';
+import type { TableColumnsType } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { getStudents, createStudent, updateStudent, deleteStudent } from '../api/students';
+import type { Student, CreateStudentInput, UpdateStudentInput } from '../types';
+import StudentForm from '../components/StudentForm';
+
+const { Title } = Typography;
+
+const StudentsPage = () => {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const data = await getStudents();
+      setStudents(data);
+      setError(null);
+    } catch (err) {
+      setError('Gagal memuat data siswa.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const showModal = (student: Student | null) => {
+    setEditingStudent(student);
+    setIsModalOpen(true);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setEditingStudent(null);
+  };
+
+  const handleFormSubmit = async (values: CreateStudentInput | UpdateStudentInput) => {
+    setIsSubmitting(true);
+    try {
+      if (editingStudent) {
+        await updateStudent(editingStudent.id, values);
+        message.success('Data siswa berhasil diperbarui!');
+      } else {
+        await createStudent(values as CreateStudentInput);
+        message.success('Siswa baru berhasil ditambahkan!');
+      }
+      handleCancel();
+      fetchStudents();
+    } catch (err) {
+      message.error('Terjadi kesalahan saat menyimpan data.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteStudent(id);
+      message.success('Data siswa berhasil dihapus!');
+      fetchStudents();
+    } catch (err) {
+      message.error('Gagal menghapus data siswa.');
+    }
+  };
+
+  const columns: TableColumnsType<Student> = [
+    { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap', sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap) },
+    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
+    { title: 'NISN', dataIndex: 'nisn', key: 'nisn', render: (text) => text || '-' },
+    { title: 'Nama Wali', dataIndex: 'nama_wali', key: 'nama_wali', render: (text) => text || '-' },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Space size="middle">
+          <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
+          <Popconfirm
+            title="Hapus Siswa"
+            description="Apakah Anda yakin?"
+            onConfirm={() => handleDelete(record.id)}
+            okText="Ya"
+            cancelText="Tidak"
+          >
+            <Button icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  if (error && !students.length) {
+    return <Alert message="Error" description={error} type="error" showIcon />;
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <Title level={2} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
+          Tambah Siswa
+        </Button>
+      </div>
+      <Table columns={columns} dataSource={students} loading={loading} rowKey="id" scroll={{ x: 'max-content' }} />
+      {isModalOpen && (
+        <Modal
+          title={editingStudent ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}
+          open={isModalOpen}
+          onCancel={handleCancel}
+          destroyOnClose
+          footer={null}
+        >
+          <StudentForm
+            onFinish={handleFormSubmit}
+            onCancel={handleCancel}
+            loading={isSubmitting}
+            initialValues={editingStudent || undefined}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+};
+
 export default StudentsPage;

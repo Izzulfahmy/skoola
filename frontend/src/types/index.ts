@@ -25,5 +25,29 @@ export interface CreateTeacherInput {
   nomor_telepon?: string;
 }
 
-// Hapus 'email' dari Omit
-export type UpdateTeacherInput = Omit<CreateTeacherInput, 'password'>;
+export type UpdateTeacherInput = Omit<CreateTeacherInput, 'password' | 'email'>;
+
+// --- TIPE-TIPE BARU UNTUK SISWA DITAMBAHKAN DI BAWAH INI ---
+
+export interface Student {
+  id: string;
+  nama_lengkap: string;
+  nis?: string;
+  nisn?: string;
+  alamat?: string;
+  nama_wali?: string;
+  nomor_telepon_wali?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateStudentInput {
+  nama_lengkap: string;
+  nis?: string;
+  nisn?: string;
+  alamat?: string;
+  nama_wali?: string;
+  nomor_telepon_wali?: string;
+}
+
+export type UpdateStudentInput = CreateStudentInput;
