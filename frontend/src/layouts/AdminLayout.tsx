@@ -96,7 +96,7 @@ const AdminLayout = () => {
         }}>
           <Outlet />
         </Content>
-        <Footer style={{ textAlign: 'center', padding: '10px 24px' }}>
+        <Footer style={{ textAlign: 'center', padding: '1px 24px' }}>
           Skoola Admin Panel ©{new Date().getFullYear()}
         </Footer>
       </Layout>

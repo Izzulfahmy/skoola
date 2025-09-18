@@ -109,7 +109,6 @@ const TeachersPage = () => {
       render: (_, record) => (
         <Space size="middle">
           <Button icon={<EditOutlined />} onClick={() => showModal(record)}>
-            Edit
           </Button>
           <Popconfirm
             title="Hapus Guru"
@@ -119,7 +118,6 @@ const TeachersPage = () => {
             cancelText="Batal"
           >
             <Button icon={<DeleteOutlined />} danger>
-              Hapus
             </Button>
           </Popconfirm>
         </Space>
