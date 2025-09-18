@@ -8,7 +8,8 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+// PERUBAHAN 1: Impor `useLocation`
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -18,6 +19,8 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  // PERUBAHAN 2: Dapatkan informasi lokasi (URL) saat ini
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -28,6 +31,32 @@ const AdminLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // PERUBAHAN 3: Buat array untuk memetakan path URL ke key menu
+  const menuItems = [
+    {
+      key: '1',
+      path: '/dashboard',
+      icon: <DesktopOutlined />,
+      label: <Link to="/dashboard">Dashboard</Link>,
+    },
+    {
+      key: '2',
+      path: '/teachers',
+      icon: <UserOutlined />,
+      label: <Link to="/teachers">Data Guru</Link>,
+    },
+    {
+      key: '3',
+      path: '/students',
+      icon: <TeamOutlined />,
+      label: <Link to="/students">Data Siswa</Link>,
+    },
+  ];
+  
+  // Cari key menu yang path-nya cocok dengan URL saat ini
+  const currentMenuItem = menuItems.find(item => location.pathname.startsWith(item.path));
+  const selectedKey = currentMenuItem ? currentMenuItem.key : '1'; // Default ke '1' jika tidak cocok
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
@@ -37,24 +66,9 @@ const AdminLayout = () => {
         <Menu
           theme="dark"
           mode="inline"
-          defaultSelectedKeys={['1']}
-          items={[
-            {
-              key: '1',
-              icon: <DesktopOutlined />,
-              label: <Link to="/dashboard">Dashboard</Link>,
-            },
-            {
-              key: '2',
-              icon: <UserOutlined />,
-              label: <Link to="/teachers">Data Guru</Link>,
-            },
-            {
-              key: '3',
-              icon: <TeamOutlined />,
-              label: <Link to="/students">Data Siswa</Link>,
-            },
-          ]}
+          // PERUBAHAN 4: Ganti `defaultSelectedKeys` menjadi `selectedKeys` yang dinamis
+          selectedKeys={[selectedKey]}
+          items={menuItems}
         />
       </Sider>
       <Layout>
@@ -85,7 +99,6 @@ const AdminLayout = () => {
             borderRadius: borderRadiusLG,
           }}
         >
-          {/* Di sinilah konten halaman dinamis akan dirender */}
           <Outlet />
         </Content>
         <Footer style={{ textAlign: 'center' }}>

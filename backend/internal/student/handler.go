@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"skoola/internal/middleware" // <-- Pastikan ini mengimpor 'middleware'
+	"skoola/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -40,7 +40,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		http.Error(w, "Gagal membuat siswa", http.StatusInternalServerError)
+		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
+		http.Error(w, "Gagal membuat siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -58,7 +59,8 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	students, err := h.service.GetAll(r.Context(), schemaName)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data siswa", http.StatusInternalServerError)
+		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
+		http.Error(w, "Gagal mengambil data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -77,7 +79,8 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	student, err := h.service.GetByID(r.Context(), schemaName, studentID)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data siswa", http.StatusInternalServerError)
+		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
+		http.Error(w, "Gagal mengambil data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if student == nil {
@@ -114,7 +117,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Siswa tidak ditemukan untuk diupdate", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Gagal mengupdate data siswa", http.StatusInternalServerError)
+		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
+		http.Error(w, "Gagal mengupdate data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -137,7 +141,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Siswa tidak ditemukan untuk dihapus", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Gagal menghapus data siswa", http.StatusInternalServerError)
+		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
+		http.Error(w, "Gagal menghapus data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

@@ -1,4 +1,4 @@
-// file: src/pages/StudentsPage.tsx
+// file: frontend/src/pages/StudentsPage.tsx
 import { useEffect, useState } from 'react';
 import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm } from 'antd';
 import type { TableColumnsType } from 'antd';
@@ -46,18 +46,32 @@ const StudentsPage = () => {
 
   const handleFormSubmit = async (values: CreateStudentInput | UpdateStudentInput) => {
     setIsSubmitting(true);
+
+    // --- INI BAGIAN PENTING ---
+    // Membersihkan data: Ubah string kosong ("") menjadi null.
+    // JSON.stringify akan menghapus field yang bernilai null jika backend menggunakan `omitempty`.
+    const cleanedValues: any = {};
+    Object.keys(values).forEach(key => {
+        const value = (values as any)[key];
+        // Jika nilainya string dan kosong, ubah jadi null. Jika tidak, biarkan apa adanya.
+        cleanedValues[key] = (typeof value === 'string' && value.trim() === "") ? null : value;
+    });
+    // --------------------------
+
     try {
       if (editingStudent) {
-        await updateStudent(editingStudent.id, values);
+        await updateStudent(editingStudent.id, cleanedValues as UpdateStudentInput);
         message.success('Data siswa berhasil diperbarui!');
       } else {
-        await createStudent(values as CreateStudentInput);
+        await createStudent(cleanedValues as CreateStudentInput);
         message.success('Siswa baru berhasil ditambahkan!');
       }
       handleCancel();
       fetchStudents();
-    } catch (err) {
-      message.error('Terjadi kesalahan saat menyimpan data.');
+    } catch (err: any) {
+      const errorMessage = err.response?.data || 'Terjadi kesalahan saat menyimpan data.';
+      message.error(errorMessage);
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -68,8 +82,10 @@ const StudentsPage = () => {
       await deleteStudent(id);
       message.success('Data siswa berhasil dihapus!');
       fetchStudents();
-    } catch (err) {
-      message.error('Gagal menghapus data siswa.');
+    } catch (err: any) {
+      const errorMessage = err.response?.data || 'Gagal menghapus data siswa.';
+      message.error(errorMessage);
+      console.error(err);
     }
   };
 
