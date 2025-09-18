@@ -1,4 +1,14 @@
 // file: src/types/index.ts
+
+// --- TIPE BARU DITAMBAHKAN DI SINI ---
+export interface Tenant {
+  id: string;
+  nama_sekolah: string;
+  schema_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;

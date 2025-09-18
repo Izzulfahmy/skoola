@@ -1,18 +1,25 @@
-// file: src/api/auth.ts
+// file: frontend/src/api/auth.ts
 import apiClient from './axiosInstance';
-import type{ LoginInput } from '../types'; // Kita akan buat tipe ini sebentar lagi
+import type{ LoginInput } from '../types';
+import type { AxiosRequestConfig } from 'axios';
 
 // Fungsi untuk melakukan login
 export const loginUser = async (credentials: LoginInput, tenantId: string) => {
   try {
-    const response = await apiClient.post('/login', credentials, {
-      headers: {
-        'X-Tenant-ID': tenantId, // Kirim tenant ID di header
-      },
-    });
-    return response.data; // Responsnya akan berisi { "token": "..." }
+    // --- PERUBAHAN DI SINI ---
+    const config: AxiosRequestConfig = {
+      headers: {},
+    };
+
+    // Hanya tambahkan header X-Tenant-ID jika tenantId tidak kosong
+    if (tenantId && config.headers) {
+      config.headers['X-Tenant-ID'] = tenantId;
+    }
+    // -------------------------
+
+    const response = await apiClient.post('/login', credentials, config);
+    return response.data;
   } catch (error) {
-    // Jika terjadi error, lempar kembali agar bisa ditangkap oleh komponen
     throw error;
   }
 };

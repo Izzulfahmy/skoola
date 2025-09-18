@@ -1,44 +1,41 @@
+// file: backend/cmd/api/main.go
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
-
 	"skoola/internal/auth"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
+	"skoola/internal/tenant"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors" // <-- 1. TAMBAHKAN IMPORT INI
+	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	// 1. Muat konfigurasi dari file .env
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Peringatan: Gagal memuat file .env. Menggunakan environment variables sistem.")
+		log.Println("Peringatan: Gagal memuat file .env.")
 	}
 
-	// 2. Baca semua konfigurasi dari environment
 	connStr := os.Getenv("DB_CONNECTION_STRING")
 	if connStr == "" {
-		log.Fatal("DB_CONNECTION_STRING tidak ditemukan di environment")
+		log.Fatal("DB_CONNECTION_STRING tidak ditemukan")
 	}
 	jwtSecret := os.Getenv("JWT_SECRET_KEY")
 	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET_KEY tidak ditemukan di environment")
+		log.Fatal("JWT_SECRET_KEY tidak ditemukan")
 	}
 
-	// 3. Koneksi ke Database
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Gagal terhubung ke database:", err)
@@ -51,12 +48,10 @@ func main() {
 
 	validate := validator.New()
 
-	// 4. Inisialisasi semua lapisan dengan dependensi yang benar
 	teacherRepo := teacher.NewRepository(db)
-	teacherService := teacher.NewService(teacherRepo, validate)
+	teacherService := teacher.NewService(teacherRepo, validate, db)
 	teacherHandler := teacher.NewHandler(teacherService)
 
-	// Perbarui inisialisasi auth
 	authService := auth.NewService(teacherRepo, jwtSecret)
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
@@ -65,30 +60,35 @@ func main() {
 	studentService := student.NewService(studentRepo, validate)
 	studentHandler := student.NewHandler(studentService)
 
-	// 5. Setup Router
+	tenantRepo := tenant.NewRepository(db)
+	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
+	tenantHandler := tenant.NewHandler(tenantService)
+
 	r := chi.NewRouter()
 
-	// 2. TAMBAHKAN BLOK MIDDLEWARE CORS DI SINI
-	// ===============================================
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"}, // Izinkan frontend Anda
+		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	// ===============================================
 
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// === ROUTE PUBLIK ===
+	// Rute Publik
 	r.Post("/login", authHandler.Login)
 
-	// === ROUTE YANG DILINDUNGI ===
+	// Rute Superadmin
+	r.Route("/tenants", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
+		// BARIS BARU DITAMBAHKAN DI SINI
+		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
+	})
+
+	// Rute Admin/Guru Sekolah
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
@@ -107,7 +107,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
 
-	// 6. Jalankan Server
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		port = "8080"
@@ -116,16 +115,4 @@ func main() {
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("Gagal menjalankan server: %v", err)
 	}
-}
-
-func TenantContextMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tenantID := r.Header.Get("X-Tenant-ID")
-		if tenantID == "" {
-			http.Error(w, "Header X-Tenant-ID wajib diisi", http.StatusBadRequest)
-			return
-		}
-		ctx := context.WithValue(r.Context(), "schemaName", tenantID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }

@@ -1,80 +1,98 @@
+// file: backend/internal/auth/service.go
 package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"skoola/internal/teacher" // Kita butuh akses ke repository guru/user
+	"log" // <-- Impor paket log
+	"skoola/internal/teacher"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Definisikan error-error spesifik untuk otentikasi
 var (
 	ErrUserNotFound       = errors.New("user tidak ditemukan")
 	ErrInvalidCredentials = errors.New("email atau password salah")
 )
 
-// Service mendefinisikan interface untuk layanan otentikasi.
 type Service interface {
 	Login(ctx context.Context, schemaName string, input LoginInput) (string, error)
 }
 
-// LoginInput adalah DTO untuk request login.
 type LoginInput struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
 }
 
 type service struct {
-	teacherRepo teacher.Repository // Dependensi ke repository untuk mencari user
-	jwtSecret   []byte             // Kunci rahasia JWT disimpan di sini
+	teacherRepo teacher.Repository
+	jwtSecret   []byte
 }
 
-// NewService sekarang menerima jwtSecret sebagai argumen.
 func NewService(teacherRepo teacher.Repository, jwtSecret string) Service {
 	return &service{
 		teacherRepo: teacherRepo,
-		jwtSecret:   []byte(jwtSecret), // Simpan kuncinya di sini
+		jwtSecret:   []byte(jwtSecret),
 	}
 }
 
-// Login adalah implementasi logika untuk login user.
 func (s *service) Login(ctx context.Context, schemaName string, input LoginInput) (string, error) {
-	// 1. Cari user berdasarkan email
-	user, err := s.teacherRepo.GetByEmail(ctx, schemaName, input.Email)
-	if err != nil {
-		return "", fmt.Errorf("error saat mencari user: %w", err)
+	var user *teacher.User
+	var err error
+
+	log.Printf("--- PROSES LOGIN DIMULAI UNTUK EMAIL: %s ---", input.Email)
+
+	if schemaName == "" {
+		log.Printf("Mencari user di public.users (Login Superadmin)...")
+		user, err = s.teacherRepo.GetPublicUserByEmail(ctx, input.Email)
+		if err != nil {
+			log.Printf("ERROR saat mencari public user: %v", err)
+			return "", fmt.Errorf("error saat mencari public user: %w", err)
+		}
+	} else {
+		log.Printf("Mencari user di schema '%s'...", schemaName)
+		user, err = s.teacherRepo.GetByEmail(ctx, schemaName, input.Email)
+		if err != nil {
+			log.Printf("ERROR saat mencari user tenant: %v", err)
+			return "", fmt.Errorf("error saat mencari user tenant: %w", err)
+		}
 	}
+
 	if user == nil {
+		log.Printf("HASIL: User dengan email '%s' TIDAK DITEMUKAN.", input.Email)
 		return "", ErrUserNotFound
 	}
+	log.Printf("HASIL: User ditemukan. ID: %s, Role: %s", user.ID, user.Role)
 
-	// 2. Bandingkan password yang diberikan dengan hash di database
+	log.Printf("Membandingkan password...")
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
 	if err != nil {
+		log.Printf("HASIL: Perbandingan password GAGAL.")
 		return "", ErrInvalidCredentials
 	}
+	log.Printf("HASIL: Perbandingan password BERHASIL.")
 
-	// 3. Jika password cocok, buat token JWT
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
 		"role": user.Role,
-		"sch":  schemaName,
 		"exp":  time.Now().Add(time.Hour * 24).Unix(),
 		"iat":  time.Now().Unix(),
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	if user.Role != "superadmin" {
+		claims["sch"] = schemaName
+	}
 
-	// Gunakan s.jwtSecret, bukan variabel global lagi
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(s.jwtSecret)
 	if err != nil {
+		log.Printf("ERROR saat membuat token JWT: %v", err)
 		return "", fmt.Errorf("gagal membuat token: %w", err)
 	}
 
-	// 4. Kembalikan string token
+	log.Printf("--- PROSES LOGIN BERHASIL ---")
 	return tokenString, nil
 }

@@ -100,3 +100,23 @@ func Authorize(allowedRoles ...string) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// === FUNGSI BARU DITAMBAHKAN DI SINI ===
+
+// AuthorizeSuperadmin adalah middleware yang hanya mengizinkan user dengan role 'superadmin'
+func AuthorizeSuperadmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userRole, ok := r.Context().Value(middleware.UserRoleKey).(string)
+		if !ok {
+			http.Error(w, "Peran pengguna tidak ditemukan di dalam token", http.StatusInternalServerError)
+			return
+		}
+
+		if userRole != "superadmin" {
+			http.Error(w, "Akses ditolak. Hanya untuk superadmin.", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

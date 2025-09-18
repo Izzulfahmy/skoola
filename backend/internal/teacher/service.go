@@ -1,3 +1,4 @@
+// file: backend/internal/teacher/service.go
 package teacher
 
 import (
@@ -22,7 +23,6 @@ type CreateTeacherInput struct {
 	NomorTelepon string `json:"nomor_telepon" validate:"omitempty,numeric,min=10,max=15"`
 }
 
-// UBAH struct UpdateTeacherInput untuk menyertakan Email
 type UpdateTeacherInput struct {
 	Email        string `json:"email" validate:"required,email"`
 	NamaLengkap  string `json:"nama_lengkap" validate:"required,min=3"`
@@ -42,24 +42,20 @@ type Service interface {
 type service struct {
 	repo     Repository
 	validate *validator.Validate
+	db       *sql.DB
 }
 
-func NewService(repo Repository, validate *validator.Validate) Service {
+func NewService(repo Repository, validate *validator.Validate, db *sql.DB) Service {
 	return &service{
 		repo:     repo,
 		validate: validate,
+		db:       db,
 	}
 }
 
 func (s *service) Create(ctx context.Context, schemaName string, input CreateTeacherInput) error {
 	if err := s.validate.Struct(input); err != nil {
-		var validationErrors validator.ValidationErrors
-		if errors.As(err, &validationErrors) {
-			for _, fieldErr := range validationErrors {
-				return fmt.Errorf("%w: field '%s' failed on the '%s' tag", ErrValidation, fieldErr.Field(), fieldErr.Tag())
-			}
-		}
-		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
@@ -67,32 +63,37 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 		return fmt.Errorf("gagal melakukan hash password: %w", err)
 	}
 
-	userID := uuid.New().String()
-	teacherID := uuid.New().String()
-
 	user := &User{
-		ID:           userID,
+		ID:           uuid.New().String(),
 		Email:        input.Email,
 		PasswordHash: string(hashedPassword),
+		Role:         "teacher", // Role default di sini adalah teacher
 	}
 
 	teacher := &Teacher{
-		ID:           teacherID,
-		UserID:       userID,
+		ID:           uuid.New().String(),
+		UserID:       user.ID,
 		NamaLengkap:  input.NamaLengkap,
 		NIP:          stringToPtr(input.NIP),
 		Alamat:       stringToPtr(input.Alamat),
 		NomorTelepon: stringToPtr(input.NomorTelepon),
 	}
 
-	err = s.repo.Create(ctx, schemaName, user, teacher)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.repo.Create(ctx, tx, schemaName, user, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal membuat guru di service: %w", err)
 	}
 
-	return nil
+	return tx.Commit()
 }
 
+// ... (Salin semua fungsi lainnya dari GetAll hingga stringToPtr di sini tanpa perubahan)
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, error) {
 	teachers, err := s.repo.GetAll(ctx, schemaName)
 	if err != nil {
@@ -100,7 +101,6 @@ func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, err
 	}
 	return teachers, nil
 }
-
 func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error) {
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
@@ -108,19 +108,10 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*T
 	}
 	return teacher, nil
 }
-
-// UBAH FUNGSI Update
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error {
 	if err := s.validate.Struct(input); err != nil {
-		var validationErrors validator.ValidationErrors
-		if errors.As(err, &validationErrors) {
-			for _, fieldErr := range validationErrors {
-				return fmt.Errorf("%w: field '%s' failed on the '%s' tag", ErrValidation, fieldErr.Field(), fieldErr.Tag())
-			}
-		}
-		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+		return fmt.Errorf("validation failed: %w", err)
 	}
-
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
 		return fmt.Errorf("gagal mencari guru untuk diupdate: %w", err)
@@ -128,24 +119,17 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	if teacher == nil {
 		return sql.ErrNoRows
 	}
-
-	// Perbarui data teacher
 	teacher.NamaLengkap = input.NamaLengkap
 	teacher.NIP = stringToPtr(input.NIP)
 	teacher.Alamat = stringToPtr(input.Alamat)
 	teacher.NomorTelepon = stringToPtr(input.NomorTelepon)
-	// Simpan juga email baru ke struct teacher
 	teacher.Email = input.Email
-
-	// Panggil repository untuk menyimpan perubahan
 	err = s.repo.Update(ctx, schemaName, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal mengupdate guru di service: %w", err)
 	}
-
 	return nil
 }
-
 func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
@@ -154,15 +138,12 @@ func (s *service) Delete(ctx context.Context, schemaName string, id string) erro
 	if teacher == nil {
 		return sql.ErrNoRows
 	}
-
 	err = s.repo.Delete(ctx, schemaName, id)
 	if err != nil {
 		return fmt.Errorf("gagal menghapus guru di service: %w", err)
 	}
-
 	return nil
 }
-
 func stringToPtr(s string) *string {
 	if s == "" {
 		return nil

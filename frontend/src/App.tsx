@@ -3,34 +3,28 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import AdminLayout from './layouts/AdminLayout'; // <-- Impor layout baru
-import TeachersPage from './pages/TeachersPage'; // <-- Impor placeholder
-import StudentsPage from './pages/StudentsPage'; // <-- Impor placeholder
+import AdminLayout from './layouts/AdminLayout';
+import TeachersPage from './pages/TeachersPage';
+import StudentsPage from './pages/StudentsPage';
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard'; // <-- Impor dasbor superadmin
 
 function App() {
-  // Kita tidak lagi butuh 'isAuthenticated' di sini karena logika dihandle oleh ProtectedRoute dan Redirects
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         
-        {/* Rute Induk yang Dilindungi */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
+        {/* Rute Induk Admin Sekolah */}
+        <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           {/* Rute-rute ini akan dirender di dalam <Outlet /> milik AdminLayout */}
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
-          {/* Anda bisa menambahkan rute lain di dalam layout ini, contoh: */}
-          {/* <Route path="settings" element={<SettingsPage />} /> */}
         </Route>
+
+        {/* Rute Induk Superadmin */}
+        <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
 
         {/* Rute untuk URL yang tidak cocok (catch-all) */}
         <Route path="*" element={<NotFoundPage />} />
