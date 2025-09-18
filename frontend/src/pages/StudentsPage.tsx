@@ -1,6 +1,6 @@
-// file: frontend/src/pages/StudentsPage.tsx
+// file: src/pages/StudentsPage.tsx
 import { useEffect, useState } from 'react';
-import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm } from 'antd';
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getStudents, createStudent, updateStudent, deleteStudent } from '../api/students';
@@ -47,16 +47,11 @@ const StudentsPage = () => {
   const handleFormSubmit = async (values: CreateStudentInput | UpdateStudentInput) => {
     setIsSubmitting(true);
 
-    // --- INI BAGIAN PENTING ---
-    // Membersihkan data: Ubah string kosong ("") menjadi null.
-    // JSON.stringify akan menghapus field yang bernilai null jika backend menggunakan `omitempty`.
     const cleanedValues: any = {};
     Object.keys(values).forEach(key => {
         const value = (values as any)[key];
-        // Jika nilainya string dan kosong, ubah jadi null. Jika tidak, biarkan apa adanya.
         cleanedValues[key] = (typeof value === 'string' && value.trim() === "") ? null : value;
     });
-    // --------------------------
 
     try {
       if (editingStudent) {
@@ -98,7 +93,7 @@ const StudentsPage = () => {
       title: 'Aksi',
       key: 'action',
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="middle" direction="horizontal">
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
           <Popconfirm
             title="Hapus Siswa"
@@ -120,12 +115,16 @@ const StudentsPage = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <Title level={2} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-          Tambah Siswa
-        </Button>
-      </div>
+      <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '16px' }}>
+        <Col xs={24} sm={12}>
+          <Title level={2} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
+        </Col>
+        <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
+            Tambah Siswa
+          </Button>
+        </Col>
+      </Row>
       <Table columns={columns} dataSource={students} loading={loading} rowKey="id" scroll={{ x: 'max-content' }} />
       {isModalOpen && (
         <Modal
