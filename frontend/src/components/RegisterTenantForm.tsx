@@ -30,7 +30,7 @@ const RegisterTenantForm = ({ onFinish, onCancel, loading }: RegisterTenantFormP
           },
         ]}
       >
-        <Input placeholder="Contoh: sman_1_jakarta" />
+        <Input placeholder="Contoh: NPSN" />
       </Form.Item>
 
       <Form.Item

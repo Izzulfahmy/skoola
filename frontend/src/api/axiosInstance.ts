@@ -1,25 +1,27 @@
-// file: src/api/axiosInstance.ts
+// file: frontend/src/api/axiosInstance.ts
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080', // URL base dari API backend Anda
+  // --- PERUBAHAN DI SINI ---
+  // Kita tidak lagi menunjuk langsung ke 'http://localhost:8080'.
+  // Sebagai gantinya, kita menunjuk ke '/api' yang akan ditangani
+  // oleh proxy Vite yang sudah kita siapkan.
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
-// TAMBAHKAN BLOK INTERCEPTOR DI BAWAH INI
+
+// Interceptor untuk menambahkan token otorisasi tetap sama
 apiClient.interceptors.request.use(
   (config) => {
-    // Ambil token dari localStorage
     const token = localStorage.getItem('authToken');
     if (token) {
-      // Jika token ada, tambahkan ke header Authorization
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
-    // Lakukan sesuatu dengan error permintaan
     return Promise.reject(error);
   }
 );
