@@ -1,6 +1,6 @@
 // file: frontend/src/pages/superadmin/SuperAdminDashboard.tsx
 import { useState, useEffect } from 'react';
-import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space } from 'antd'; // <-- 'Space' ditambahkan kembali
+import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space, Row, Col } from 'antd';
 import type { TableColumnsType, MenuProps } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -28,12 +28,23 @@ const { Title, Paragraph, Text } = Typography;
 
 type ModalType = 'register' | 'editEmail' | 'resetPassword' | 'deleteConfirm' | null;
 
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
 const SuperAdminDashboard = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
 
-  // State
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
@@ -71,7 +82,6 @@ const SuperAdminDashboard = () => {
     form.resetFields();
   };
 
-  // --- FUNGSI LENGKAP ---
   const handleRegisterTenant = async (values: RegisterTenantInput) => {
     setLoading(true);
     try {
@@ -87,7 +97,6 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  // --- FUNGSI LENGKAP ---
   const handleUpdateFinish = async (values: any) => {
     if (!selectedTenant) return;
     setLoading(true);
@@ -156,18 +165,30 @@ const SuperAdminDashboard = () => {
   ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <Title level={2} style={{ margin: 0 }}>Dasbor Superadmin</Title>
-        <Button type="primary" onClick={handleLogout}>Logout</Button>
-      </div>
+    <div style={{ padding: isMobile ? '16px' : '24px', maxWidth: '1200px', margin: 'auto' }}>
+      <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '16px' }}>
+        <Col>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Dasbor Superadmin</Title>
+        </Col>
+        <Col>
+          <Button type="primary" onClick={handleLogout}>Logout</Button>
+        </Col>
+      </Row>
+      
       <Paragraph>Selamat datang, Superadmin! Dari sini Anda dapat mengelola semua sekolah yang terdaftar dalam sistem.</Paragraph>
 
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <Title level={4} style={{ margin: 0 }}>Manajemen Sekolah</Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal('register')}>Daftarkan Sekolah Baru</Button>
-        </div>
+      <div style={{ background: '#fff', padding: isMobile ? '16px' : '24px', borderRadius: '8px' }}>
+        <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+          <Col>
+            <Title level={4} style={{ margin: 0 }}>Manajemen Sekolah</Title>
+          </Col>
+          <Col>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal('register')}>
+              {!isMobile && 'Daftarkan Sekolah Baru'}
+            </Button>
+          </Col>
+        </Row>
+        
         {error ? <Alert message="Error" description={error} type="error" showIcon /> : <Table columns={columns} dataSource={tenants} loading={tableLoading} rowKey="id" scroll={{ x: 'max-content' }} />}
       </div>
 
