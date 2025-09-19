@@ -1,39 +1,46 @@
 // file: frontend/src/pages/superadmin/SuperAdminDashboard.tsx
 import { useState, useEffect } from 'react';
-import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown } from 'antd';
+import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space } from 'antd'; // <-- 'Space' ditambahkan kembali
 import type { TableColumnsType, MenuProps } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { PlusOutlined, LockOutlined, MailOutlined, MoreOutlined } from '@ant-design/icons'; // <-- MoreOutlined diimpor
+import {
+  PlusOutlined,
+  LockOutlined,
+  MailOutlined,
+  MoreOutlined,
+  DeleteOutlined,
+  ExclamationCircleFilled,
+} from '@ant-design/icons';
 import {
   registerTenant,
   getTenants,
   updateAdminEmail,
   resetAdminPassword,
+  deleteTenant,
   type RegisterTenantInput,
 } from '../../api/tenants';
 import type { Tenant } from '../../types';
 import RegisterTenantForm from '../../components/RegisterTenantForm';
 import { format } from 'date-fns';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
-type ModalType = 'register' | 'editEmail' | 'resetPassword' | null;
+type ModalType = 'register' | 'editEmail' | 'resetPassword' | 'deleteConfirm' | null;
 
 const SuperAdminDashboard = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
-  // State utama
+  // State
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // State untuk mengelola modal
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
 
   const fetchTenants = async () => {
     setTableLoading(true);
@@ -53,18 +60,18 @@ const SuperAdminDashboard = () => {
   }, []);
 
   const showModal = (type: ModalType, tenant?: Tenant) => {
-    if (tenant) {
-      setSelectedTenant(tenant);
-    }
+    if (tenant) setSelectedTenant(tenant);
     setActiveModal(type);
   };
 
   const handleCancel = () => {
     setActiveModal(null);
     setSelectedTenant(null);
+    setDeleteConfirmInput('');
     form.resetFields();
   };
 
+  // --- FUNGSI LENGKAP ---
   const handleRegisterTenant = async (values: RegisterTenantInput) => {
     setLoading(true);
     try {
@@ -80,6 +87,7 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  // --- FUNGSI LENGKAP ---
   const handleUpdateFinish = async (values: any) => {
     if (!selectedTenant) return;
     setLoading(true);
@@ -100,26 +108,35 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!selectedTenant || deleteConfirmInput !== selectedTenant.nama_sekolah) {
+      message.error('Teks konfirmasi tidak cocok dengan nama sekolah.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await deleteTenant(selectedTenant.schema_name);
+      message.success(`Sekolah "${selectedTenant.nama_sekolah}" berhasil dihapus.`);
+      handleCancel();
+      fetchTenants();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Gagal menghapus sekolah.';
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // --- FUNGSI UNTUK MEMBUAT MENU DROPDOWN ---
   const getMenuItems = (record: Tenant): MenuProps['items'] => [
-    {
-      key: '1',
-      label: 'Ubah Email Admin',
-      icon: <MailOutlined />,
-      onClick: () => showModal('editEmail', record),
-    },
-    {
-      key: '2',
-      label: 'Reset Password Admin',
-      icon: <LockOutlined />,
-      onClick: () => showModal('resetPassword', record),
-      danger: true,
-    },
+    { key: '1', label: 'Ubah Email Admin', icon: <MailOutlined />, onClick: () => showModal('editEmail', record) },
+    { key: '2', label: 'Reset Password Admin', icon: <LockOutlined />, onClick: () => showModal('resetPassword', record) },
+    { type: 'divider' },
+    { key: '3', label: 'Hapus Sekolah', icon: <DeleteOutlined />, onClick: () => showModal('deleteConfirm', record), danger: true },
   ];
 
   const columns: TableColumnsType<Tenant> = [
@@ -130,7 +147,6 @@ const SuperAdminDashboard = () => {
       title: 'Aksi',
       key: 'action',
       align: 'center',
-      // --- PERUBAHAN UTAMA DI SINI ---
       render: (_, record) => (
         <Dropdown menu={{ items: getMenuItems(record) }} trigger={['click']}>
           <Button type="text" icon={<MoreOutlined />} />
@@ -155,12 +171,10 @@ const SuperAdminDashboard = () => {
         {error ? <Alert message="Error" description={error} type="error" showIcon /> : <Table columns={columns} dataSource={tenants} loading={tableLoading} rowKey="id" scroll={{ x: 'max-content' }} />}
       </div>
 
-      {/* Modal untuk Registrasi Tenant */}
       <Modal title="Daftarkan Sekolah Baru" open={activeModal === 'register'} onCancel={handleCancel} destroyOnClose footer={null}>
         <RegisterTenantForm onFinish={handleRegisterTenant} onCancel={handleCancel} loading={loading} />
       </Modal>
 
-      {/* Modal untuk Update Email & Reset Password */}
       <Modal
         title={activeModal === 'editEmail' ? `Ubah Email Admin: ${selectedTenant?.nama_sekolah}` : `Reset Password Admin: ${selectedTenant?.nama_sekolah}`}
         open={activeModal === 'editEmail' || activeModal === 'resetPassword'}
@@ -184,6 +198,27 @@ const SuperAdminDashboard = () => {
             <Button type="primary" htmlType="submit" loading={loading}>Simpan Perubahan</Button>
           </Form.Item>
         </Form>
+      </Modal>
+      
+      <Modal
+        title={
+          <Space>
+            <ExclamationCircleFilled style={{ color: '#faad14' }} />
+            Konfirmasi Hapus Sekolah
+          </Space>
+        }
+        open={activeModal === 'deleteConfirm'}
+        onCancel={handleCancel}
+        destroyOnClose
+        okText="Ya, Saya Mengerti dan Hapus Sekolah Ini"
+        okType="danger"
+        onOk={handleConfirmDelete}
+        confirmLoading={loading}
+        okButtonProps={{ disabled: deleteConfirmInput !== selectedTenant?.nama_sekolah }}
+      >
+        <Paragraph>Tindakan ini akan menghapus <Text strong>{selectedTenant?.nama_sekolah}</Text> secara permanen. Semua data yang terkait akan hilang dan tidak dapat dipulihkan.</Paragraph>
+        <Paragraph>Untuk melanjutkan, silakan ketik nama sekolah yang benar di bawah ini:</Paragraph>
+        <Input placeholder={selectedTenant?.nama_sekolah} value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} />
       </Modal>
     </div>
   );

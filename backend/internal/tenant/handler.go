@@ -18,21 +18,42 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-// --- HANDLER BARU UNTUK UPDATE EMAIL ADMIN ---
-func (h *Handler) UpdateAdminEmail(w http.ResponseWriter, r *http.Request) {
-	// Ambil schemaName dari parameter URL
+// --- HANDLER BARU UNTUK MENGHAPUS TENANT ---
+func (h *Handler) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 	schemaName := chi.URLParam(r, "schemaName")
 	if schemaName == "" {
 		http.Error(w, "ID unik sekolah (schemaName) tidak boleh kosong", http.StatusBadRequest)
 		return
 	}
 
+	err := h.service.DeleteTenant(r.Context(), schemaName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Sekolah dengan ID tersebut tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		// Untuk error lainnya, berikan pesan yang lebih umum namun catat detailnya di log server
+		http.Error(w, "Gagal menghapus sekolah: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Berhasil dihapus, kirim status 204 No Content
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
+
+func (h *Handler) UpdateAdminEmail(w http.ResponseWriter, r *http.Request) {
+	schemaName := chi.URLParam(r, "schemaName")
+	if schemaName == "" {
+		http.Error(w, "ID unik sekolah (schemaName) tidak boleh kosong", http.StatusBadRequest)
+		return
+	}
 	var input UpdateAdminEmailInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-
 	err := h.service.UpdateAdminEmail(r.Context(), schemaName, input)
 	if err != nil {
 		if errors.Is(err, ErrValidation) {
@@ -46,26 +67,22 @@ func (h *Handler) UpdateAdminEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Gagal memperbarui email admin: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Email admin berhasil diperbarui."})
 }
 
-// --- HANDLER BARU UNTUK RESET PASSWORD ADMIN ---
 func (h *Handler) ResetAdminPassword(w http.ResponseWriter, r *http.Request) {
 	schemaName := chi.URLParam(r, "schemaName")
 	if schemaName == "" {
 		http.Error(w, "ID unik sekolah (schemaName) tidak boleh kosong", http.StatusBadRequest)
 		return
 	}
-
 	var input ResetAdminPasswordInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-
 	err := h.service.ResetAdminPassword(r.Context(), schemaName, input)
 	if err != nil {
 		if errors.Is(err, ErrValidation) {
@@ -79,13 +96,10 @@ func (h *Handler) ResetAdminPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Gagal mereset password admin: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Password admin berhasil direset."})
 }
-
-// --- FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
 
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	tenants, err := h.service.GetAll(r.Context())

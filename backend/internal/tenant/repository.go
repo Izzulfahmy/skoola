@@ -11,7 +11,8 @@ import (
 
 type Repository interface {
 	CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error
-	GetAll(ctx context.Context) ([]Tenant, error) // <-- TAMBAHKAN INI
+	GetAll(ctx context.Context) ([]Tenant, error)
+	DeleteTenantBySchema(ctx context.Context, schemaName string) error // <-- TAMBAHKAN INI
 }
 
 type postgresRepository struct {
@@ -22,10 +23,43 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-// --- FUNGSI BARU DITAMBAHKAN DI SINI ---
+// --- FUNGSI BARU UNTUK MENGHAPUS TENANT ---
+func (r *postgresRepository) DeleteTenantBySchema(ctx context.Context, schemaName string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback() // Rollback otomatis jika ada error
+
+	// Langkah 1: Hapus skema sekolah beserta semua isinya (tabel, data, dll)
+	dropSchemaQuery := fmt.Sprintf("DROP SCHEMA %q CASCADE", schemaName)
+	if _, err := tx.ExecContext(ctx, dropSchemaQuery); err != nil {
+		return fmt.Errorf("gagal menghapus skema %s: %w", schemaName, err)
+	}
+
+	// Langkah 2: Hapus catatan sekolah dari tabel publik
+	deleteTenantQuery := `DELETE FROM public.tenants WHERE schema_name = $1`
+	result, err := tx.ExecContext(ctx, deleteTenantQuery, schemaName)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus dari tabel public.tenants: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa baris yang terpengaruh: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows // Menandakan tenant tidak ditemukan untuk dihapus
+	}
+
+	// Jika kedua langkah berhasil, commit transaksi
+	return tx.Commit()
+}
+
+// --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
+
 func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	query := `SELECT id, nama_sekolah, schema_name, created_at, updated_at FROM public.tenants ORDER BY created_at DESC`
-
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("gagal query get all tenants: %w", err)
@@ -44,11 +78,9 @@ func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("terjadi error saat iterasi baris data tenant: %w", err)
 	}
-
 	return tenants, nil
 }
 
-// Fungsi CreateTenantSchema tetap sama (tidak perlu diubah)
 func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
 	queryInsertTenant := `INSERT INTO public.tenants (nama_sekolah, schema_name) VALUES ($1, $2)`
 	_, err := tx.ExecContext(ctx, queryInsertTenant, input.NamaSekolah, input.SchemaName)

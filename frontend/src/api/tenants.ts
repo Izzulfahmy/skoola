@@ -41,7 +41,7 @@ export const registerTenant = async (data: RegisterTenantInput) => {
   }
 };
 
-// --- FUNGSI BARU UNTUK UPDATE EMAIL ADMIN ---
+// Fungsi untuk update email admin
 export const updateAdminEmail = async (schemaName: string, data: UpdateAdminEmailInput) => {
   try {
     const response = await apiClient.put(`/tenants/${schemaName}/admin-email`, data);
@@ -51,12 +51,23 @@ export const updateAdminEmail = async (schemaName: string, data: UpdateAdminEmai
   }
 };
 
-// --- FUNGSI BARU UNTUK RESET PASSWORD ADMIN ---
+// Fungsi untuk reset password admin
 export const resetAdminPassword = async (schemaName: string, data: ResetAdminPasswordInput) => {
   try {
     const response = await apiClient.put(`/tenants/${schemaName}/admin-password`, data);
     return response.data;
   } catch (error) {
+    throw error;
+  }
+};
+
+// --- FUNGSI BARU UNTUK MENGHAPUS TENANT ---
+export const deleteTenant = async (schemaName: string): Promise<void> => {
+  try {
+    // Mengirim request DELETE ke endpoint yang sesuai
+    await apiClient.delete(`/tenants/${schemaName}`);
+  } catch (error) {
+    // Lemparkan error agar bisa ditangkap di komponen UI
     throw error;
   }
 };
