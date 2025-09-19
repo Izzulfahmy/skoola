@@ -83,9 +83,11 @@ func main() {
 	// Rute Superadmin
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
-		// BARIS BARU DITAMBAHKAN DI SINI
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
+		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
+		// --- RUTE-RUTE BARU DITAMBAHKAN DI SINI ---
+		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
+		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
 	})
 
 	// Rute Admin/Guru Sekolah

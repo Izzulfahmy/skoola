@@ -7,8 +7,6 @@ import (
 	"fmt"
 )
 
-// Querier adalah interface yang bisa menerima koneksi database standar (*sql.DB) atau transaksi (*sql.Tx)
-// Ini adalah kunci untuk membuat kode kita lebih fleksibel dan aman.
 type Querier interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
@@ -16,7 +14,6 @@ type Querier interface {
 }
 
 type Repository interface {
-	// Fungsi Create sekarang menerima Querier
 	Create(ctx context.Context, querier Querier, schemaName string, user *User, teacher *Teacher) error
 	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
@@ -24,6 +21,10 @@ type Repository interface {
 	Delete(ctx context.Context, schemaName string, teacherID string) error
 	GetByEmail(ctx context.Context, schemaName string, email string) (*User, error)
 	GetPublicUserByEmail(ctx context.Context, email string) (*User, error)
+	// --- FUNGSI BARU DI BAWAH INI ---
+	GetAdminBySchema(ctx context.Context, schemaName string) (*User, error)
+	UpdateUserEmail(ctx context.Context, schemaName string, userID string, newEmail string) error
+	UpdateUserPassword(ctx context.Context, schemaName string, userID string, hashedPassword string) error
 }
 
 type postgresRepository struct {
@@ -35,6 +36,77 @@ func NewRepository(db *sql.DB) Repository {
 		db: db,
 	}
 }
+
+// --- FUNGSI BARU UNTUK MENCARI ADMIN DI DALAM SKEMA SEKOLAH ---
+func (r *postgresRepository) GetAdminBySchema(ctx context.Context, schemaName string) (*User, error) {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	query := `SELECT id, email, password_hash, role FROM users WHERE role = 'admin' LIMIT 1`
+	row := r.db.QueryRowContext(ctx, query)
+
+	var user User
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("tidak ada admin yang ditemukan di skema %s", schemaName)
+		}
+		return nil, fmt.Errorf("gagal memindai data admin: %w", err)
+	}
+	return &user, nil
+}
+
+// --- FUNGSI BARU UNTUK MEMPERBARUI EMAIL USER ---
+func (r *postgresRepository) UpdateUserEmail(ctx context.Context, schemaName string, userID string, newEmail string) error {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	query := `UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, newEmail, userID)
+	if err != nil {
+		return fmt.Errorf("gagal mengeksekusi query update email: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa baris yang terpengaruh: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows // Menandakan user ID tidak ditemukan
+	}
+
+	return nil
+}
+
+// --- FUNGSI BARU UNTUK MEMPERBARUI PASSWORD USER ---
+func (r *postgresRepository) UpdateUserPassword(ctx context.Context, schemaName string, userID string, hashedPassword string) error {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	query := `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("gagal mengeksekusi query update password: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa baris yang terpengaruh: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA (TIDAK PERLU DIUBAH) ---
 
 // Implementasi Create yang sudah diperbaiki
 func (r *postgresRepository) Create(ctx context.Context, querier Querier, schemaName string, user *User, teacher *Teacher) error {
@@ -58,8 +130,6 @@ func (r *postgresRepository) Create(ctx context.Context, querier Querier, schema
 	return nil
 }
 
-// --- Salin semua fungsi lainnya (GetAll, GetByID, dll.) dari file Anda yang sudah ada ke sini ---
-// Kode di bawah ini adalah salinan dari file Anda untuk kelengkapan.
 func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]Teacher, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {

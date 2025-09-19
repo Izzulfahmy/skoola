@@ -17,7 +17,10 @@ var ErrValidation = errors.New("validation failed")
 
 type Service interface {
 	Register(ctx context.Context, input RegisterTenantInput) error
-	GetAll(ctx context.Context) ([]Tenant, error) // <-- TAMBAHKAN INI
+	GetAll(ctx context.Context) ([]Tenant, error)
+	// --- FUNGSI BARU DI INTERFACE SERVICE ---
+	UpdateAdminEmail(ctx context.Context, schemaName string, input UpdateAdminEmailInput) error
+	ResetAdminPassword(ctx context.Context, schemaName string, input ResetAdminPasswordInput) error
 }
 
 type service struct {
@@ -36,7 +39,46 @@ func NewService(repo Repository, teacherRepo teacher.Repository, validate *valid
 	}
 }
 
-// --- FUNGSI BARU DITAMBAHKAN DI SINI ---
+// --- LOGIKA SERVICE BARU UNTUK UPDATE EMAIL ---
+func (s *service) UpdateAdminEmail(ctx context.Context, schemaName string, input UpdateAdminEmailInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+
+	// 1. Cari admin berdasarkan schema sekolah
+	admin, err := s.teacherRepo.GetAdminBySchema(ctx, schemaName)
+	if err != nil {
+		return fmt.Errorf("gagal menemukan admin untuk skema %s: %w", schemaName, err)
+	}
+
+	// 2. Panggil repository untuk update email
+	return s.teacherRepo.UpdateUserEmail(ctx, schemaName, admin.ID, input.Email)
+}
+
+// --- LOGIKA SERVICE BARU UNTUK RESET PASSWORD ---
+func (s *service) ResetAdminPassword(ctx context.Context, schemaName string, input ResetAdminPasswordInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+
+	// 1. Cari admin berdasarkan schema sekolah
+	admin, err := s.teacherRepo.GetAdminBySchema(ctx, schemaName)
+	if err != nil {
+		return fmt.Errorf("gagal menemukan admin untuk skema %s: %w", schemaName, err)
+	}
+
+	// 2. Hash password baru
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
+	if err != nil {
+		return fmt.Errorf("gagal melakukan hash password baru: %w", err)
+	}
+
+	// 3. Panggil repository untuk update password
+	return s.teacherRepo.UpdateUserPassword(ctx, schemaName, admin.ID, string(hashedPassword))
+}
+
+// --- FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
+
 func (s *service) GetAll(ctx context.Context) ([]Tenant, error) {
 	tenants, err := s.repo.GetAll(ctx)
 	if err != nil {
@@ -45,7 +87,6 @@ func (s *service) GetAll(ctx context.Context) ([]Tenant, error) {
 	return tenants, nil
 }
 
-// Fungsi Register tetap sama
 func (s *service) Register(ctx context.Context, input RegisterTenantInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())

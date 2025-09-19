@@ -1,8 +1,8 @@
 // file: frontend/src/api/tenants.ts
 import apiClient from './axiosInstance';
-import type { Tenant } from '../types'; // <-- Impor tipe Tenant ditambahkan
+import type { Tenant } from '../types';
 
-// Definisikan tipe data untuk input form
+// Tipe untuk input pendaftaran
 export interface RegisterTenantInput {
   nama_sekolah: string;
   schema_name: string;
@@ -11,7 +11,17 @@ export interface RegisterTenantInput {
   admin_name: string;
 }
 
-// --- FUNGSI BARU DITAMBAHKAN DI SINI ---
+// Tipe untuk input update email
+export interface UpdateAdminEmailInput {
+  email: string;
+}
+
+// Tipe untuk input reset password
+export interface ResetAdminPasswordInput {
+  password: string;
+}
+
+// Fungsi untuk mengambil semua data tenant
 export const getTenants = async (): Promise<Tenant[]> => {
 	try {
 		const response = await apiClient.get('/tenants');
@@ -21,10 +31,30 @@ export const getTenants = async (): Promise<Tenant[]> => {
 	}
 };
 
-// Fungsi untuk memanggil endpoint pendaftaran tenant
+// Fungsi untuk mendaftarkan tenant baru
 export const registerTenant = async (data: RegisterTenantInput) => {
   try {
     const response = await apiClient.post('/tenants/register', data);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// --- FUNGSI BARU UNTUK UPDATE EMAIL ADMIN ---
+export const updateAdminEmail = async (schemaName: string, data: UpdateAdminEmailInput) => {
+  try {
+    const response = await apiClient.put(`/tenants/${schemaName}/admin-email`, data);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// --- FUNGSI BARU UNTUK RESET PASSWORD ADMIN ---
+export const resetAdminPassword = async (schemaName: string, data: ResetAdminPasswordInput) => {
+  try {
+    const response = await apiClient.put(`/tenants/${schemaName}/admin-password`, data);
     return response.data;
   } catch (error) {
     throw error;
