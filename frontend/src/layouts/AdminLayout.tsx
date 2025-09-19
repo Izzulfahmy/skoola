@@ -6,9 +6,12 @@ import {
   TeamOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BankOutlined, // <-- 1. IMPOR IKON BARU
+  BankOutlined,
+  LogoutOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Button, theme, Typography, Drawer } from 'antd';
+import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
+import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,7 +44,25 @@ const AdminLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  // --- 2. TAMBAHKAN ITEM MENU BARU DI SINI ---
+  const profileMenuItems: MenuProps['items'] = [
+    {
+      key: '1',
+      label: 'Pengaturan',
+      icon: <SettingOutlined />,
+      disabled: true,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: '2',
+      label: 'Logout',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+      danger: true,
+    },
+  ];
+
   const menuItems = [
     { key: '1', path: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
     { key: '4', path: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
@@ -73,7 +94,12 @@ const AdminLayout = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!isMobile && (
-        <Sider trigger={null} collapsible collapsed={collapsed}>
+        <Sider 
+          trigger={null} 
+          collapsible 
+          collapsed={collapsed}
+          collapsedWidth={60}
+        >
           {menuContent}
         </Sider>
       )}
@@ -86,12 +112,16 @@ const AdminLayout = () => {
             onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
             style={{ fontSize: '16px', width: 64, height: 64 }}
           />
-          <div style={{ marginRight: '16px' }}>
-            {!isMobile && <Text style={{ marginRight: '16px' }}>Halo, Admin!</Text>}
-            <Button type="primary" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
+          <Space align="center">
+            {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, Admin!</Text>}
+            
+            <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
+              <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
+                {/* --- PERUBAHAN WARNA DI SINI --- */}
+                <Avatar style={{ backgroundColor: '#1890ff' }} icon={<UserOutlined />} />
+              </a>
+            </Dropdown>
+          </Space>
         </Header>
         <Content style={{
           margin: isMobile ? '16px 8px' : '24px 16px', padding: isMobile ? 12 : 24,
