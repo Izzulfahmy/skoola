@@ -1,6 +1,5 @@
 // file: src/types/index.ts
 
-// --- TIPE BARU DITAMBAHKAN DI SINI ---
 export interface Tenant {
   id: string;
   nama_sekolah: string;
@@ -8,6 +7,28 @@ export interface Tenant {
   created_at: string;
   updated_at: string;
 }
+
+// --- TIPE BARU DITAMBAHKAN DI SINI ---
+export interface SchoolProfile {
+  id: number;
+  npsn?: string;
+  nama_sekolah: string;
+  naungan?: string;
+  alamat?: string;
+  kelurahan?: string;
+  kecamatan?: string;
+  kota_kabupaten?: string;
+  provinsi?: string;
+  kode_pos?: string;
+  telepon?: string;
+  email?: string;
+  website?: string;
+  kepala_sekolah?: string;
+  jenjang_id?: number;
+}
+
+
+// --- SISA TIPE DATA DI BAWAH INI TETAP SAMA ---
 
 export interface LoginInput {
   email: string;
@@ -36,8 +57,6 @@ export interface CreateTeacherInput {
 }
 
 export type UpdateTeacherInput = Omit<CreateTeacherInput, 'password' | 'email'>;
-
-// --- TIPE-TIPE BARU UNTUK SISWA DITAMBAHKAN DI BAWAH INI ---
 
 export interface Student {
   id: string;

@@ -6,6 +6,7 @@ import {
   TeamOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  BankOutlined, // <-- 1. IMPOR IKON BARU
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -40,8 +41,10 @@ const AdminLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // --- 2. TAMBAHKAN ITEM MENU BARU DI SINI ---
   const menuItems = [
     { key: '1', path: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
+    { key: '4', path: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
     { key: '2', path: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '3', path: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
   ];
@@ -104,7 +107,6 @@ const AdminLayout = () => {
       {isMobile && (
         <Drawer
           placement="left"
-          // --- PERUBAHAN DI SINI ---
           closable={false} 
           onClose={() => setDrawerVisible(false)}
           open={drawerVisible}

@@ -1,3 +1,4 @@
+// file: frontend/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -6,7 +7,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import TeachersPage from './pages/TeachersPage';
 import StudentsPage from './pages/StudentsPage';
-import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard'; // <-- Impor dasbor superadmin
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
+import SchoolProfilePage from './pages/SchoolProfilePage'; // <-- 1. IMPOR HALAMAN BARU
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           {/* Rute-rute ini akan dirender di dalam <Outlet /> milik AdminLayout */}
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          {/* --- 2. TAMBAHKAN RUTE BARU DI SINI --- */}
+          <Route path="profile" element={<SchoolProfilePage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
         </Route>
@@ -26,7 +30,7 @@ function App() {
         {/* Rute Induk Superadmin */}
         <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
 
-        {/* Rute untuk URL yang tidak cocok (catch-all) */}
+        {/* Rute untuk URL yang tidak cocok */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

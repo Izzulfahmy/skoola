@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"skoola/internal/auth"
+	"skoola/internal/profile" // <-- 1. IMPOR PAKET BARU
 	"skoola/internal/student"
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
@@ -22,6 +23,7 @@ import (
 )
 
 func main() {
+	// ... (inisialisasi env, db, validate tetap sama)
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")
@@ -48,6 +50,7 @@ func main() {
 
 	validate := validator.New()
 
+	// Inisialisasi Repositori, Service, dan Handler yang sudah ada...
 	teacherRepo := teacher.NewRepository(db)
 	teacherService := teacher.NewService(teacherRepo, validate, db)
 	teacherHandler := teacher.NewHandler(teacherService)
@@ -64,8 +67,12 @@ func main() {
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	tenantHandler := tenant.NewHandler(tenantService)
 
-	r := chi.NewRouter()
+	// --- 2. INISIALISASI MODUL PROFIL BARU ---
+	profileRepo := profile.NewRepository(db)
+	profileService := profile.NewService(profileRepo, validate)
+	profileHandler := profile.NewHandler(profileService)
 
+	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -73,7 +80,6 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -87,8 +93,8 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
-		// --- RUTE BARU DITAMBAHKAN DI SINI ---
 		r.With(auth.AuthorizeSuperadmin).Delete("/{schemaName}", tenantHandler.DeleteTenant)
+		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
 
 	// Rute Admin/Guru Sekolah
@@ -108,6 +114,13 @@ func main() {
 		r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
 		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
+	})
+
+	// --- 3. DAFTARKAN RUTE PROFIL BARU ---
+	r.Route("/profile", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
+		r.With(auth.Authorize("admin")).Put("/", profileHandler.UpdateProfile)
 	})
 
 	port := os.Getenv("SERVER_PORT")

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -18,30 +19,40 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-// --- HANDLER BARU UNTUK MENGHAPUS TENANT ---
+// --- HANDLER BARU UNTUK MENJALANKAN MIGRASI ---
+func (h *Handler) RunMigrations(w http.ResponseWriter, r *http.Request) {
+	count, err := h.service.RunMigrationsForAllTenants(r.Context())
+	if err != nil {
+		http.Error(w, "Gagal menjalankan migrasi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": fmt.Sprintf("Migrasi berhasil dijalankan untuk %d sekolah.", count),
+	})
+}
+
+// --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
+
 func (h *Handler) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 	schemaName := chi.URLParam(r, "schemaName")
 	if schemaName == "" {
 		http.Error(w, "ID unik sekolah (schemaName) tidak boleh kosong", http.StatusBadRequest)
 		return
 	}
-
 	err := h.service.DeleteTenant(r.Context(), schemaName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Sekolah dengan ID tersebut tidak ditemukan", http.StatusNotFound)
 			return
 		}
-		// Untuk error lainnya, berikan pesan yang lebih umum namun catat detailnya di log server
 		http.Error(w, "Gagal menghapus sekolah: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Berhasil dihapus, kirim status 204 No Content
 	w.WriteHeader(http.StatusNoContent)
 }
-
-// --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
 
 func (h *Handler) UpdateAdminEmail(w http.ResponseWriter, r *http.Request) {
 	schemaName := chi.URLParam(r, "schemaName")

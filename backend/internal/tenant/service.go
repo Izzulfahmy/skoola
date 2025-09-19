@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"skoola/internal/teacher"
 
 	"github.com/go-playground/validator/v10"
@@ -20,7 +22,8 @@ type Service interface {
 	GetAll(ctx context.Context) ([]Tenant, error)
 	UpdateAdminEmail(ctx context.Context, schemaName string, input UpdateAdminEmailInput) error
 	ResetAdminPassword(ctx context.Context, schemaName string, input ResetAdminPasswordInput) error
-	DeleteTenant(ctx context.Context, schemaName string) error // <-- TAMBAHKAN INI
+	DeleteTenant(ctx context.Context, schemaName string) error
+	RunMigrationsForAllTenants(ctx context.Context) (int, error) // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -39,15 +42,44 @@ func NewService(repo Repository, teacherRepo teacher.Repository, validate *valid
 	}
 }
 
-// --- FUNGSI BARU UNTUK LOGIKA HAPUS TENANT ---
-func (s *service) DeleteTenant(ctx context.Context, schemaName string) error {
-	// Untuk saat ini, kita hanya meneruskan panggilan ke repository.
-	// Di masa depan, Anda bisa menambahkan logika bisnis di sini sebelum menghapus,
-	// misalnya, memastikan sekolah tidak memiliki tagihan yang belum dibayar, dll.
-	return s.repo.DeleteTenantBySchema(ctx, schemaName)
+// --- FUNGSI BARU UNTUK MENJALANKAN MIGRASI KE SEMUA TENANT ---
+func (s *service) RunMigrationsForAllTenants(ctx context.Context) (int, error) {
+	// 1. Baca file migrasi baru
+	migrationPath, err := filepath.Abs("./db/migrations/002_add_school_profile.sql")
+	if err != nil {
+		return 0, fmt.Errorf("gagal mendapatkan path file migrasi: %w", err)
+	}
+	migrationSQL, err := os.ReadFile(migrationPath)
+	if err != nil {
+		return 0, fmt.Errorf("gagal membaca file migrasi 002: %w", err)
+	}
+
+	// 2. Dapatkan semua tenant yang terdaftar
+	tenants, err := s.repo.GetAll(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("gagal mendapatkan daftar tenant: %w", err)
+	}
+
+	// 3. Looping dan jalankan migrasi untuk setiap tenant
+	migratedCount := 0
+	for _, tenant := range tenants {
+		err := s.repo.ApplyMigrationToSchema(ctx, tenant.SchemaName, migrationSQL)
+		if err != nil {
+			// Jika gagal di satu tenant, kita bisa memilih untuk berhenti atau lanjut.
+			// Untuk sekarang, kita kembalikan error dan berhenti.
+			return migratedCount, fmt.Errorf("gagal migrasi untuk sekolah %s: %w", tenant.NamaSekolah, err)
+		}
+		migratedCount++
+	}
+
+	return migratedCount, nil
 }
 
 // --- FUNGSI-FUNGSI LAMA DI BAWAH INI TETAP SAMA ---
+
+func (s *service) DeleteTenant(ctx context.Context, schemaName string) error {
+	return s.repo.DeleteTenantBySchema(ctx, schemaName)
+}
 
 func (s *service) UpdateAdminEmail(ctx context.Context, schemaName string, input UpdateAdminEmailInput) error {
 	if err := s.validate.Struct(input); err != nil {
