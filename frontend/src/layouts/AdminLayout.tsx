@@ -7,9 +7,10 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BankOutlined,
-  LogoutOutlined, // <-- DITAMBAHKAN DI SINI
+  LogoutOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
+// --- 'Divider' DIHAPUS DARI IMPORT DI BAWAH INI ---
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -46,8 +47,8 @@ const AdminLayout = () => {
 
   const profileMenuItems: MenuProps['items'] = [
     {
-      key: '1',
-      label: 'Pengaturan',
+      key: 'settings',
+      label: 'Pengaturan Akun',
       icon: <SettingOutlined />,
       disabled: true,
     },
@@ -55,7 +56,7 @@ const AdminLayout = () => {
       type: 'divider',
     },
     {
-      key: '2',
+      key: 'logout',
       label: 'Logout',
       icon: <LogoutOutlined />,
       onClick: handleLogout,
@@ -63,32 +64,45 @@ const AdminLayout = () => {
     },
   ];
 
-  const menuItems = [
-    { key: '1', path: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
-    { key: '4', path: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
-    { key: '2', path: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
-    { key: '3', path: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
+  // --- PROPERTI 'path' DIHAPUS DARI SEMUA ITEM MENU DI BAWAH INI ---
+  const mainMenuItems = [
+    { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
+    { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
+    { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
+    { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
   ];
   
-  const currentMenuItem = menuItems.find(item => location.pathname.startsWith(item.path));
-  const selectedKey = currentMenuItem ? currentMenuItem.key : '1';
+  const activeKey = mainMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
 
   const menuContent = (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{
         height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
         {isMobile || !collapsed ? 'SKOOLA' : ''}
       </div>
+      
       <Menu
         theme="dark"
         mode="inline"
-        selectedKeys={[selectedKey]}
-        items={menuItems}
+        selectedKeys={[activeKey, location.pathname]}
+        items={mainMenuItems}
         onClick={isMobile ? () => setDrawerVisible(false) : undefined}
       />
-    </>
+      
+      <div style={{ flexGrow: 1 }} />
+
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        onClick={isMobile ? () => setDrawerVisible(false) : undefined}
+        items={[
+          { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
+        ]}
+      />
+    </div>
   );
 
   return (

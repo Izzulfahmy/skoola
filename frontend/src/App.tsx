@@ -8,7 +8,8 @@ import AdminLayout from './layouts/AdminLayout';
 import TeachersPage from './pages/TeachersPage';
 import StudentsPage from './pages/StudentsPage';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
-import SchoolProfilePage from './pages/SchoolProfilePage'; // <-- 1. IMPOR HALAMAN BARU
+import SchoolProfilePage from './pages/SchoolProfilePage';
+import SettingsPage from './pages/SettingsPage'; // <-- 1. IMPOR HALAMAN BARU
 
 function App() {
   return (
@@ -18,13 +19,13 @@ function App() {
         
         {/* Rute Induk Admin Sekolah */}
         <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-          {/* Rute-rute ini akan dirender di dalam <Outlet /> milik AdminLayout */}
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          {/* --- 2. TAMBAHKAN RUTE BARU DI SINI --- */}
           <Route path="profile" element={<SchoolProfilePage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
+          {/* --- 2. TAMBAHKAN RUTE BARU DI SINI --- */}
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Rute Induk Superadmin */}
