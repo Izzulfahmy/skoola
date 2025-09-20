@@ -23,7 +23,6 @@ import (
 )
 
 func main() {
-	// ... (inisialisasi env, db, validate tetap sama)
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")

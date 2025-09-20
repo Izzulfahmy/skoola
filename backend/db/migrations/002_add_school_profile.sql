@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS profil_sekolah (
 );
 
 -- Menambahkan satu baris data awal saat tabel ini pertama kali dibuat.
--- Ini penting agar halaman profil tidak kosong saat pertama kali dibuka.
 INSERT INTO profil_sekolah (id, nama_sekolah) 
 VALUES (1, 'Nama Sekolah Anda')
 ON CONFLICT (id) DO NOTHING;
