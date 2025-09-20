@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"skoola/internal/auth"
-	"skoola/internal/profile" // <-- 1. IMPOR PAKET BARU
+	"skoola/internal/profile"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
@@ -49,25 +49,25 @@ func main() {
 
 	validate := validator.New()
 
-	// Inisialisasi Repositori, Service, dan Handler yang sudah ada...
+	// Inisialisasi semua Repositori
 	teacherRepo := teacher.NewRepository(db)
-	teacherService := teacher.NewService(teacherRepo, validate, db)
-	teacherHandler := teacher.NewHandler(teacherService)
+	studentRepo := student.NewRepository(db)
+	tenantRepo := tenant.NewRepository(db)
+	profileRepo := profile.NewRepository(db)
 
-	authService := auth.NewService(teacherRepo, jwtSecret)
+	// --- PERUBAHAN DI SINI ---
+	// Berikan tenantRepo ke dalam authService
+	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
 
-	studentRepo := student.NewRepository(db)
+	// Inisialisasi Service dan Handler lainnya
+	teacherService := teacher.NewService(teacherRepo, validate, db)
+	teacherHandler := teacher.NewHandler(teacherService)
 	studentService := student.NewService(studentRepo, validate)
 	studentHandler := student.NewHandler(studentService)
-
-	tenantRepo := tenant.NewRepository(db)
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	tenantHandler := tenant.NewHandler(tenantService)
-
-	// --- 2. INISIALISASI MODUL PROFIL BARU ---
-	profileRepo := profile.NewRepository(db)
 	profileService := profile.NewService(profileRepo, validate)
 	profileHandler := profile.NewHandler(profileService)
 
@@ -115,7 +115,7 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
 
-	// --- 3. DAFTARKAN RUTE PROFIL BARU ---
+	// Rute Profil Sekolah
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)

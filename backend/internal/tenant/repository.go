@@ -14,6 +14,7 @@ type Repository interface {
 	GetAll(ctx context.Context) ([]Tenant, error)
 	DeleteTenantBySchema(ctx context.Context, schemaName string) error
 	ApplyMigrationToSchema(ctx context.Context, schemaName string, migrationSQL []byte) error
+	CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) // <-- TAMBAHKAN INI
 }
 
 type postgresRepository struct {
@@ -23,6 +24,19 @@ type postgresRepository struct {
 func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
+
+// --- FUNGSI BARU UNTUK MEMERIKSA KEBERADAAN SCHEMA ---
+func (r *postgresRepository) CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM public.tenants WHERE schema_name = $1)`
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, schemaName).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("gagal memeriksa keberadaan schema: %w", err)
+	}
+	return exists, nil
+}
+
+// --- SISA FUNGSI DI BAWAH INI TETAP SAMA ---
 
 func (r *postgresRepository) ApplyMigrationToSchema(ctx context.Context, schemaName string, migrationSQL []byte) error {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -95,9 +109,7 @@ func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	return tenants, nil
 }
 
-// --- FUNGSI INI DIMODIFIKASI ---
 func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
-	// Langkah 1 & 2: Insert ke public.tenants dan Buat Schema
 	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name) VALUES ($1, $2)`, input.NamaSekolah, input.SchemaName)
 	if err != nil {
 		return fmt.Errorf("gagal insert ke tabel public.tenants: %w", err)
@@ -107,13 +119,11 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		return fmt.Errorf("gagal membuat schema baru: %w", err)
 	}
 
-	// Langkah 3: Set search_path ke schema baru
 	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", input.SchemaName))
 	if err != nil {
 		return fmt.Errorf("gagal mengatur search_path untuk schema baru: %w", err)
 	}
 
-	// Langkah 4: Jalankan migrasi awal (001)
 	migrationPath1, err := filepath.Abs("./db/migrations/001_initial_schema.sql")
 	if err != nil {
 		return fmt.Errorf("gagal path migrasi 001: %w", err)
@@ -126,7 +136,6 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		return fmt.Errorf("gagal menjalankan migrasi 001: %w", err)
 	}
 
-	// --- TAMBAHAN: Jalankan migrasi profil sekolah (002) ---
 	migrationPath2, err := filepath.Abs("./db/migrations/002_add_school_profile.sql")
 	if err != nil {
 		return fmt.Errorf("gagal path migrasi 002: %w", err)
@@ -139,13 +148,11 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		return fmt.Errorf("gagal menjalankan migrasi 002: %w", err)
 	}
 
-	// Langkah 5: Ganti nama sekolah default di profil dengan nama sekolah yang didaftarkan
 	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
 	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {
 		return fmt.Errorf("gagal update nama sekolah di profil: %w", err)
 	}
 
-	// Langkah 6: Reset search_path
 	_, err = tx.ExecContext(ctx, "SET search_path TO public")
 	if err != nil {
 		return fmt.Errorf("gagal mereset search_path: %w", err)

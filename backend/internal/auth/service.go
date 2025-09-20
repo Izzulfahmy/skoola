@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log" // <-- Impor paket log
+	"log"
 	"skoola/internal/teacher"
+	"skoola/internal/tenant" // <-- 1. IMPOR PAKET TENANT
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,6 +17,8 @@ import (
 var (
 	ErrUserNotFound       = errors.New("user tidak ditemukan")
 	ErrInvalidCredentials = errors.New("email atau password salah")
+	// --- 2. TAMBAHKAN ERROR BARU ---
+	ErrInvalidTenantID = errors.New("ID Sekolah tidak valid atau tidak ditemukan")
 )
 
 type Service interface {
@@ -29,16 +32,20 @@ type LoginInput struct {
 
 type service struct {
 	teacherRepo teacher.Repository
+	tenantRepo  tenant.Repository // <-- 3. TAMBAHKAN TENANT REPO
 	jwtSecret   []byte
 }
 
-func NewService(teacherRepo teacher.Repository, jwtSecret string) Service {
+// --- 4. PERBARUI FUNGSI NewService ---
+func NewService(teacherRepo teacher.Repository, tenantRepo tenant.Repository, jwtSecret string) Service {
 	return &service{
 		teacherRepo: teacherRepo,
+		tenantRepo:  tenantRepo, // Tambahkan ini
 		jwtSecret:   []byte(jwtSecret),
 	}
 }
 
+// --- 5. PERBARUI LOGIKA FUNGSI LOGIN ---
 func (s *service) Login(ctx context.Context, schemaName string, input LoginInput) (string, error) {
 	var user *teacher.User
 	var err error
@@ -46,6 +53,7 @@ func (s *service) Login(ctx context.Context, schemaName string, input LoginInput
 	log.Printf("--- PROSES LOGIN DIMULAI UNTUK EMAIL: %s ---", input.Email)
 
 	if schemaName == "" {
+		// Logika untuk Superadmin (tidak berubah)
 		log.Printf("Mencari user di public.users (Login Superadmin)...")
 		user, err = s.teacherRepo.GetPublicUserByEmail(ctx, input.Email)
 		if err != nil {
@@ -53,6 +61,19 @@ func (s *service) Login(ctx context.Context, schemaName string, input LoginInput
 			return "", fmt.Errorf("error saat mencari public user: %w", err)
 		}
 	} else {
+		// Logika untuk Admin Sekolah (DENGAN PERUBAHAN)
+		log.Printf("Memvalidasi ID Sekolah (schema): '%s'...", schemaName)
+		exists, err := s.tenantRepo.CheckSchemaExists(ctx, schemaName)
+		if err != nil {
+			log.Printf("ERROR saat validasi schema: %v", err)
+			return "", fmt.Errorf("error saat validasi schema: %w", err)
+		}
+		if !exists {
+			log.Printf("HASIL: ID Sekolah '%s' TIDAK DITEMUKAN.", schemaName)
+			return "", ErrInvalidTenantID
+		}
+		log.Printf("HASIL: ID Sekolah valid. Melanjutkan pencarian user...")
+
 		log.Printf("Mencari user di schema '%s'...", schemaName)
 		user, err = s.teacherRepo.GetByEmail(ctx, schemaName, input.Email)
 		if err != nil {
@@ -63,7 +84,7 @@ func (s *service) Login(ctx context.Context, schemaName string, input LoginInput
 
 	if user == nil {
 		log.Printf("HASIL: User dengan email '%s' TIDAK DITEMUKAN.", input.Email)
-		return "", ErrUserNotFound
+		return "", ErrInvalidCredentials // Diubah agar lebih konsisten
 	}
 	log.Printf("HASIL: User ditemukan. ID: %s, Role: %s", user.ID, user.Role)
 

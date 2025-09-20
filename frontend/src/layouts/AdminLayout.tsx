@@ -7,7 +7,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BankOutlined,
-  LogoutOutlined,
+  LogoutOutlined, // <-- DITAMBAHKAN DI SINI
   SettingOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
@@ -114,10 +114,8 @@ const AdminLayout = () => {
           />
           <Space align="center">
             {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, Admin!</Text>}
-            
             <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
               <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
-                {/* --- PERUBAHAN WARNA DI SINI --- */}
                 <Avatar style={{ backgroundColor: '#1890ff' }} icon={<UserOutlined />} />
               </a>
             </Dropdown>
