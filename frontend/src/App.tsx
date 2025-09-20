@@ -7,9 +7,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import TeachersPage from './pages/TeachersPage';
 import StudentsPage from './pages/StudentsPage';
-import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import SchoolProfilePage from './pages/SchoolProfilePage';
-import SettingsPage from './pages/SettingsPage'; // <-- 1. IMPOR HALAMAN BARU
+import SettingsPage from './pages/SettingsPage';
+
+// --- 1. IMPOR HALAMAN DAN LAYOUT BARU ---
+import SuperAdminLayout from './layouts/SuperAdminLayout';
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
+import ManajemenSekolahPage from './pages/superadmin/ManajemenSekolahPage';
+
 
 function App() {
   return (
@@ -24,12 +29,14 @@ function App() {
           <Route path="profile" element={<SchoolProfilePage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
-          {/* --- 2. TAMBAHKAN RUTE BARU DI SINI --- */}
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
-        {/* Rute Induk Superadmin */}
-        <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
+        {/* --- 2. PERBARUI RUTE SUPERADMIN --- */}
+        <Route path="/superadmin" element={<ProtectedRoute><SuperAdminLayout /></ProtectedRoute>}>
+          <Route index element={<SuperAdminDashboard />} />
+          <Route path="sekolah" element={<ManajemenSekolahPage />} />
+        </Route>
 
         {/* Rute untuk URL yang tidak cocok */}
         <Route path="*" element={<NotFoundPage />} />
