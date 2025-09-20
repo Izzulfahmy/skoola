@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LockOutlined, UserOutlined, IdcardOutlined, CrownOutlined, BankOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, Row, Col, Typography, message, Tooltip } from 'antd';
+import { Button, Card, Form, Input, Row, Col, Typography, message, Tooltip, Alert } from 'antd'; // <-- 1. Impor Alert
 import { loginUser } from '../api/auth';
 import type { LoginInput } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -13,17 +13,21 @@ const { Title, Text } = Typography;
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [isSuperAdminLogin, setIsSuperAdminLogin] = useState(false);
+  // --- 2. TAMBAHKAN STATE BARU UNTUK PESAN ERROR ---
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
   const handleModeChange = () => {
-    form.resetFields(['tenantId']); 
+    form.resetFields(); 
+    setErrorMessage(null); // Hapus pesan error saat ganti mode
     setIsSuperAdminLogin(!isSuperAdminLogin);
   };
 
   const onFinish = async (values: any) => {
     setLoading(true);
+    setErrorMessage(null); // Hapus pesan error lama sebelum mencoba login
     try {
       const tenantId = isSuperAdminLogin ? '' : values.tenantId;
       
@@ -45,8 +49,9 @@ const LoginPage = () => {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      const serverErrorMessage = error.response?.data?.message || 'Email, password, atau ID Sekolah salah';
-      message.error(serverErrorMessage);
+      // --- 3. UBAH message.error MENJADI setState ---
+      const serverErrorMessage = error.response?.data || 'Email, password, atau ID Sekolah salah.';
+      setErrorMessage(serverErrorMessage);
     } finally {
       setLoading(false);
     }
@@ -62,16 +67,10 @@ const LoginPage = () => {
               shape="circle"
               icon={isSuperAdminLogin ? <BankOutlined /> : <CrownOutlined />} 
               onClick={handleModeChange}
-              style={{
-                position: 'absolute',
-                // --- PERUBAHAN 1: Posisi tombol digeser lebih ke pojok ---
-                top: '10px',
-                right: '10px',
-              }}
+              style={{ position: 'absolute', top: '10px', right: '10px' }}
             />
           </Tooltip>
 
-          {/* --- PERUBAHAN 2: Jarak bawah judul dikurangi --- */}
           <div style={{ textAlign: 'center', marginBottom: '16px' }}>
             <Title level={2}>{isSuperAdminLogin ? 'Login Superadmin' : 'Selamat Datang!'}</Title>
             <Text type="secondary">
@@ -80,13 +79,20 @@ const LoginPage = () => {
           </div>
 
           <Form name="login" form={form} onFinish={onFinish} layout="vertical">
+            {/* --- 4. TAMPILKAN ALERT JIKA ADA PESAN ERROR --- */}
+            {errorMessage && (
+              <Form.Item>
+                <Alert message={errorMessage} type="error" showIcon />
+              </Form.Item>
+            )}
+
             {!isSuperAdminLogin && (
               <Form.Item
                 label="ID Sekolah"
                 name="tenantId"
                 rules={[{ required: true, message: 'Harap masukkan ID Sekolah!' }]}
               >
-                <Input prefix={<IdcardOutlined />} placeholder="Contoh: NPSN" />
+                <Input prefix={<IdcardOutlined />} placeholder="Contoh: sekolah_pertama" />
               </Form.Item>
             )}
             <Form.Item

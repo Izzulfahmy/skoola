@@ -13,14 +13,14 @@ const SchoolProfilePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [initialData, setInitialData] = useState<SchoolProfile | null>(null);
 
-  // Fungsi untuk mengambil data profil dari server
   const fetchProfile = async () => {
     setLoading(true);
     try {
       const profileData = await getSchoolProfile();
       setInitialData(profileData);
-      form.setFieldsValue(profileData); // Set nilai form setelah data diterima
+      form.setFieldsValue(profileData);
     } catch (error) {
+      // Notifikasi saat gagal memuat data awal
       message.error('Gagal memuat data profil sekolah.');
     } finally {
       setLoading(false);
@@ -31,16 +31,21 @@ const SchoolProfilePage = () => {
     fetchProfile();
   }, []);
 
-  // Fungsi yang dijalankan saat form disubmit
+  // --- FUNGSI onFinish DENGAN NOTIFIKASI LENGKAP ---
   const onFinish = async (values: SchoolProfile) => {
     setSubmitting(true);
     try {
-      // Pastikan ID tetap ada, karena backend mungkin membutuhkannya
       const dataToSubmit = { ...initialData, ...values };
       await updateSchoolProfile(dataToSubmit);
+      
+      // Notifikasi saat berhasil menyimpan
       message.success('Profil sekolah berhasil diperbarui!');
-    } catch (error) {
-      message.error('Gagal memperbarui profil sekolah.');
+      
+    } catch (error: any) {
+      // Notifikasi saat gagal menyimpan
+      const errorMessage = error.response?.data?.message || 'Gagal memperbarui profil sekolah.';
+      message.error(errorMessage);
+      
     } finally {
       setSubmitting(false);
     }
