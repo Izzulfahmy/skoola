@@ -1,39 +1,29 @@
 // file: frontend/src/pages/SettingsPage.tsx
 import { Card, Tabs, Typography } from 'antd';
 import type { TabsProps } from 'antd';
+// --- 1. IMPOR KOMPONEN BARU ---
+import AdminSettingsTab from '../components/AdminSettingsTab';
 
 const { Title } = Typography;
 
-// --- Komponen Placeholder untuk setiap Tab ---
-
+// --- Komponen Placeholder untuk Tab lain ---
 const TingkatanTab = () => (
   <div>
-    {/* Nanti di sini akan ada tabel dan tombol untuk mengelola Tingkatan Kelas */}
     <p>Konten untuk manajemen Tingkatan Kelas akan ditampilkan di sini.</p>
   </div>
 );
 
 const JabatanTab = () => (
   <div>
-    {/* Nanti di sini akan ada tabel dan tombol untuk mengelola Jabatan */}
     <p>Konten untuk manajemen Jabatan akan ditampilkan di sini.</p>
   </div>
 );
 
 const JenjangPendidikanTab = () => (
   <div>
-    {/* Nanti di sini akan ada tabel dan tombol untuk mengelola Jenjang Pendidikan */}
     <p>Konten untuk manajemen Jenjang Pendidikan akan ditampilkan di sini.</p>
   </div>
 );
-
-const PengaturanAdminTab = () => (
-  <div>
-    {/* Nanti di sini akan ada form untuk pengaturan admin */}
-    <p>Konten untuk Pengaturan Admin akan ditampilkan di sini.</p>
-  </div>
-);
-
 
 const items: TabsProps['items'] = [
   {
@@ -54,7 +44,8 @@ const items: TabsProps['items'] = [
   {
     key: '4',
     label: 'Pengaturan Admin',
-    children: <PengaturanAdminTab />,
+    // --- 2. GUNAKAN KOMPONEN BARU DI SINI ---
+    children: <AdminSettingsTab />,
   },
 ];
 

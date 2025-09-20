@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"skoola/internal/middleware" // <-- Pastikan ini mengimpor 'middleware'
+	"skoola/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -21,6 +21,32 @@ func NewHandler(s Service) *Handler {
 	}
 }
 
+// --- FUNGSI BARU UNTUK MENGAMBIL DETAIL ADMIN ---
+func (h *Handler) GetAdminDetails(w http.ResponseWriter, r *http.Request) {
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
+
+	adminDetails, err := h.service.GetAdminDetails(r.Context(), schemaName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Data admin tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Gagal mengambil detail admin: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(adminDetails)
+}
+
+// --- FUNGSI-FUNGSI DI BAWAH INI TIDAK BERUBAH ---
+// (Create, GetAll, GetByID, Update, Delete)
+// ... (kode yang sama seperti sebelumnya) ...
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {

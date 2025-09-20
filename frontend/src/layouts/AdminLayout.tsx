@@ -10,7 +10,6 @@ import {
   LogoutOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-// --- 'Divider' DIHAPUS DARI IMPORT DI BAWAH INI ---
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -64,7 +63,6 @@ const AdminLayout = () => {
     },
   ];
 
-  // --- PROPERTI 'path' DIHAPUS DARI SEMUA ITEM MENU DI BAWAH INI ---
   const mainMenuItems = [
     { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
     { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
@@ -74,8 +72,10 @@ const AdminLayout = () => {
   
   const activeKey = mainMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
 
+  // --- KONTEN MENU UNTUK SIDER DAN DRAWER ---
   const menuContent = (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    // Kita tambahkan overflowY agar jika menu sangat panjang, menu itu sendiri yang scroll, bukan halaman
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
       <div style={{
         height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -105,6 +105,10 @@ const AdminLayout = () => {
     </div>
   );
 
+  // --- Konstanta untuk lebar Sider ---
+  const siderWidth = 200;
+  const siderCollapsedWidth = 60;
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!isMobile && (
@@ -112,13 +116,25 @@ const AdminLayout = () => {
           trigger={null} 
           collapsible 
           collapsed={collapsed}
-          collapsedWidth={60}
+          width={siderWidth}
+          collapsedWidth={siderCollapsedWidth}
+          // --- PERUBAHAN 1: Membuat Sider menjadi fixed ---
+          style={{
+            overflow: 'auto',
+            height: '100vh',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 10, // Menastikan sider di atas konten lain jika tumpang tindih
+          }}
         >
           {menuContent}
         </Sider>
       )}
 
-      <Layout>
+      {/* --- PERUBAHAN 2: Memberi margin pada Layout utama agar tidak tertutup Sider --- */}
+      <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
         <Header style={{ padding: '0 16px', background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button
             type="text"
@@ -135,13 +151,15 @@ const AdminLayout = () => {
             </Dropdown>
           </Space>
         </Header>
+        {/* --- PERUBAHAN 3: Membuat area Content menjadi scrollable secara mandiri --- */}
         <Content style={{
           margin: isMobile ? '16px 8px' : '24px 16px', padding: isMobile ? 12 : 24,
-          minHeight: 280, background: colorBgContainer, borderRadius: borderRadiusLG,
+          background: colorBgContainer, borderRadius: borderRadiusLG,
+          overflow: 'auto', // Ini memungkinkan konten untuk scroll jika lebih tinggi dari layar
         }}>
           <Outlet />
         </Content>
-        <Footer style={{ textAlign: 'center', padding: '1px 24px' }}>
+        <Footer style={{ textAlign: 'center', padding: '12px 24px' }}>
           Skoola Admin Panel ©{new Date().getFullYear()}
         </Footer>
       </Layout>
@@ -153,7 +171,7 @@ const AdminLayout = () => {
           onClose={() => setDrawerVisible(false)}
           open={drawerVisible}
           bodyStyle={{ padding: 0, backgroundColor: '#001529' }}
-          width={200}
+          width={siderWidth}
         >
           {menuContent}
         </Drawer>

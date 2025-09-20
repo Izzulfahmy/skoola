@@ -1,6 +1,6 @@
 // file: src/pages/TeachersPage.tsx
 import { useEffect, useState } from 'react';
-import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col } from 'antd';
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getTeachers, createTeacher, updateTeacher, deleteTeacher } from '../api/teachers';
@@ -52,8 +52,7 @@ const TeachersPage = () => {
         await updateTeacher(editingTeacher.id, values as UpdateTeacherInput);
         message.success('Data guru berhasil diperbarui!');
       } else {
-        const tenantId = 'sekolah_pertama';
-        await createTeacher(values as CreateTeacherInput, tenantId);
+        await createTeacher(values as CreateTeacherInput);
         message.success('Guru baru berhasil ditambahkan!');
       }
       handleCancel();
@@ -84,32 +83,45 @@ const TeachersPage = () => {
       dataIndex: 'nama_lengkap',
       key: 'nama_lengkap',
       sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap),
+      render: (text, record) => (
+        <div>
+          {text}
+          {record.gelar_akademik && <span style={{ color: '#888' }}>, {record.gelar_akademik}</span>}
+        </div>
+      ),
     },
     {
-      title: 'NIP',
-      dataIndex: 'nip',
-      key: 'nip',
+      title: 'NIP / NUPTK',
+      dataIndex: 'nip_nuptk',
+      key: 'nip_nuptk',
       render: (text) => text || '-',
     },
     {
-      title: 'Nomor Telepon',
-      dataIndex: 'nomor_telepon',
-      key: 'nomor_telepon',
+      title: 'Nomor HP',
+      dataIndex: 'no_hp',
+      key: 'no_hp',
       render: (text) => text || '-',
     },
     {
-      title: 'Alamat',
-      dataIndex: 'alamat',
-      key: 'alamat',
-      render: (text) => text || '-',
+      title: 'Status',
+      dataIndex: 'status_guru',
+      key: 'status_guru',
+      render: (status) => {
+        let color = 'green';
+        if (status === 'NonAktif') {
+          color = 'volcano';
+        } else if (status === 'Pindah') {
+          color = 'gold';
+        }
+        return status ? <Tag color={color}>{status.toUpperCase()}</Tag> : '-';
+      },
     },
     {
       title: 'Aksi',
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
-          <Button icon={<EditOutlined />} onClick={() => showModal(record)}>
-          </Button>
+          <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
           <Popconfirm
             title="Hapus Guru"
             description="Apakah Anda yakin ingin menghapus data ini?"
@@ -117,8 +129,7 @@ const TeachersPage = () => {
             okText="Ya, Hapus"
             cancelText="Batal"
           >
-            <Button icon={<DeleteOutlined />} danger>
-            </Button>
+            <Button icon={<DeleteOutlined />} danger />
           </Popconfirm>
         </Space>
       ),
@@ -136,11 +147,7 @@ const TeachersPage = () => {
           <Title level={2} style={{ margin: 0 }}>Manajemen Data Guru</Title>
         </Col>
         <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => showModal(null)}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
             Tambah Guru
           </Button>
         </Col>
@@ -156,22 +163,21 @@ const TeachersPage = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      {isModalOpen && (
-        <Modal
-          title={editingTeacher ? 'Edit Data Guru' : 'Tambah Guru Baru'}
-          open={isModalOpen}
+      <Modal
+        title={editingTeacher ? 'Edit Data Guru' : 'Tambah Guru Baru'}
+        open={isModalOpen}
+        onCancel={handleCancel}
+        destroyOnClose
+        footer={null}
+        width={800}
+      >
+        <TeacherForm
+          onFinish={handleFormSubmit}
           onCancel={handleCancel}
-          destroyOnClose
-          footer={null}
-        >
-          <TeacherForm
-            onFinish={handleFormSubmit}
-            onCancel={handleCancel}
-            loading={isSubmitting}
-            initialValues={editingTeacher || undefined}
-          />
-        </Modal>
-      )}
+          loading={isSubmitting}
+          initialValues={editingTeacher || undefined}
+        />
+      </Modal>
     </div>
   );
 };

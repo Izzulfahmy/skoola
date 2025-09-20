@@ -49,19 +49,15 @@ func main() {
 
 	validate := validator.New()
 
-	// Inisialisasi semua Repositori
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
 	tenantRepo := tenant.NewRepository(db)
 	profileRepo := profile.NewRepository(db)
 
-	// --- PERUBAHAN DI SINI ---
-	// Berikan tenantRepo ke dalam authService
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
 
-	// Inisialisasi Service dan Handler lainnya
 	teacherService := teacher.NewService(teacherRepo, validate, db)
 	teacherHandler := teacher.NewHandler(teacherService)
 	studentService := student.NewService(studentRepo, validate)
@@ -82,10 +78,8 @@ func main() {
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Rute Publik
 	r.Post("/login", authHandler.Login)
 
-	// Rute Superadmin
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
@@ -96,9 +90,14 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
 
-	// Rute Admin/Guru Sekolah
+	// --- PERUBAHAN ROUTE DI SINI ---
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
+
+		// Rute baru untuk mengambil detail admin
+		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
+
+		// Rute yang sudah ada
 		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
@@ -115,7 +114,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
 
-	// Rute Profil Sekolah
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)

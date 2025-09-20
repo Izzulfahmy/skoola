@@ -14,7 +14,7 @@ type Repository interface {
 	GetAll(ctx context.Context) ([]Tenant, error)
 	DeleteTenantBySchema(ctx context.Context, schemaName string) error
 	ApplyMigrationToSchema(ctx context.Context, schemaName string, migrationSQL []byte) error
-	CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) // <-- TAMBAHKAN INI
+	CheckSchemaExists(ctx context.Context, schemaName string) (bool, error)
 }
 
 type postgresRepository struct {
@@ -25,7 +25,76 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-// --- FUNGSI BARU UNTUK MEMERIKSA KEBERADAAN SCHEMA ---
+func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name) VALUES ($1, $2)`, input.NamaSekolah, input.SchemaName)
+	if err != nil {
+		return fmt.Errorf("gagal insert ke tabel public.tenants: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA %q", input.SchemaName))
+	if err != nil {
+		return fmt.Errorf("gagal membuat schema baru: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", input.SchemaName))
+	if err != nil {
+		return fmt.Errorf("gagal mengatur search_path untuk schema baru: %w", err)
+	}
+
+	// Menjalankan migrasi 001
+	migrationPath1, err := filepath.Abs("./db/migrations/001_initial_schema.sql")
+	if err != nil {
+		return fmt.Errorf("gagal path migrasi 001: %w", err)
+	}
+	migrationSQL1, err := os.ReadFile(migrationPath1)
+	if err != nil {
+		return fmt.Errorf("gagal baca migrasi 001: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, string(migrationSQL1)); err != nil {
+		return fmt.Errorf("gagal menjalankan migrasi 001: %w", err)
+	}
+
+	// Menjalankan migrasi 002
+	migrationPath2, err := filepath.Abs("./db/migrations/002_add_school_profile.sql")
+	if err != nil {
+		return fmt.Errorf("gagal path migrasi 002: %w", err)
+	}
+	migrationSQL2, err := os.ReadFile(migrationPath2)
+	if err != nil {
+		return fmt.Errorf("gagal baca migrasi 002: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, string(migrationSQL2)); err != nil {
+		return fmt.Errorf("gagal menjalankan migrasi 002: %w", err)
+	}
+
+	// --- TAMBAHAN KODE DI SINI ---
+	// Menjalankan migrasi 003 untuk detail guru
+	migrationPath3, err := filepath.Abs("./db/migrations/003_add_teacher_details.sql")
+	if err != nil {
+		return fmt.Errorf("gagal path migrasi 003: %w", err)
+	}
+	migrationSQL3, err := os.ReadFile(migrationPath3)
+	if err != nil {
+		return fmt.Errorf("gagal baca migrasi 003: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, string(migrationSQL3)); err != nil {
+		return fmt.Errorf("gagal menjalankan migrasi 003: %w", err)
+	}
+	// --- AKHIR TAMBAHAN ---
+
+	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
+	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {
+		return fmt.Errorf("gagal update nama sekolah di profil: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "SET search_path TO public")
+	if err != nil {
+		return fmt.Errorf("gagal mereset search_path: %w", err)
+	}
+
+	return nil
+}
+
+// --- FUNGSI LAINNYA TETAP SAMA (TIDAK PERLU DIUBAH) ---
 func (r *postgresRepository) CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM public.tenants WHERE schema_name = $1)`
 	var exists bool
@@ -35,8 +104,6 @@ func (r *postgresRepository) CheckSchemaExists(ctx context.Context, schemaName s
 	}
 	return exists, nil
 }
-
-// --- SISA FUNGSI DI BAWAH INI TETAP SAMA ---
 
 func (r *postgresRepository) ApplyMigrationToSchema(ctx context.Context, schemaName string, migrationSQL []byte) error {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -107,56 +174,4 @@ func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 		return nil, fmt.Errorf("terjadi error saat iterasi baris data tenant: %w", err)
 	}
 	return tenants, nil
-}
-
-func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name) VALUES ($1, $2)`, input.NamaSekolah, input.SchemaName)
-	if err != nil {
-		return fmt.Errorf("gagal insert ke tabel public.tenants: %w", err)
-	}
-	_, err = tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA %q", input.SchemaName))
-	if err != nil {
-		return fmt.Errorf("gagal membuat schema baru: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", input.SchemaName))
-	if err != nil {
-		return fmt.Errorf("gagal mengatur search_path untuk schema baru: %w", err)
-	}
-
-	migrationPath1, err := filepath.Abs("./db/migrations/001_initial_schema.sql")
-	if err != nil {
-		return fmt.Errorf("gagal path migrasi 001: %w", err)
-	}
-	migrationSQL1, err := os.ReadFile(migrationPath1)
-	if err != nil {
-		return fmt.Errorf("gagal baca migrasi 001: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, string(migrationSQL1)); err != nil {
-		return fmt.Errorf("gagal menjalankan migrasi 001: %w", err)
-	}
-
-	migrationPath2, err := filepath.Abs("./db/migrations/002_add_school_profile.sql")
-	if err != nil {
-		return fmt.Errorf("gagal path migrasi 002: %w", err)
-	}
-	migrationSQL2, err := os.ReadFile(migrationPath2)
-	if err != nil {
-		return fmt.Errorf("gagal baca migrasi 002: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, string(migrationSQL2)); err != nil {
-		return fmt.Errorf("gagal menjalankan migrasi 002: %w", err)
-	}
-
-	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
-	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {
-		return fmt.Errorf("gagal update nama sekolah di profil: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, "SET search_path TO public")
-	if err != nil {
-		return fmt.Errorf("gagal mereset search_path: %w", err)
-	}
-
-	return nil
 }
