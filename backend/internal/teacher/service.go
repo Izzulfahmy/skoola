@@ -15,7 +15,7 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// ... (struct CreateTeacherInput dan UpdateTeacherInput tidak berubah)
+// ... (CreateTeacherInput dan UpdateTeacherInput tidak berubah)
 type CreateTeacherInput struct {
 	Email           string `json:"email" validate:"required,email"`
 	Password        string `json:"password" validate:"required,min=8"`
@@ -35,7 +35,6 @@ type CreateTeacherInput struct {
 	Kecamatan       string `json:"kecamatan" validate:"omitempty"`
 	DesaKelurahan   string `json:"desa_kelurahan" validate:"omitempty"`
 	KodePos         string `json:"kode_pos" validate:"omitempty,numeric"`
-	StatusGuru      string `json:"status_guru" validate:"omitempty,oneof=Aktif NonAktif Pindah"`
 }
 
 type UpdateTeacherInput struct {
@@ -56,18 +55,35 @@ type UpdateTeacherInput struct {
 	Kecamatan       string `json:"kecamatan" validate:"omitempty"`
 	DesaKelurahan   string `json:"desa_kelurahan" validate:"omitempty"`
 	KodePos         string `json:"kode_pos" validate:"omitempty,numeric"`
-	StatusGuru      string `json:"status_guru" validate:"omitempty,oneof=Aktif NonAktif Pindah"`
 }
 
-// --- INTERFACE DIPERBARUI ---
+type CreateHistoryInput struct {
+	Status         string `json:"status" validate:"required,oneof=Aktif Cuti Pindah Berhenti Pensiun"`
+	TanggalMulai   string `json:"tanggal_mulai" validate:"required,datetime=2006-01-02"`
+	TanggalSelesai string `json:"tanggal_selesai" validate:"omitempty,datetime=2006-01-02"`
+	Keterangan     string `json:"keterangan" validate:"omitempty"`
+}
+
+// --- STRUCT BARU UNTUK UPDATE RIWAYAT ---
+type UpdateHistoryInput struct {
+	Status         string `json:"status" validate:"required,oneof=Aktif Cuti Pindah Berhenti Pensiun"`
+	TanggalMulai   string `json:"tanggal_mulai" validate:"required,datetime=2006-01-02"`
+	TanggalSelesai string `json:"tanggal_selesai" validate:"omitempty,datetime=2006-01-02"`
+	Keterangan     string `json:"keterangan" validate:"omitempty"`
+}
+
 type Service interface {
 	Create(ctx context.Context, schemaName string, input CreateTeacherInput) error
 	GetAll(ctx context.Context, schemaName string) ([]Teacher, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error)
 	Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error
 	Delete(ctx context.Context, schemaName string, id string) error
-	// --- FUNGSI BARU ---
 	GetAdminDetails(ctx context.Context, schemaName string) (*Teacher, error)
+	GetHistoryByTeacherID(ctx context.Context, schemaName string, teacherID string) ([]RiwayatKepegawaian, error)
+	CreateHistory(ctx context.Context, schemaName string, teacherID string, input CreateHistoryInput) error
+	// --- FUNGSI BARU ---
+	UpdateHistory(ctx context.Context, schemaName string, historyID string, input UpdateHistoryInput) error
+	DeleteHistory(ctx context.Context, schemaName string, historyID string) error
 }
 
 type service struct {
@@ -84,49 +100,89 @@ func NewService(repo Repository, validate *validator.Validate, db *sql.DB) Servi
 	}
 }
 
-// --- FUNGSI BARU UNTUK MENDAPATKAN DETAIL ADMIN ---
-func (s *service) GetAdminDetails(ctx context.Context, schemaName string) (*Teacher, error) {
-	// 1. Cari user admin berdasarkan schema
-	adminUser, err := s.repo.GetAdminBySchema(ctx, schemaName)
-	if err != nil {
-		return nil, fmt.Errorf("gagal menemukan akun admin: %w", err)
-	}
-	if adminUser == nil {
-		return nil, sql.ErrNoRows // Tidak ada admin di sekolah ini
-	}
-
-	// 2. Cari data guru/teacher yang terhubung dengan user admin
-	adminTeacherData, err := s.repo.GetTeacherByUserID(ctx, schemaName, adminUser.ID)
-	if err != nil {
-		return nil, fmt.Errorf("gagal menemukan data detail admin: %w", err)
-	}
-	if adminTeacherData == nil {
-		// Ini kasus langka, di mana ada user admin tapi tidak ada data di tabel teachers
-		return nil, sql.ErrNoRows
-	}
-
-	return adminTeacherData, nil
-}
-
-// --- FUNGSI-FUNGSI DI BAWAH INI TIDAK BERUBAH ---
-// ... (Create, Update, GetAll, GetByID, Delete, stringToPtr) ...
-func (s *service) Create(ctx context.Context, schemaName string, input CreateTeacherInput) error {
+// --- FUNGSI BARU UNTUK UPDATE RIWAYAT ---
+func (s *service) UpdateHistory(ctx context.Context, schemaName string, historyID string, input UpdateHistoryInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
+	startDate, _ := time.Parse("2006-01-02", input.TanggalMulai)
+	var endDate *time.Time
+	if input.TanggalSelesai != "" {
+		parsedDate, err := time.Parse("2006-01-02", input.TanggalSelesai)
+		if err == nil {
+			endDate = &parsedDate
+		}
+	}
+
+	history := &RiwayatKepegawaian{
+		ID:             historyID,
+		Status:         input.Status,
+		TanggalMulai:   startDate,
+		TanggalSelesai: endDate,
+		Keterangan:     stringToPtr(input.Keterangan),
+	}
+
+	return s.repo.UpdateHistory(ctx, schemaName, history)
+}
+
+// --- FUNGSI BARU UNTUK DELETE RIWAYAT ---
+func (s *service) DeleteHistory(ctx context.Context, schemaName string, historyID string) error {
+	return s.repo.DeleteHistory(ctx, schemaName, historyID)
+}
+
+// ... (Sisa kode tidak berubah)
+// (CreateHistory, GetHistoryByTeacherID, Create, Update, GetAdminDetails, GetAll, GetByID, Delete, stringToPtr)
+func (s *service) CreateHistory(ctx context.Context, schemaName string, teacherID string, input CreateHistoryInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+	teacher, err := s.repo.GetByID(ctx, schemaName, teacherID)
+	if err != nil || teacher == nil {
+		return fmt.Errorf("guru dengan ID %s tidak ditemukan", teacherID)
+	}
+
+	startDate, _ := time.Parse("2006-01-02", input.TanggalMulai)
+	var endDate *time.Time
+	if input.TanggalSelesai != "" {
+		parsedDate, err := time.Parse("2006-01-02", input.TanggalSelesai)
+		if err == nil {
+			endDate = &parsedDate
+		}
+	}
+
+	history := &RiwayatKepegawaian{
+		ID:             uuid.New().String(),
+		TeacherID:      teacherID,
+		Status:         input.Status,
+		TanggalMulai:   startDate,
+		TanggalSelesai: endDate,
+		Keterangan:     stringToPtr(input.Keterangan),
+	}
+
+	return s.repo.CreateHistory(ctx, schemaName, history)
+}
+func (s *service) GetHistoryByTeacherID(ctx context.Context, schemaName string, teacherID string) ([]RiwayatKepegawaian, error) {
+	histories, err := s.repo.GetHistoryByTeacherID(ctx, schemaName, teacherID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data riwayat di service: %w", err)
+	}
+	return histories, nil
+}
+func (s *service) Create(ctx context.Context, schemaName string, input CreateTeacherInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 10)
 	if err != nil {
 		return fmt.Errorf("gagal melakukan hash password: %w", err)
 	}
-
 	user := &User{
 		ID:           uuid.New().String(),
 		Email:        input.Email,
 		PasswordHash: string(hashedPassword),
 		Role:         "teacher",
 	}
-
 	var dob *time.Time
 	if input.TanggalLahir != "" {
 		parsedDate, err := time.Parse("2006-01-02", input.TanggalLahir)
@@ -134,12 +190,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 			dob = &parsedDate
 		}
 	}
-
-	statusGuru := input.StatusGuru
-	if statusGuru == "" {
-		statusGuru = "Aktif"
-	}
-
 	teacher := &Teacher{
 		ID:              uuid.New().String(),
 		UserID:          user.ID,
@@ -159,23 +209,18 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateTea
 		Kecamatan:       stringToPtr(input.Kecamatan),
 		DesaKelurahan:   stringToPtr(input.DesaKelurahan),
 		KodePos:         stringToPtr(input.KodePos),
-		StatusGuru:      stringToPtr(statusGuru),
 	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
 	defer tx.Rollback()
-
 	err = s.repo.Create(ctx, tx, schemaName, user, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal membuat guru di service: %w", err)
 	}
-
 	return tx.Commit()
 }
-
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateTeacherInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
@@ -187,7 +232,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	if teacher == nil {
 		return sql.ErrNoRows
 	}
-
 	var dob *time.Time
 	if input.TanggalLahir != "" {
 		parsedDate, err := time.Parse("2006-01-02", input.TanggalLahir)
@@ -195,7 +239,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 			dob = &parsedDate
 		}
 	}
-
 	teacher.Email = input.Email
 	teacher.NamaLengkap = input.NamaLengkap
 	teacher.NipNuptk = stringToPtr(input.NipNuptk)
@@ -213,15 +256,29 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	teacher.Kecamatan = stringToPtr(input.Kecamatan)
 	teacher.DesaKelurahan = stringToPtr(input.DesaKelurahan)
 	teacher.KodePos = stringToPtr(input.KodePos)
-	teacher.StatusGuru = stringToPtr(input.StatusGuru)
-
 	err = s.repo.Update(ctx, schemaName, teacher)
 	if err != nil {
 		return fmt.Errorf("gagal mengupdate guru di service: %w", err)
 	}
 	return nil
 }
-
+func (s *service) GetAdminDetails(ctx context.Context, schemaName string) (*Teacher, error) {
+	adminUser, err := s.repo.GetAdminBySchema(ctx, schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menemukan akun admin: %w", err)
+	}
+	if adminUser == nil {
+		return nil, sql.ErrNoRows
+	}
+	adminTeacherData, err := s.repo.GetTeacherByUserID(ctx, schemaName, adminUser.ID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menemukan data detail admin: %w", err)
+	}
+	if adminTeacherData == nil {
+		return nil, sql.ErrNoRows
+	}
+	return adminTeacherData, nil
+}
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, error) {
 	teachers, err := s.repo.GetAll(ctx, schemaName)
 	if err != nil {
@@ -229,7 +286,6 @@ func (s *service) GetAll(ctx context.Context, schemaName string) ([]Teacher, err
 	}
 	return teachers, nil
 }
-
 func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*Teacher, error) {
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
@@ -237,7 +293,6 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*T
 	}
 	return teacher, nil
 }
-
 func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
 	teacher, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
@@ -252,7 +307,6 @@ func (s *service) Delete(ctx context.Context, schemaName string, id string) erro
 	}
 	return nil
 }
-
 func stringToPtr(s string) *string {
 	if s == "" {
 		return nil

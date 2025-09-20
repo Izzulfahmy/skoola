@@ -23,6 +23,7 @@ import (
 )
 
 func main() {
+	// ... (kode inisialisasi tidak berubah)
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")
@@ -90,14 +91,19 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
 
-	// --- PERUBAHAN ROUTE DI SINI ---
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 
-		// Rute baru untuk mengambil detail admin
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
 
-		// Rute yang sudah ada
+		// Grouping routes untuk history
+		r.Route("/history", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)
+			r.With(auth.Authorize("admin")).Get("/{teacherID}", teacherHandler.GetHistoryByTeacherID)
+			r.With(auth.Authorize("admin")).Put("/{historyID}", teacherHandler.UpdateHistory)
+			r.With(auth.Authorize("admin")).Delete("/{historyID}", teacherHandler.DeleteHistory)
+		})
+
 		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)

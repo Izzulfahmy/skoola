@@ -66,8 +66,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		return fmt.Errorf("gagal menjalankan migrasi 002: %w", err)
 	}
 
-	// --- TAMBAHAN KODE DI SINI ---
-	// Menjalankan migrasi 003 untuk detail guru
+	// Menjalankan migrasi 003
 	migrationPath3, err := filepath.Abs("./db/migrations/003_add_teacher_details.sql")
 	if err != nil {
 		return fmt.Errorf("gagal path migrasi 003: %w", err)
@@ -78,6 +77,20 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 	}
 	if _, err := tx.ExecContext(ctx, string(migrationSQL3)); err != nil {
 		return fmt.Errorf("gagal menjalankan migrasi 003: %w", err)
+	}
+
+	// --- TAMBAHAN KODE DI SINI ---
+	// Menjalankan migrasi 004 untuk riwayat kepegawaian
+	migrationPath4, err := filepath.Abs("./db/migrations/004_add_employment_history.sql")
+	if err != nil {
+		return fmt.Errorf("gagal path migrasi 004: %w", err)
+	}
+	migrationSQL4, err := os.ReadFile(migrationPath4)
+	if err != nil {
+		return fmt.Errorf("gagal baca migrasi 004: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, string(migrationSQL4)); err != nil {
+		return fmt.Errorf("gagal menjalankan migrasi 004: %w", err)
 	}
 	// --- AKHIR TAMBAHAN ---
 
@@ -94,7 +107,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
-// --- FUNGSI LAINNYA TETAP SAMA (TIDAK PERLU DIUBAH) ---
+// --- FUNGSI LAINNYA TETAP SAMA ---
 func (r *postgresRepository) CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM public.tenants WHERE schema_name = $1)`
 	var exists bool

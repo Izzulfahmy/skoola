@@ -77,6 +77,7 @@ const TeachersPage = () => {
     }
   };
 
+  // --- KOLOM TABEL DIPERBARUI SECARA MENYELURUH ---
   const columns: TableColumnsType<Teacher> = [
     {
       title: 'Nama Lengkap',
@@ -97,24 +98,24 @@ const TeachersPage = () => {
       render: (text) => text || '-',
     },
     {
-      title: 'Nomor HP',
-      dataIndex: 'no_hp',
-      key: 'no_hp',
-      render: (text) => text || '-',
+      title: 'Status Saat Ini',
+      dataIndex: 'status_saat_ini',
+      key: 'status_saat_ini',
+      render: (status) => {
+        if (!status) return '-';
+        let color = 'default';
+        if (status === 'Aktif') color = 'green';
+        if (status === 'Pindah') color = 'gold';
+        if (status === 'Cuti') color = 'blue';
+        if (status === 'Berhenti' || status === 'Pensiun') color = 'volcano';
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
     },
     {
-      title: 'Status',
-      dataIndex: 'status_guru',
-      key: 'status_guru',
-      render: (status) => {
-        let color = 'green';
-        if (status === 'NonAktif') {
-          color = 'volcano';
-        } else if (status === 'Pindah') {
-          color = 'gold';
-        }
-        return status ? <Tag color={color}>{status.toUpperCase()}</Tag> : '-';
-      },
+        title: 'Lama Mengajar',
+        dataIndex: 'lama_mengajar',
+        key: 'lama_mengajar',
+        render: (text) => text || '-',
     },
     {
       title: 'Aksi',

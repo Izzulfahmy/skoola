@@ -44,12 +44,15 @@ const AdminLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // --- PERUBAHAN DI SINI ---
   const profileMenuItems: MenuProps['items'] = [
     {
       key: 'settings',
       label: 'Pengaturan Akun',
       icon: <SettingOutlined />,
-      disabled: true,
+      // 1. Properti 'disabled' dihapus
+      // 2. 'onClick' ditambahkan untuk navigasi
+      onClick: () => navigate('/settings', { state: { openTab: '4' } }),
     },
     {
       type: 'divider',
@@ -72,9 +75,7 @@ const AdminLayout = () => {
   
   const activeKey = mainMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
 
-  // --- KONTEN MENU UNTUK SIDER DAN DRAWER ---
   const menuContent = (
-    // Kita tambahkan overflowY agar jika menu sangat panjang, menu itu sendiri yang scroll, bukan halaman
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
       <div style={{
         height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -105,7 +106,6 @@ const AdminLayout = () => {
     </div>
   );
 
-  // --- Konstanta untuk lebar Sider ---
   const siderWidth = 200;
   const siderCollapsedWidth = 60;
 
@@ -118,7 +118,6 @@ const AdminLayout = () => {
           collapsed={collapsed}
           width={siderWidth}
           collapsedWidth={siderCollapsedWidth}
-          // --- PERUBAHAN 1: Membuat Sider menjadi fixed ---
           style={{
             overflow: 'auto',
             height: '100vh',
@@ -126,14 +125,13 @@ const AdminLayout = () => {
             left: 0,
             top: 0,
             bottom: 0,
-            zIndex: 10, // Menastikan sider di atas konten lain jika tumpang tindih
+            zIndex: 10,
           }}
         >
           {menuContent}
         </Sider>
       )}
 
-      {/* --- PERUBAHAN 2: Memberi margin pada Layout utama agar tidak tertutup Sider --- */}
       <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
         <Header style={{ padding: '0 16px', background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button
@@ -151,11 +149,10 @@ const AdminLayout = () => {
             </Dropdown>
           </Space>
         </Header>
-        {/* --- PERUBAHAN 3: Membuat area Content menjadi scrollable secara mandiri --- */}
         <Content style={{
           margin: isMobile ? '16px 8px' : '24px 16px', padding: isMobile ? 12 : 24,
           background: colorBgContainer, borderRadius: borderRadiusLG,
-          overflow: 'auto', // Ini memungkinkan konten untuk scroll jika lebih tinggi dari layar
+          overflow: 'auto',
         }}>
           <Outlet />
         </Content>

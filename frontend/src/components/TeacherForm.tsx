@@ -3,6 +3,8 @@ import { Form, Input, Button, Row, Col, DatePicker, Select, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 import type { CreateTeacherInput, Teacher } from '../types';
 import dayjs from 'dayjs';
+// --- 1. IMPOR KOMPONEN BARU ---
+import EmploymentHistoryTab from './EmploymentHistoryTab';
 
 interface TeacherFormProps {
   onFinish: (values: CreateTeacherInput) => void;
@@ -19,7 +21,9 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
   const formattedInitialValues = initialValues ? {
     ...initialValues,
     tanggal_lahir: initialValues.tanggal_lahir ? dayjs(initialValues.tanggal_lahir, 'YYYY-MM-DD') : null,
-  } : {};
+  } : {
+    kewarganegaraan: 'Indonesia',
+  };
 
   const handleFinish = (values: any) => {
     const finalValues = {
@@ -35,7 +39,6 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
       label: 'Data Akun',
       children: (
         <Row gutter={16}>
-          {/* --- URUTAN TELAH DIUBAH DI SINI --- */}
           <Col xs={24} sm={12}>
             <Form.Item name="nama_lengkap" label="Nama Lengkap" rules={[{ required: true, message: 'Nama lengkap tidak boleh kosong' }]}>
               <Input />
@@ -150,24 +153,17 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
         </Row>
       ),
     },
-    {
-      key: '4',
-      label: 'Kepegawaian',
-      children: (
-         <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item name="status_guru" label="Status Guru">
-              <Select placeholder="Pilih status guru">
-                <Option value="Aktif">Aktif</Option>
-                <Option value="NonAktif">Non-Aktif</Option>
-                <Option value="Pindah">Pindah</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-      ),
-    },
   ];
+
+  // --- 2. TAMBAHKAN TAB SECARA KONDISIONAL ---
+  // Tab Riwayat Kepegawaian hanya akan muncul jika form dalam mode edit (initialValues ada)
+  if (initialValues) {
+    tabItems.push({
+      key: '4',
+      label: 'Riwayat Kepegawaian',
+      children: <EmploymentHistoryTab teacherId={initialValues.id} />,
+    });
+  }
 
   return (
     <Form

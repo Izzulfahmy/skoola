@@ -1,6 +1,9 @@
 // file: src/api/teachers.ts
 import apiClient from './axiosInstance';
-import type { Teacher, CreateTeacherInput, UpdateTeacherInput } from '../types';
+// --- PERBAIKAN DI SINI ---
+import type { Teacher, CreateTeacherInput, UpdateTeacherInput, RiwayatKepegawaian, CreateHistoryInput, UpdateHistoryInput } from '../types';
+
+// Tipe 'UpdateHistoryInput' dihapus dari sini
 
 export const getTeachers = async (): Promise<Teacher[]> => {
   try {
@@ -11,8 +14,6 @@ export const getTeachers = async (): Promise<Teacher[]> => {
   }
 };
 
-// --- FUNGSI BARU DI SINI ---
-// Fungsi untuk mengambil detail data admin sekolah yang sedang login
 export const getAdminDetails = async (): Promise<Teacher> => {
   try {
     const response = await apiClient.get('/teachers/admin/details');
@@ -22,6 +23,40 @@ export const getAdminDetails = async (): Promise<Teacher> => {
   }
 };
 
+export const getTeacherHistory = async (teacherId: string): Promise<RiwayatKepegawaian[]> => {
+  try {
+    const response = await apiClient.get(`/teachers/history/${teacherId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createTeacherHistory = async (teacherId: string, historyData: CreateHistoryInput): Promise<any> => {
+  try {
+    const response = await apiClient.post(`/teachers/history/${teacherId}`, historyData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateTeacherHistory = async (historyId: string, historyData: UpdateHistoryInput): Promise<any> => {
+  try {
+    const response = await apiClient.put(`/teachers/history/${historyId}`, historyData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteTeacherHistory = async (historyId: string): Promise<void> => {
+  try {
+    await apiClient.delete(`/teachers/history/${historyId}`);
+  } catch (error) {
+    throw error;
+  }
+};
 
 export const createTeacher = async (
   teacherData: CreateTeacherInput
