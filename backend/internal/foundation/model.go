@@ -7,6 +7,7 @@ import "time"
 type Foundation struct {
 	ID          string    `json:"id"`
 	NamaYayasan string    `json:"nama_yayasan"`
+	SchoolCount int       `json:"school_count"` // <-- TAMBAHKAN FIELD INI
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

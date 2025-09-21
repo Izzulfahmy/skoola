@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5FHbpiraxOh1LFAZlB8cN3yBte1uguyJx0ApfTi6x9XTC7kAIw3pGae0lNgWy3y
+\restrict e5HRRwBfzcQm2DwE88iC452H4rz48DB5uCcPCgZmrU1Q1OWibwXblFjEWOPA8Kr
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -168,6 +168,20 @@ CREATE TABLE "20554021".users (
 ALTER TABLE "20554021".users OWNER TO postgres;
 
 --
+-- Name: foundations; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.foundations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nama_yayasan character varying(255) NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.foundations OWNER TO postgres;
+
+--
 -- Name: tenants; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -176,7 +190,8 @@ CREATE TABLE public.tenants (
     nama_sekolah character varying(255) NOT NULL,
     schema_name character varying(50) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    foundation_id uuid
 );
 
 
@@ -212,8 +227,7 @@ COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurah
 --
 
 COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tanggal_selesai, keterangan, created_at, updated_at) FROM stdin;
-8a2a84fd-6231-4697-b48e-f24175986cfa	c7c6e909-0dab-44c3-a7f2-1aae687b152a	Aktif	2025-09-21	\N	\N	2025-09-21 06:13:25.647177+07	2025-09-21 06:13:25.647177+07
-0f3fe984-f0b7-4ffc-b63f-3086375cb751	da05ddf3-cb8a-4d67-89df-b7866aa94357	Aktif	2022-05-18	\N	GTT	2025-09-21 06:16:23.605042+07	2025-09-21 06:17:40.743799+07
+6c9c4d77-701a-4f47-8a4d-4d246e985964	ecc4844c-0c05-4e8a-a128-316aa87b6915	Aktif	2025-09-21	\N	\N	2025-09-21 08:02:52.376391+07	2025-09-21 08:02:52.376391+07
 \.
 
 
@@ -222,7 +236,6 @@ COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tang
 --
 
 COPY "20554021".students (id, nama_lengkap, nis, nisn, alamat, nama_wali, nomor_telepon_wali, created_at, updated_at) FROM stdin;
-249c74eb-d5f2-4d03-a67e-6eed27791379	nada	2343234	3523562	dujasndka	subarjo	0842515263	2025-09-21 06:14:58.253159+07	2025-09-21 06:14:58.253159+07
 \.
 
 
@@ -231,8 +244,7 @@ COPY "20554021".students (id, nama_lengkap, nis, nisn, alamat, nama_wali, nomor_
 --
 
 COPY "20554021".teachers (id, user_id, nama_lengkap, nip_nuptk, alamat_lengkap, no_hp, created_at, updated_at, nama_panggilan, gelar_akademik, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, provinsi, kota_kabupaten, kecamatan, desa_kelurahan, kode_pos) FROM stdin;
-c7c6e909-0dab-44c3-a7f2-1aae687b152a	34894337-d317-4db6-bee5-6cba2f1b3443	Admin Nurul Huda	\N	\N	\N	2025-09-21 06:13:25.647177+07	2025-09-21 06:13:25.647177+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-da05ddf3-cb8a-4d67-89df-b7866aa94357	420c5674-87bf-42d8-b20b-a7b8953dbaa9	Fahmi	\N	\N	\N	2025-09-21 06:14:07.374892+07	2025-09-21 06:20:16.379695+07	\N	S.Pd	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+ecc4844c-0c05-4e8a-a128-316aa87b6915	abce154b-07f8-4dd2-acfe-b053b94a0285	Admin Nurul Huda	\N	\N	\N	2025-09-21 08:02:52.376391+07	2025-09-21 08:02:52.376391+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -241,8 +253,17 @@ da05ddf3-cb8a-4d67-89df-b7866aa94357	420c5674-87bf-42d8-b20b-a7b8953dbaa9	Fahmi	
 --
 
 COPY "20554021".users (id, email, password_hash, role, created_at, updated_at) FROM stdin;
-34894337-d317-4db6-bee5-6cba2f1b3443	admin.sdnu03@gmail.com	$2a$10$kBbKxln2jomKJgFEhGTaGO3CyL/dQ7EiY5q1gEq4FTN4tK30Xpcfm	admin	2025-09-21 06:13:25.647177+07	2025-09-21 06:13:25.647177+07
-420c5674-87bf-42d8-b20b-a7b8953dbaa9	fahmi.andi@email.com	$2a$10$J2eLdxqshhTQ9Yap0D87DeEg.iv0SS1YAeZV5SUcYV16X7SVYQega	teacher	2025-09-21 06:14:07.374892+07	2025-09-21 06:14:07.374892+07
+abce154b-07f8-4dd2-acfe-b053b94a0285	admin.sdnu03@gmail.com	$2a$10$EqYqKXuOHChlMfixrzxiDezyhzRqED/FeEPV5fRI.1iE8XSHpSnp.	admin	2025-09-21 08:02:52.376391+07	2025-09-21 08:02:52.376391+07
+\.
+
+
+--
+-- Data for Name: foundations; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.foundations (id, nama_yayasan, created_at, updated_at) FROM stdin;
+94eed33a-73ac-4086-bce6-103f4e129b5b	Yayasan Pondok Pesantren Bintang Sembilan	2025-09-21 07:48:06.58815+07	2025-09-21 07:48:06.58815+07
+8638594c-c331-460b-8442-88b2c02b7933	Yayasan Ceria Bakti	2025-09-21 08:16:07.724738+07	2025-09-21 08:16:07.724738+07
 \.
 
 
@@ -250,8 +271,8 @@ COPY "20554021".users (id, email, password_hash, role, created_at, updated_at) F
 -- Data for Name: tenants; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.tenants (id, nama_sekolah, schema_name, created_at, updated_at) FROM stdin;
-16ce58fe-2dbf-40c0-b007-8179cd856ae5	SD NU 03 NURUL HUDA	20554021	2025-09-21 06:13:25.647177+07	2025-09-21 06:13:25.647177+07
+COPY public.tenants (id, nama_sekolah, schema_name, created_at, updated_at, foundation_id) FROM stdin;
+b08f4e2d-773a-4922-837f-467dd2a4c727	SD NU 03 NURUL HUDA	20554021	2025-09-21 08:02:52.376391+07	2025-09-21 08:02:52.376391+07	94eed33a-73ac-4086-bce6-103f4e129b5b
 \.
 
 
@@ -313,6 +334,14 @@ ALTER TABLE ONLY "20554021".users
 
 
 --
+-- Name: foundations foundations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.foundations
+    ADD CONSTRAINT foundations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: tenants tenants_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -352,6 +381,13 @@ CREATE INDEX idx_riwayat_kepegawaian_teacher_id ON "20554021".riwayat_kepegawaia
 
 
 --
+-- Name: idx_tenants_foundation_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_tenants_foundation_id ON public.tenants USING btree (foundation_id);
+
+
+--
 -- Name: riwayat_kepegawaian riwayat_kepegawaian_teacher_id_fkey; Type: FK CONSTRAINT; Schema: 20554021; Owner: postgres
 --
 
@@ -368,8 +404,16 @@ ALTER TABLE ONLY "20554021".teachers
 
 
 --
+-- Name: tenants tenants_foundation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_foundation_id_fkey FOREIGN KEY (foundation_id) REFERENCES public.foundations(id) ON DELETE SET NULL;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5FHbpiraxOh1LFAZlB8cN3yBte1uguyJx0ApfTi6x9XTC7kAIw3pGae0lNgWy3y
+\unrestrict e5HRRwBfzcQm2DwE88iC452H4rz48DB5uCcPCgZmrU1Q1OWibwXblFjEWOPA8Kr
 

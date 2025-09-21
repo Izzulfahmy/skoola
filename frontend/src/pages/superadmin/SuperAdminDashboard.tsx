@@ -1,32 +1,40 @@
 // file: frontend/src/pages/superadmin/SuperAdminDashboard.tsx
 import { Card, Col, Row, Statistic, Typography, Space } from 'antd';
-import { BankOutlined } from '@ant-design/icons';
+import { BankOutlined, GoldOutlined } from '@ant-design/icons'; // <-- Impor ikon baru
 import { useEffect, useState } from 'react';
 import { getTenants } from '../../api/tenants';
+import { getFoundations } from '../../api/foundations'; // <-- Impor API yayasan
 
 const { Title, Text } = Typography;
 
 const SuperAdminDashboard = () => {
   const [tenantCount, setTenantCount] = useState(0);
+  const [foundationCount, setFoundationCount] = useState(0); // <-- State baru untuk jumlah yayasan
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTenantCount = async () => {
+    const fetchStats = async () => {
       try {
-        const tenants = await getTenants();
-        // --- PERBAIKAN DI SINI ---
-        // Pastikan tenants adalah array sebelum mengambil .length
-        // Jika null atau undefined, anggap jumlahnya 0.
+        // --- PERBAIKAN DI SINI: Ambil data sekolah dan yayasan secara bersamaan ---
+        const [tenants, foundations] = await Promise.all([
+          getTenants(),
+          getFoundations(),
+        ]);
+        
         setTenantCount(tenants?.length || 0);
+        setFoundationCount(foundations?.length || 0);
+
       } catch (error) {
-        console.error("Gagal memuat jumlah sekolah:", error);
-        setTenantCount(0); // Set ke 0 jika terjadi error
+        console.error("Gagal memuat data statistik:", error);
+        // Set ke 0 jika terjadi error
+        setTenantCount(0);
+        setFoundationCount(0);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTenantCount();
+    fetchStats();
   }, []);
 
   return (
@@ -36,6 +44,18 @@ const SuperAdminDashboard = () => {
         <Text type="secondary">Selamat datang! Anda dapat mengelola semua sekolah dari sini.</Text>
       </div>
       <Row gutter={[16, 16]}>
+        {/* --- KARTU STATISTIK BARU UNTUK YAYASAN --- */}
+        <Col xs={24} sm={12} lg={8}>
+          <Card>
+            <Statistic
+              title="Total Yayasan Terdaftar"
+              value={foundationCount}
+              loading={loading}
+              prefix={<GoldOutlined />}
+            />
+          </Card>
+        </Col>
+
         <Col xs={24} sm={12} lg={8}>
           <Card>
             <Statistic

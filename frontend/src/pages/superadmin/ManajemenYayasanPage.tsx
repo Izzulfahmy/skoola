@@ -11,7 +11,6 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
 
-// --- HOOK KUSTOM UNTUK MENDETEKSI UKURAN LAYAR ---
 const useWindowSize = () => {
   const [size, setSize] = useState({ width: window.innerWidth });
   useEffect(() => {
@@ -25,8 +24,8 @@ const useWindowSize = () => {
 const ManajemenYayasanPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const { width } = useWindowSize(); // Ambil lebar layar saat ini
-  const isMobile = width < 768; // Tentukan breakpoint untuk mobile
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
 
   const [foundations, setFoundations] = useState<Foundation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +117,9 @@ const ManajemenYayasanPage = () => {
 
   const columns: TableColumnsType<Foundation> = [
     { title: 'Nama Yayasan', dataIndex: 'nama_yayasan', key: 'nama_yayasan', sorter: (a, b) => a.nama_yayasan.localeCompare(b.nama_yayasan) },
-    { title: 'Tanggal Dibuat', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(), responsive: ['md'] }, // Sembunyikan di layar kecil
+    // --- KOLOM BARU DI SINI ---
+    { title: 'Jumlah Sekolah', dataIndex: 'school_count', key: 'school_count', align: 'center', sorter: (a, b) => a.school_count - b.school_count },
+    { title: 'Tanggal Dibuat', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(), responsive: ['md'] },
     {
       title: 'Aksi',
       key: 'action',
@@ -126,7 +127,6 @@ const ManajemenYayasanPage = () => {
       render: (_, record) => (
         <Space>
            <Button icon={<EyeOutlined />} onClick={() => navigate(`/superadmin/yayasan/${record.id}`)}>
-            {/* Tampilkan teks hanya di layar non-mobile */}
             {!isMobile && 'Lihat Sekolah'}
           </Button>
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
@@ -138,19 +138,17 @@ const ManajemenYayasanPage = () => {
 
   return (
     <>
-      {/* --- PERBAIKAN RESPONSIVE PADA HEADER --- */}
       <Row 
         justify="space-between" 
         align="middle" 
         style={{ marginBottom: 24 }}
-        gutter={[16, 16]} // Tambahkan gutter untuk spasi
+        gutter={[16, 16]}
       >
         <Col>
           <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Manajemen Yayasan</Title>
         </Col>
         <Col style={{ textAlign: isMobile ? 'left' : 'right' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-            {/* Tampilkan teks hanya di layar non-mobile */}
             {!isMobile && 'Tambah Yayasan Baru'}
           </Button>
         </Col>
@@ -164,7 +162,7 @@ const ManajemenYayasanPage = () => {
           dataSource={foundations} 
           loading={loading} 
           rowKey="id" 
-          scroll={{ x: 'max-content' }} // Pastikan tabel bisa di-scroll horizontal
+          scroll={{ x: 'max-content' }}
         />
       )}
 
