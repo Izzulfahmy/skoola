@@ -46,6 +46,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/002_add_school_profile.sql",
 		"./db/migrations/003_add_teacher_details.sql",
 		"./db/migrations/004_add_employment_history.sql",
+		"./db/migrations/006_enhance_students_table.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
 	}
 
 	for _, path := range migrationPaths {
@@ -61,10 +62,6 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 			return fmt.Errorf("gagal menjalankan migrasi %s: %w", path, err)
 		}
 	}
-
-	// --- PERBAIKAN DI SINI: Bagian yang menyebabkan deadlock telah dihapus ---
-	// Logika untuk menjalankan migrasi public (005) sudah ditangani saat startup di main.go
-	// jadi tidak perlu dijalankan lagi di sini.
 
 	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
 	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {
@@ -118,7 +115,6 @@ func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	return tenants, nil
 }
 
-// --- FUNGSI LAINNYA TETAP SAMA ---
 func (r *postgresRepository) CheckSchemaExists(ctx context.Context, schemaName string) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM public.tenants WHERE schema_name = $1)`
 	var exists bool

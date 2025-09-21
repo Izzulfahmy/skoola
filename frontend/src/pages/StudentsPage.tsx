@@ -1,11 +1,12 @@
 // file: src/pages/StudentsPage.tsx
 import { useEffect, useState } from 'react';
-import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col } from 'antd';
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getStudents, createStudent, updateStudent, deleteStudent } from '../api/students';
 import type { Student, CreateStudentInput, UpdateStudentInput } from '../types';
 import StudentForm from '../components/StudentForm';
+import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
@@ -46,19 +47,19 @@ const StudentsPage = () => {
 
   const handleFormSubmit = async (values: CreateStudentInput | UpdateStudentInput) => {
     setIsSubmitting(true);
-
-    const cleanedValues: any = {};
-    Object.keys(values).forEach(key => {
-        const value = (values as any)[key];
-        cleanedValues[key] = (typeof value === 'string' && value.trim() === "") ? null : value;
-    });
+    
+    // Konversi nilai tanggal dari dayjs ke string YYYY-MM-DD
+    const payload = {
+        ...values,
+        tanggal_lahir: values.tanggal_lahir ? dayjs(values.tanggal_lahir).format('YYYY-MM-DD') : undefined,
+    };
 
     try {
       if (editingStudent) {
-        await updateStudent(editingStudent.id, cleanedValues as UpdateStudentInput);
+        await updateStudent(editingStudent.id, payload as UpdateStudentInput);
         message.success('Data siswa berhasil diperbarui!');
       } else {
-        await createStudent(cleanedValues as CreateStudentInput);
+        await createStudent(payload as CreateStudentInput);
         message.success('Siswa baru berhasil ditambahkan!');
       }
       handleCancel();
@@ -66,7 +67,6 @@ const StudentsPage = () => {
     } catch (err: any) {
       const errorMessage = err.response?.data || 'Terjadi kesalahan saat menyimpan data.';
       message.error(errorMessage);
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -80,20 +80,42 @@ const StudentsPage = () => {
     } catch (err: any) {
       const errorMessage = err.response?.data || 'Gagal menghapus data siswa.';
       message.error(errorMessage);
-      console.error(err);
     }
   };
 
   const columns: TableColumnsType<Student> = [
-    { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap', sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap) },
-    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
-    { title: 'NISN', dataIndex: 'nisn', key: 'nisn', render: (text) => text || '-' },
-    { title: 'Nama Wali', dataIndex: 'nama_wali', key: 'nama_wali', render: (text) => text || '-' },
+    { 
+      title: 'Nama Lengkap', 
+      dataIndex: 'nama_lengkap', 
+      key: 'nama_lengkap', 
+      sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap),
+      fixed: 'left',
+      width: 200,
+    },
+    { 
+      title: 'Status', 
+      dataIndex: 'status_siswa', 
+      key: 'status_siswa',
+      render: (status) => {
+        let color = 'default';
+        if (status === 'Aktif') color = 'green';
+        if (status === 'Lulus') color = 'blue';
+        if (status === 'Pindah' || status === 'Keluar') color = 'volcano';
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
+      width: 100,
+    },
+    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-', width: 120 },
+    { title: 'NISN', dataIndex: 'nisn', key: 'nisn', render: (text) => text || '-', width: 120 },
+    { title: 'Jenis Kelamin', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text || '-', width: 120 },
+    // --- PERBAIKAN DI BARIS BERIKUT ---
+    { title: 'Nama Wali', dataIndex: 'nama_wali', key: 'nama_wali', render: (_, record) => record.nama_wali || record.nama_ayah || record.nama_ibu || '-', width: 200, },
     {
       title: 'Aksi',
       key: 'action',
+      align: 'center',
       render: (_, record) => (
-        <Space size="middle" direction="horizontal">
+        <Space size="middle">
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
           <Popconfirm
             title="Hapus Siswa"
@@ -106,6 +128,8 @@ const StudentsPage = () => {
           </Popconfirm>
         </Space>
       ),
+      fixed: 'right',
+      width: 100,
     },
   ];
 
@@ -125,7 +149,7 @@ const StudentsPage = () => {
           </Button>
         </Col>
       </Row>
-      <Table columns={columns} dataSource={students} loading={loading} rowKey="id" scroll={{ x: 'max-content' }} />
+      <Table columns={columns} dataSource={students} loading={loading} rowKey="id" scroll={{ x: 1000 }} />
       {isModalOpen && (
         <Modal
           title={editingStudent ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}
@@ -133,6 +157,7 @@ const StudentsPage = () => {
           onCancel={handleCancel}
           destroyOnClose
           footer={null}
+          width={800} // Perbesar modal agar form terlihat bagus
         >
           <StudentForm
             onFinish={handleFormSubmit}

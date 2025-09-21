@@ -1,4 +1,4 @@
--- backend/db/migrations/001_initial_schema.sql
+-- file: backend/db/migrations/001_initial_schema.sql
 
 -- Membuat tabel users untuk menyimpan data login
 CREATE TABLE users (
@@ -22,15 +22,4 @@ CREATE TABLE teachers (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Membuat tabel students
-CREATE TABLE students (
-    id UUID PRIMARY KEY,
-    nama_lengkap VARCHAR(255) NOT NULL,
-    nis VARCHAR(50),
-    nisn VARCHAR(50),
-    alamat TEXT,
-    nama_wali VARCHAR(255),
-    nomor_telepon_wali VARCHAR(20),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- HAPUS BAGIAN "CREATE TABLE students" DARI FILE INI

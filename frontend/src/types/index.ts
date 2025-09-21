@@ -3,12 +3,11 @@
 export interface Foundation {
   id: string;
   nama_yayasan: string;
-  school_count: number; // <-- TAMBAHKAN INI
+  school_count: number;
   created_at: string;
   updated_at: string;
 }
 
-// ... (sisa tipe data tidak berubah) ...
 export interface Tenant {
   id: string;
   nama_sekolah: string;
@@ -111,25 +110,65 @@ export interface CreateTeacherInput {
 export type UpdateTeacherInput = Omit<CreateTeacherInput, 'password'>;
 
 
+// --- PERUBAHAN UTAMA DI SINI ---
+// Interface untuk Student diperbarui
 export interface Student {
   id: string;
-  nama_lengkap: string;
-  nis?: string;
-  nisn?: string;
-  alamat?: string;
-  nama_wali?: string;
-  nomor_telepon_wali?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface CreateStudentInput {
-  nama_lengkap: string;
+  
   nis?: string;
   nisn?: string;
-  alamat?: string;
+  nomor_ujian_sekolah?: string;
+  status_siswa: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+
+  nama_lengkap: string;
+  nama_panggilan?: string;
+  jenis_kelamin?: 'Laki-laki' | 'Perempuan';
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
+  kewarganegaraan?: string;
+  
+  alamat_lengkap?: string;
+  desa_kelurahan?: string;
+  kecamatan?: string;
+  kota_kabupaten?: string;
+  provinsi?: string;
+  kode_pos?: string;
+  
+  nama_ayah?: string;
+  nama_ibu?: string;
   nama_wali?: string;
-  nomor_telepon_wali?: string;
+  nomor_kontak_wali?: string;
+}
+
+// Input DTO untuk Create/Update Student juga diperbarui
+export interface CreateStudentInput {
+  status_siswa: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  nis?: string;
+  nisn?: string;
+  nomor_ujian_sekolah?: string;
+
+  nama_lengkap: string;
+  nama_panggilan?: string;
+  jenis_kelamin?: 'Laki-laki' | 'Perempuan';
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
+  kewarganegaraan?: string;
+  
+  alamat_lengkap?: string;
+  desa_kelurahan?: string;
+  kecamatan?: string;
+  kota_kabupaten?: string;
+  provinsi?: string;
+  kode_pos?: string;
+  
+  nama_ayah?: string;
+  nama_ibu?: string;
+  nama_wali?: string;
+  nomor_kontak_wali?: string;
 }
 
 export type UpdateStudentInput = CreateStudentInput;
