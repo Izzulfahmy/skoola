@@ -9,6 +9,7 @@ export interface RegisterTenantInput {
   admin_email: string;
   admin_pass: string;
   admin_name: string;
+  foundation_id?: string; // <-- TAMBAHKAN INI
 }
 
 // Tipe untuk input update email
@@ -61,13 +62,11 @@ export const resetAdminPassword = async (schemaName: string, data: ResetAdminPas
   }
 };
 
-// --- FUNGSI BARU UNTUK MENGHAPUS TENANT ---
+// Fungsi untuk menghapus tenant
 export const deleteTenant = async (schemaName: string): Promise<void> => {
   try {
-    // Mengirim request DELETE ke endpoint yang sesuai
     await apiClient.delete(`/tenants/${schemaName}`);
   } catch (error) {
-    // Lemparkan error agar bisa ditangkap di komponen UI
     throw error;
   }
 };

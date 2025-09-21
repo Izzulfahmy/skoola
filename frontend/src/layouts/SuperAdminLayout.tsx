@@ -7,6 +7,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   SettingOutlined,
+  GoldOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider, message } from 'antd';
 import type { MenuProps } from 'antd';
@@ -17,7 +18,6 @@ const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
 
 const SuperAdminLayout = () => {
-  // --- 1. UBAH STATE AWAL MENJADI TRUE (TERTUTUP) ---
   const [collapsed, setCollapsed] = useState(true);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -35,7 +35,7 @@ const SuperAdminLayout = () => {
       }
     };
     window.addEventListener('resize', handleResize);
-    handleResize(); // Panggil saat pertama kali render
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -60,10 +60,15 @@ const SuperAdminLayout = () => {
 
   const mainMenuItems = [
     { key: '/superadmin', icon: <DesktopOutlined />, label: <Link to="/superadmin">Dashboard</Link> },
-    { key: '/superadmin/sekolah', icon: <BankOutlined />, label: <Link to="/superadmin/sekolah">Sekolah</Link> },
+    { key: '/superadmin/yayasan', icon: <GoldOutlined />, label: <Link to="/superadmin/yayasan">Yayasan</Link> },
+    { key: '/superadmin/sekolah', icon: <BankOutlined />, label: <Link to="/superadmin/sekolah">Semua Sekolah</Link> },
   ];
 
-  const activeKey = mainMenuItems.find(item => location.pathname === item.key)?.key || '/superadmin';
+  // --- PERBAIKAN DI SINI ---
+  // Urutkan item menu berdasarkan panjang 'key' dari yang terpanjang ke terpendek.
+  // Ini memastikan '/superadmin/yayasan' akan dicocokkan sebelum '/superadmin'.
+  const sortedMenuItems = [...mainMenuItems].sort((a, b) => b.key.length - a.key.length);
+  const activeKey = sortedMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/superadmin';
 
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -93,7 +98,6 @@ const SuperAdminLayout = () => {
   );
 
   const siderWidth = 200;
-  // --- 2. KURANGI LEBAR SIDEBAR SAAT TERTUTUP ---
   const siderCollapsedWidth = 60;
 
   return (

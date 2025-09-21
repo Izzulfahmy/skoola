@@ -1,9 +1,20 @@
 // file: src/types/index.ts
 
+// --- 1. TAMBAHKAN INTERFACE BARU UNTUK YAYASAN ---
+export interface Foundation {
+  id: string;
+  nama_yayasan: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- 2. PERBARUI INTERFACE TENANT ---
 export interface Tenant {
   id: string;
   nama_sekolah: string;
   schema_name: string;
+  foundation_id?: string; // Boleh null
+  nama_yayasan?: string;  // Boleh null
   created_at: string;
   updated_at: string;
 }
@@ -47,7 +58,6 @@ export interface CreateHistoryInput {
   keterangan?: string;
 }
 
-// --- TIPE BARU DITAMBAHKAN DI SINI ---
 export type UpdateHistoryInput = CreateHistoryInput;
 
 

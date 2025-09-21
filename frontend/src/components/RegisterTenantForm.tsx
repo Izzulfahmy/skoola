@@ -1,6 +1,11 @@
 // file: frontend/src/components/RegisterTenantForm.tsx
-import { Form, Input, Button } from 'antd';
+import { useState, useEffect } from 'react';
+import { Form, Input, Button, Select } from 'antd';
+import { getFoundations } from '../api/foundations';
+import type { Foundation } from '../types';
 import type { RegisterTenantInput } from '../api/tenants';
+
+const { Option } = Select;
 
 interface RegisterTenantFormProps {
   onFinish: (values: RegisterTenantInput) => void;
@@ -9,8 +14,37 @@ interface RegisterTenantFormProps {
 }
 
 const RegisterTenantForm = ({ onFinish, onCancel, loading }: RegisterTenantFormProps) => {
+  const [foundations, setFoundations] = useState<Foundation[]>([]);
+  const [foundationLoading, setFoundationLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFoundations = async () => {
+      try {
+        const data = await getFoundations();
+        setFoundations(data);
+      } catch (error) {
+        console.error("Gagal memuat data yayasan:", error);
+      } finally {
+        setFoundationLoading(false);
+      }
+    };
+    fetchFoundations();
+  }, []);
+
   return (
     <Form layout="vertical" onFinish={onFinish}>
+      <Form.Item name="foundation_id" label="Yayasan (Opsional)">
+        <Select
+          placeholder="Pilih yayasan jika sekolah bernaung di bawah yayasan"
+          loading={foundationLoading}
+          allowClear
+        >
+          {foundations.map(f => (
+            <Option key={f.id} value={f.id}>{f.nama_yayasan}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
       <Form.Item
         name="nama_sekolah"
         label="Nama Sekolah"
@@ -30,7 +64,7 @@ const RegisterTenantForm = ({ onFinish, onCancel, loading }: RegisterTenantFormP
           },
         ]}
       >
-        <Input placeholder="Contoh: NPSN" />
+        <Input placeholder="Contoh: sman1jkt" />
       </Form.Item>
 
       <Form.Item

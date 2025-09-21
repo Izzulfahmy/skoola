@@ -14,7 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 import SuperAdminLayout from './layouts/SuperAdminLayout';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import ManajemenSekolahPage from './pages/superadmin/ManajemenSekolahPage';
-
+import ManajemenYayasanPage from './pages/superadmin/ManajemenYayasanPage'; // <-- IMPOR HALAMAN YAYASAN
 
 function App() {
   return (
@@ -35,7 +35,9 @@ function App() {
         {/* --- 2. PERBARUI RUTE SUPERADMIN --- */}
         <Route path="/superadmin" element={<ProtectedRoute><SuperAdminLayout /></ProtectedRoute>}>
           <Route index element={<SuperAdminDashboard />} />
-          <Route path="sekolah" element={<ManajemenSekolahPage />} />
+          <Route path="yayasan" element={<ManajemenYayasanPage />} />
+          <Route path="yayasan/:foundationId" element={<ManajemenSekolahPage />} /> {/* Rute untuk sekolah di bawah yayasan */}
+          <Route path="sekolah" element={<ManajemenSekolahPage />} /> {/* Rute untuk semua sekolah */}
         </Route>
 
         {/* Rute untuk URL yang tidak cocok */}

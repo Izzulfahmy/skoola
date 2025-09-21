@@ -2,12 +2,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"skoola/internal/auth"
+	"skoola/internal/foundation"
 	"skoola/internal/profile"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
@@ -22,8 +25,34 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// --- FUNGSI BARU UNTUK MENJALANKAN MIGRASI PUBLIC ---
+func runPublicMigrations(db *sql.DB) error {
+	log.Println("Memeriksa dan menjalankan migrasi untuk skema public...")
+
+	// Tambahkan path file migrasi untuk skema 'public' di sini
+	publicMigrations := []string{
+		"./db/migrations/005_add_foundations.sql",
+	}
+
+	for _, path := range publicMigrations {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return fmt.Errorf("gagal mendapatkan path absolut untuk %s: %w", path, err)
+		}
+		migrationSQL, err := os.ReadFile(absPath)
+		if err != nil {
+			return fmt.Errorf("gagal membaca file migrasi %s: %w", path, err)
+		}
+		if _, err := db.ExecContext(context.Background(), string(migrationSQL)); err != nil {
+			// Kita tidak mengembalikan error di sini agar aplikasi tetap bisa jalan jika migrasi sudah pernah dieksekusi
+			log.Printf("Info: Gagal menjalankan migrasi %s, mungkin sudah ada: %v\n", path, err)
+		}
+	}
+	log.Println("Pemeriksaan migrasi public selesai.")
+	return nil
+}
+
 func main() {
-	// ... (kode inisialisasi tidak berubah)
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")
@@ -48,8 +77,14 @@ func main() {
 	}
 	fmt.Println("Berhasil terhubung ke database!")
 
+	// --- JALANKAN MIGRASI PUBLIC SAAT STARTUP ---
+	if err := runPublicMigrations(db); err != nil {
+		log.Fatalf("Gagal menjalankan migrasi public: %v", err)
+	}
+
 	validate := validator.New()
 
+	foundationRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
 	tenantRepo := tenant.NewRepository(db)
@@ -59,6 +94,8 @@ func main() {
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
 
+	foundationService := foundation.NewService(foundationRepo, validate)
+	foundationHandler := foundation.NewHandler(foundationService)
 	teacherService := teacher.NewService(teacherRepo, validate, db)
 	teacherHandler := teacher.NewHandler(teacherService)
 	studentService := student.NewService(studentRepo, validate)
@@ -81,6 +118,14 @@ func main() {
 
 	r.Post("/login", authHandler.Login)
 
+	r.Route("/foundations", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.AuthorizeSuperadmin).Get("/", foundationHandler.GetAll)
+		r.With(auth.AuthorizeSuperadmin).Post("/", foundationHandler.Create)
+		r.With(auth.AuthorizeSuperadmin).Put("/{foundationID}", foundationHandler.Update)
+		r.With(auth.AuthorizeSuperadmin).Delete("/{foundationID}", foundationHandler.Delete)
+	})
+
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
@@ -91,26 +136,22 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
 
+	// ... sisa rute tidak berubah ...
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
-
-		// Grouping routes untuk history
 		r.Route("/history", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)
 			r.With(auth.Authorize("admin")).Get("/{teacherID}", teacherHandler.GetHistoryByTeacherID)
 			r.With(auth.Authorize("admin")).Put("/{historyID}", teacherHandler.UpdateHistory)
 			r.With(auth.Authorize("admin")).Delete("/{historyID}", teacherHandler.DeleteHistory)
 		})
-
 		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
 		r.With(auth.Authorize("admin")).Put("/{teacherID}", teacherHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{teacherID}", teacherHandler.Delete)
 	})
-
 	r.Route("/students", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
@@ -119,7 +160,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
-
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
