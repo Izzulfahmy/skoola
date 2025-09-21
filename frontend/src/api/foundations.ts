@@ -1,12 +1,20 @@
 // file: frontend/src/api/foundations.ts
 import apiClient from './axiosInstance';
-// --- PERBAIKAN DI SINI: Menambahkan 'export' pada tipe Foundation ---
 import type { Foundation } from '../types';
 
-// Tipe ini juga perlu diekspor jika akan digunakan di tempat lain
 export interface UpsertFoundationInput {
   nama_yayasan: string;
 }
+
+// --- FUNGSI BARU DI SINI ---
+export const getFoundationById = async (id: string): Promise<Foundation> => {
+  try {
+    const response = await apiClient.get(`/foundations/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
 export const getFoundations = async (): Promise<Foundation[]> => {
   try {

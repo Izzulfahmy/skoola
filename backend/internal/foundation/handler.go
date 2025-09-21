@@ -18,6 +18,24 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+// --- HANDLER BARU DI SINI ---
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	foundationID := chi.URLParam(r, "foundationID")
+	foundation, err := h.service.GetByID(r.Context(), foundationID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data yayasan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if foundation == nil {
+		http.Error(w, "Yayasan tidak ditemukan", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(foundation)
+}
+
+// --- Handler lainnya tidak berubah ---
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var input UpsertFoundationInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

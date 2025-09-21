@@ -1,6 +1,6 @@
 // file: frontend/src/pages/superadmin/ManajemenSekolahPage.tsx
 import { useState, useEffect } from 'react';
-import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space, Row, Col } from 'antd';
+import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space, Row, Col, Breadcrumb } from 'antd';
 import type { TableColumnsType, MenuProps } from 'antd';
 import {
   PlusOutlined,
@@ -9,6 +9,7 @@ import {
   MoreOutlined,
   DeleteOutlined,
   ExclamationCircleFilled,
+  HomeOutlined,
 } from '@ant-design/icons';
 import {
   registerTenant,
@@ -18,22 +19,26 @@ import {
   deleteTenant,
   type RegisterTenantInput,
 } from '../../api/tenants';
-import type { Tenant } from '../../types';
+import { getFoundationById } from '../../api/foundations';
+import type { Tenant, Foundation } from '../../types';
 import RegisterTenantForm from '../../components/RegisterTenantForm';
 import { format } from 'date-fns';
+import { useParams, Link } from 'react-router-dom';
 
-// --- PERBAIKAN DI SINI: Menambahkan 'Text' dan 'Paragraph' ---
 const { Title, Text, Paragraph } = Typography;
 
 type ModalType = 'register' | 'editEmail' | 'resetPassword' | 'deleteConfirm' | null;
 
 const ManajemenSekolahPage = () => {
   const [form] = Form.useForm();
+  const { foundationId } = useParams<{ foundationId: string }>();
 
-  const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [foundation, setFoundation] = useState<Foundation | null>(null);
+  
+  const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
@@ -41,11 +46,21 @@ const ManajemenSekolahPage = () => {
   const fetchTenants = async () => {
     setTableLoading(true);
     try {
-      const data = await getTenants();
-      setTenants(data);
+      const allTenants = await getTenants();
+      
+      if (foundationId) {
+        const foundationData = await getFoundationById(foundationId);
+        setFoundation(foundationData);
+        // Pastikan allTenants adalah array sebelum filter
+        const filteredTenants = (allTenants || []).filter(t => t.foundation_id === foundationId);
+        setTenants(filteredTenants);
+      } else {
+        setTenants(allTenants || []);
+        setFoundation(null);
+      }
       setError(null);
     } catch (err) {
-      setError('Gagal memuat daftar sekolah. Pastikan server berjalan.');
+      setError('Gagal memuat daftar sekolah.');
     } finally {
       setTableLoading(false);
     }
@@ -53,7 +68,7 @@ const ManajemenSekolahPage = () => {
 
   useEffect(() => {
     fetchTenants();
-  }, []);
+  }, [foundationId]);
 
   const showModal = (type: ModalType, tenant?: Tenant) => {
     if (tenant) setSelectedTenant(tenant);
@@ -70,7 +85,8 @@ const ManajemenSekolahPage = () => {
   const handleRegisterTenant = async (values: RegisterTenantInput) => {
     setLoading(true);
     try {
-      await registerTenant(values);
+      const payload = foundationId ? { ...values, foundation_id: foundationId } : values;
+      await registerTenant(payload);
       message.success(`Sekolah "${values.nama_sekolah}" berhasil didaftarkan!`);
       handleCancel();
       fetchTenants();
@@ -94,7 +110,7 @@ const ManajemenSekolahPage = () => {
         message.success(`Password admin untuk ${selectedTenant.nama_sekolah} berhasil direset!`);
       }
       handleCancel();
-      fetchTenants(); // Refresh data setelah update
+      fetchTenants(); 
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Terjadi kesalahan.';
       message.error(errorMessage);
@@ -121,7 +137,7 @@ const ManajemenSekolahPage = () => {
       setLoading(false);
     }
   };
-  
+
   const getMenuItems = (record: Tenant): MenuProps['items'] => [
     { key: '1', label: 'Ubah Email Admin', icon: <MailOutlined />, onClick: () => showModal('editEmail', record) },
     { key: '2', label: 'Reset Password Admin', icon: <LockOutlined />, onClick: () => showModal('resetPassword', record) },
@@ -132,6 +148,12 @@ const ManajemenSekolahPage = () => {
   const columns: TableColumnsType<Tenant> = [
     { title: 'Nama Sekolah', dataIndex: 'nama_sekolah', key: 'nama_sekolah', sorter: (a, b) => a.nama_sekolah.localeCompare(b.nama_sekolah) },
     { title: 'ID Unik (Schema)', dataIndex: 'schema_name', key: 'schema_name', render: (schema) => <Tag color="blue">{schema}</Tag> },
+    ...(!foundationId ? [{ 
+        title: 'Yayasan', 
+        dataIndex: 'nama_yayasan', 
+        key: 'nama_yayasan', 
+        render: (text: string) => text || '-' 
+    }] : []),
     { title: 'Tanggal Didaftarkan', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime() },
     {
       title: 'Aksi',
@@ -145,11 +167,30 @@ const ManajemenSekolahPage = () => {
     },
   ];
 
+  // --- PERBAIKAN DI SINI: Membuat array untuk properti 'items' Breadcrumb ---
+  const breadcrumbItems = [
+    {
+      title: <Link to="/superadmin"><HomeOutlined /></Link>,
+    },
+    {
+      title: <Link to="/superadmin/yayasan">Yayasan</Link>,
+    },
+    {
+      title: foundation?.nama_yayasan,
+    },
+  ];
+
   return (
     <>
-      <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      {foundationId && foundation && (
+        <Breadcrumb items={breadcrumbItems} style={{ marginBottom: 16 }} />
+      )}
+
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <Col>
-          <Title level={2} style={{ margin: 0 }}>Manajemen Sekolah</Title>
+          <Title level={2} style={{ margin: 0 }}>
+            {foundationId ? `Sekolah di Bawah ${foundation?.nama_yayasan}` : 'Manajemen Semua Sekolah'}
+          </Title>
         </Col>
         <Col>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal('register')}>
@@ -205,7 +246,6 @@ const ManajemenSekolahPage = () => {
         confirmLoading={loading}
         okButtonProps={{ disabled: deleteConfirmInput !== selectedTenant?.nama_sekolah }}
       >
-        {/* --- PERBAIKAN DI SINI: Menggunakan 'Paragraph' dan 'Text' yang sudah didefinisikan --- */}
         <Paragraph>
           Tindakan ini akan menghapus <Text strong>{selectedTenant?.nama_sekolah}</Text> secara permanen. Semua data yang terkait akan hilang dan tidak dapat dipulihkan.
         </Paragraph>

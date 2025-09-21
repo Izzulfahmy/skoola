@@ -13,10 +13,10 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// Service mendefinisikan interface untuk logika bisnis yayasan.
 type Service interface {
 	Create(ctx context.Context, input UpsertFoundationInput) (*Foundation, error)
 	GetAll(ctx context.Context) ([]Foundation, error)
+	GetByID(ctx context.Context, id string) (*Foundation, error) // <-- TAMBAHKAN INI
 	Update(ctx context.Context, id string, input UpsertFoundationInput) error
 	Delete(ctx context.Context, id string) error
 }
@@ -28,6 +28,11 @@ type service struct {
 
 func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
+}
+
+// --- FUNGSI BARU DI SINI ---
+func (s *service) GetByID(ctx context.Context, id string) (*Foundation, error) {
+	return s.repo.GetByID(ctx, id)
 }
 
 func (s *service) Create(ctx context.Context, input UpsertFoundationInput) (*Foundation, error) {

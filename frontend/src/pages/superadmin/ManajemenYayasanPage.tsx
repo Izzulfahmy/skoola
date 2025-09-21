@@ -1,15 +1,15 @@
 // file: frontend/src/pages/superadmin/ManajemenYayasanPage.tsx
 import { useState, useEffect } from 'react';
-import { Button, Typography, message, Modal, Table, Alert, Form, Input, Space, Row, Col, Popconfirm } from 'antd';
+import { Button, Typography, message, Modal, Table, Alert, Form, Input, Space, Row, Col } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleFilled } from '@ant-design/icons';
 import { getFoundations, createFoundation, updateFoundation, deleteFoundation } from '../../api/foundations';
 import type { UpsertFoundationInput } from '../../api/foundations';
 import type { Foundation } from '../../types';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 const ManajemenYayasanPage = () => {
   const [form] = Form.useForm();
@@ -21,12 +21,17 @@ const ManajemenYayasanPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingFoundation, setEditingFoundation] = useState<Foundation | null>(null);
+  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingFoundation, setDeletingFoundation] = useState<Foundation | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+
 
   const fetchFoundations = async () => {
     setLoading(true);
     try {
       const data = await getFoundations();
-      setFoundations(data);
+      setFoundations(data || []); // Pastikan data adalah array
       setError(null);
     } catch (err) {
       setError('Gagal memuat data yayasan.');
@@ -50,6 +55,17 @@ const ManajemenYayasanPage = () => {
     setEditingFoundation(null);
     form.resetFields();
   };
+  
+  const showDeleteModal = (foundation: Foundation) => {
+    setDeletingFoundation(foundation);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingFoundation(null);
+    setDeleteConfirmInput('');
+  };
 
   const handleFinish = async (values: UpsertFoundationInput) => {
     setIsSubmitting(true);
@@ -71,14 +87,19 @@ const ManajemenYayasanPage = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleConfirmDelete = async () => {
+    if (!deletingFoundation) return;
+    setIsSubmitting(true);
     try {
-      await deleteFoundation(id);
-      message.success('Yayasan berhasil dihapus!');
+      await deleteFoundation(deletingFoundation.id);
+      message.success(`Yayasan "${deletingFoundation.nama_yayasan}" dan semua sekolah di bawahnya berhasil dihapus.`);
+      handleDeleteCancel();
       fetchFoundations();
     } catch (err: any) {
       const errorMessage = err.response?.data || 'Gagal menghapus yayasan.';
       message.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -95,15 +116,7 @@ const ManajemenYayasanPage = () => {
             Lihat Sekolah
           </Button>
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
-          <Popconfirm
-            title="Hapus Yayasan?"
-            description="Sekolah di bawahnya tidak akan terhapus. Lanjutkan?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Ya, Hapus"
-            cancelText="Batal"
-          >
-             <Button danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          <Button danger icon={<DeleteOutlined />} onClick={() => showDeleteModal(record)} />
         </Space>
       ),
     },
@@ -129,8 +142,7 @@ const ManajemenYayasanPage = () => {
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
-        // --- PERBAIKAN DI SINI: Menggunakan destroyOnHidden ---
-        destroyOnClose
+        destroyOnClose // <-- PERBAIKAN DI SINI
       >
         <Form form={form} layout="vertical" onFinish={handleFinish}>
           <Form.Item name="nama_yayasan" label="Nama Yayasan" rules={[{ required: true, message: 'Nama yayasan tidak boleh kosong' }]}>
@@ -143,6 +155,34 @@ const ManajemenYayasanPage = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={
+          <Space>
+            <ExclamationCircleFilled style={{ color: '#ff4d4f' }} />
+            Konfirmasi Hapus Yayasan
+          </Space>
+        }
+        open={isDeleteModalOpen}
+        onCancel={handleDeleteCancel}
+        destroyOnClose // <-- PERBAIKAN DI SINI
+        okText="Ya, Saya Mengerti dan Hapus Yayasan Ini"
+        okType="danger"
+        onOk={handleConfirmDelete}
+        confirmLoading={isSubmitting}
+        okButtonProps={{ disabled: deleteConfirmInput !== deletingFoundation?.nama_yayasan }}
+      >
+        <Paragraph>
+          Tindakan ini akan menghapus <Text strong>{deletingFoundation?.nama_yayasan}</Text> dan <Text strong>semua sekolah</Text> di bawah naungannya secara permanen.
+        </Paragraph>
+        <Paragraph>
+          Semua data yang terkait (guru, siswa, dll) akan hilang dan tidak dapat dipulihkan.
+        </Paragraph>
+        <Paragraph>
+          Untuk melanjutkan, silakan ketik nama yayasan yang benar di bawah ini:
+        </Paragraph>
+        <Input placeholder={deletingFoundation?.nama_yayasan} value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} />
       </Modal>
     </>
   );

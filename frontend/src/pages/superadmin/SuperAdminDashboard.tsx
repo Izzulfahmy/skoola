@@ -14,9 +14,13 @@ const SuperAdminDashboard = () => {
     const fetchTenantCount = async () => {
       try {
         const tenants = await getTenants();
-        setTenantCount(tenants.length);
+        // --- PERBAIKAN DI SINI ---
+        // Pastikan tenants adalah array sebelum mengambil .length
+        // Jika null atau undefined, anggap jumlahnya 0.
+        setTenantCount(tenants?.length || 0);
       } catch (error) {
         console.error("Gagal memuat jumlah sekolah:", error);
+        setTenantCount(0); // Set ke 0 jika terjadi error
       } finally {
         setLoading(false);
       }

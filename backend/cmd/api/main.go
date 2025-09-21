@@ -25,11 +25,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// --- FUNGSI BARU UNTUK MENJALANKAN MIGRASI PUBLIC ---
+// Fungsi untuk menjalankan migrasi skema public saat startup
 func runPublicMigrations(db *sql.DB) error {
 	log.Println("Memeriksa dan menjalankan migrasi untuk skema public...")
 
-	// Tambahkan path file migrasi untuk skema 'public' di sini
 	publicMigrations := []string{
 		"./db/migrations/005_add_foundations.sql",
 	}
@@ -44,7 +43,6 @@ func runPublicMigrations(db *sql.DB) error {
 			return fmt.Errorf("gagal membaca file migrasi %s: %w", path, err)
 		}
 		if _, err := db.ExecContext(context.Background(), string(migrationSQL)); err != nil {
-			// Kita tidak mengembalikan error di sini agar aplikasi tetap bisa jalan jika migrasi sudah pernah dieksekusi
 			log.Printf("Info: Gagal menjalankan migrasi %s, mungkin sudah ada: %v\n", path, err)
 		}
 	}
@@ -77,7 +75,6 @@ func main() {
 	}
 	fmt.Println("Berhasil terhubung ke database!")
 
-	// --- JALANKAN MIGRASI PUBLIC SAAT STARTUP ---
 	if err := runPublicMigrations(db); err != nil {
 		log.Fatalf("Gagal menjalankan migrasi public: %v", err)
 	}
@@ -121,6 +118,7 @@ func main() {
 	r.Route("/foundations", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", foundationHandler.GetAll)
+		r.With(auth.AuthorizeSuperadmin).Get("/{foundationID}", foundationHandler.GetByID)
 		r.With(auth.AuthorizeSuperadmin).Post("/", foundationHandler.Create)
 		r.With(auth.AuthorizeSuperadmin).Put("/{foundationID}", foundationHandler.Update)
 		r.With(auth.AuthorizeSuperadmin).Delete("/{foundationID}", foundationHandler.Delete)
@@ -136,7 +134,6 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
 
-	// ... sisa rute tidak berubah ...
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
