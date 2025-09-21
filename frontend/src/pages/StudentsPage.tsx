@@ -82,14 +82,14 @@ const StudentsPage = () => {
     }
   };
 
+  // --- PERBAIKAN: Hapus 'fixed' dari kolom ---
   const columns: TableColumnsType<Student> = [
     { 
       title: 'Nama Lengkap', 
       dataIndex: 'nama_lengkap', 
       key: 'nama_lengkap', 
       sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap),
-      fixed: 'left',
-      width: 200,
+      // fixed: 'left' <-- DIHAPUS
     },
     { 
       title: 'Status', 
@@ -103,16 +103,40 @@ const StudentsPage = () => {
         if (status === 'Pindah' || status === 'Keluar') color = 'volcano';
         return <Tag color={color}>{status.toUpperCase()}</Tag>;
       },
-      width: 100,
     },
-    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-', width: 120 },
-    { title: 'NISN', dataIndex: 'nisn', key: 'nisn', render: (text) => text || '-', width: 120 },
-    { title: 'Jenis Kelamin', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text || '-', width: 120 },
-    { title: 'Nama Wali', dataIndex: 'nama_wali', key: 'nama_wali', render: (_, record) => record.nama_wali || record.nama_ayah || record.nama_ibu || '-', width: 200, },
+    { 
+      title: 'NIS', 
+      dataIndex: 'nis', 
+      key: 'nis', 
+      render: (text) => text || '-',
+      responsive: ['md'],
+    },
+    { 
+      title: 'NISN', 
+      dataIndex: 'nisn', 
+      key: 'nisn', 
+      render: (text) => text || '-',
+      responsive: ['lg'],
+    },
+    { 
+      title: 'Jenis Kelamin', 
+      dataIndex: 'jenis_kelamin', 
+      key: 'jenis_kelamin', 
+      render: (text) => text || '-',
+      responsive: ['lg'],
+    },
+    { 
+      title: 'Nama Wali', 
+      dataIndex: 'nama_wali', 
+      key: 'nama_wali', 
+      render: (_, record) => record.nama_wali || record.nama_ayah || record.nama_ibu || '-',
+      responsive: ['md'],
+    },
     {
       title: 'Aksi',
       key: 'action',
       align: 'center',
+      // fixed: 'right' <-- DIHAPUS
       render: (_, record) => (
         <Space size="middle">
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
@@ -127,8 +151,6 @@ const StudentsPage = () => {
           </Popconfirm>
         </Space>
       ),
-      fixed: 'right',
-      width: 100,
     },
   ];
 
@@ -148,7 +170,13 @@ const StudentsPage = () => {
           </Button>
         </Col>
       </Row>
-      <Table columns={columns} dataSource={students} loading={loading} rowKey="id" scroll={{ x: 1000 }} />
+      <Table 
+        columns={columns} 
+        dataSource={students} 
+        loading={loading} 
+        rowKey="id" 
+        scroll={{ x: 'max-content' }} 
+      />
       {isModalOpen && (
         <Modal
           title={editingStudent ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}
@@ -163,7 +191,7 @@ const StudentsPage = () => {
             onCancel={handleCancel}
             loading={isSubmitting}
             initialValues={editingStudent || undefined}
-            onHistoryUpdate={fetchStudents} // <-- PASS FUNGSI SEBAGAI CALLBACK
+            onHistoryUpdate={fetchStudents}
           />
         </Modal>
       )}
