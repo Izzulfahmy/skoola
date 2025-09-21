@@ -9,7 +9,7 @@ import (
 
 // Repository mendefinisikan interface untuk interaksi database siswa.
 type Repository interface {
-	Create(ctx context.Context, schemaName string, student *Student) error
+	Create(ctx context.Context, tx *sql.Tx, schemaName string, student *Student) error // Diubah untuk menerima transaksi
 	GetAll(ctx context.Context, schemaName string) ([]Student, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*Student, error)
 	Update(ctx context.Context, schemaName string, student *Student) error
@@ -26,48 +26,68 @@ func NewRepository(db *sql.DB) Repository {
 	}
 }
 
-// --- Helper untuk scan kolom ---
-func scanStudent(row interface{ Scan(...interface{}) error }) (*Student, error) {
+// Kolom yang akan di-select (untuk konsistensi)
+const studentColumns = `
+	s.id, s.created_at, s.updated_at,
+	s.nis, s.nisn, s.nomor_ujian_sekolah,
+	s.nama_lengkap, s.nama_panggilan, s.jenis_kelamin, s.tempat_lahir, s.tanggal_lahir, s.agama, s.kewarganegaraan,
+	s.alamat_lengkap, s.desa_kelurahan, s.kecamatan, s.kota_kabupaten, s.provinsi, s.kode_pos,
+	s.nama_ayah, s.nama_ibu, s.nama_wali, s.nomor_kontak_wali
+`
+
+// Query untuk mengambil detail siswa beserta status terkininya
+const studentDetailQuery = `
+	WITH LatestStatus AS (
+		SELECT
+			student_id,
+			status,
+			ROW_NUMBER() OVER(PARTITION BY student_id ORDER BY tanggal_kejadian DESC, created_at DESC) as rn
+		FROM riwayat_akademik
+	)
+	SELECT ` + studentColumns + `, ls.status AS status_saat_ini
+	FROM students s
+	LEFT JOIN LatestStatus ls ON s.id = ls.student_id AND ls.rn = 1
+`
+
+func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, error) {
 	var s Student
 	err := row.Scan(
 		&s.ID, &s.CreatedAt, &s.UpdatedAt,
-		&s.NIS, &s.NISN, &s.NomorUjianSekolah, &s.StatusSiswa,
+		&s.NIS, &s.NISN, &s.NomorUjianSekolah,
 		&s.NamaLengkap, &s.NamaPanggilan, &s.JenisKelamin, &s.TempatLahir, &s.TanggalLahir, &s.Agama, &s.Kewarganegaraan,
 		&s.AlamatLengkap, &s.DesaKelurahan, &s.Kecamatan, &s.KotaKabupaten, &s.Provinsi, &s.KodePos,
 		&s.NamaAyah, &s.NamaIbu, &s.NamaWali, &s.NomorKontakWali,
+		&s.StatusSaatIni,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil // Data tidak ditemukan
+			return nil, nil
 		}
-		return nil, fmt.Errorf("gagal memindai data siswa: %w", err)
+		return nil, fmt.Errorf("gagal memindai data detail siswa: %w", err)
 	}
 	return &s, nil
 }
 
-// Kolom yang akan di-select (untuk konsistensi)
-const studentColumns = `
-	id, created_at, updated_at,
-	nis, nisn, nomor_ujian_sekolah, status_siswa,
-	nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan,
-	alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos,
-	nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali
-`
-
-func (r *postgresRepository) Create(ctx context.Context, schemaName string, student *Student) error {
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
+// Create sekarang menerima Querier (bisa DB atau TX)
+func (r *postgresRepository) Create(ctx context.Context, tx *sql.Tx, schemaName string, student *Student) error {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := tx.ExecContext(ctx, setSchemaQuery); err != nil {
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	query := fmt.Sprintf(`
-        INSERT INTO students (%s)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
-    `, studentColumns)
+	query := `
+        INSERT INTO students (
+			id, nis, nisn, nomor_ujian_sekolah, nama_lengkap, nama_panggilan,
+			jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan,
+			alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos,
+			nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali
+		)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    `
 
-	_, err := r.db.ExecContext(ctx, query,
-		student.ID, student.CreatedAt, student.UpdatedAt,
-		student.NIS, student.NISN, student.NomorUjianSekolah, student.StatusSiswa,
-		student.NamaLengkap, student.NamaPanggilan, student.JenisKelamin, student.TempatLahir, student.TanggalLahir, student.Agama, student.Kewarganegaraan,
+	_, err := tx.ExecContext(ctx, query,
+		student.ID, student.NIS, student.NISN, student.NomorUjianSekolah, student.NamaLengkap, student.NamaPanggilan,
+		student.JenisKelamin, student.TempatLahir, student.TanggalLahir, student.Agama, student.Kewarganegaraan,
 		student.AlamatLengkap, student.DesaKelurahan, student.Kecamatan, student.KotaKabupaten, student.Provinsi, student.KodePos,
 		student.NamaAyah, student.NamaIbu, student.NamaWali, student.NomorKontakWali,
 	)
@@ -78,11 +98,12 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, stud
 }
 
 func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]Student, error) {
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM students ORDER BY nama_lengkap ASC", studentColumns)
+	query := studentDetailQuery + " ORDER BY s.nama_lengkap ASC"
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("gagal query get all students: %w", err)
@@ -91,26 +112,26 @@ func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]S
 
 	var students []Student
 	for rows.Next() {
-		s, err := scanStudent(rows)
+		s, err := scanStudentDetail(rows)
 		if err != nil {
 			return nil, err
 		}
 		students = append(students, *s)
 	}
-
 	return students, rows.Err()
 }
 
 func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id string) (*Student, error) {
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
-
-	query := fmt.Sprintf("SELECT %s FROM students WHERE id = $1", studentColumns)
+	query := studentDetailQuery + " WHERE s.id = $1"
 	row := r.db.QueryRowContext(ctx, query, id)
-	return scanStudent(row)
+	return scanStudentDetail(row)
 }
 
+// ... (Update dan Delete tidak perlu diubah signifikan)
 func (r *postgresRepository) Update(ctx context.Context, schemaName string, student *Student) error {
 	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
@@ -119,14 +140,14 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, stud
 	query := `
 		UPDATE students SET
 			updated_at = NOW(),
-			nis = $1, nisn = $2, nomor_ujian_sekolah = $3, status_siswa = $4,
-			nama_lengkap = $5, nama_panggilan = $6, jenis_kelamin = $7, tempat_lahir = $8, tanggal_lahir = $9, agama = $10, kewarganegaraan = $11,
-			alamat_lengkap = $12, desa_kelurahan = $13, kecamatan = $14, kota_kabupaten = $15, provinsi = $16, kode_pos = $17,
-			nama_ayah = $18, nama_ibu = $19, nama_wali = $20, nomor_kontak_wali = $21
-		WHERE id = $22
+			nis = $1, nisn = $2, nomor_ujian_sekolah = $3,
+			nama_lengkap = $4, nama_panggilan = $5, jenis_kelamin = $6, tempat_lahir = $7, tanggal_lahir = $8, agama = $9, kewarganegaraan = $10,
+			alamat_lengkap = $11, desa_kelurahan = $12, kecamatan = $13, kota_kabupaten = $14, provinsi = $15, kode_pos = $16,
+			nama_ayah = $17, nama_ibu = $18, nama_wali = $19, nomor_kontak_wali = $20
+		WHERE id = $21
 	`
 	result, err := r.db.ExecContext(ctx, query,
-		student.NIS, student.NISN, student.NomorUjianSekolah, student.StatusSiswa,
+		student.NIS, student.NISN, student.NomorUjianSekolah,
 		student.NamaLengkap, student.NamaPanggilan, student.JenisKelamin, student.TempatLahir, student.TanggalLahir, student.Agama, student.Kewarganegaraan,
 		student.AlamatLengkap, student.DesaKelurahan, student.Kecamatan, student.KotaKabupaten, student.Provinsi, student.KodePos,
 		student.NamaAyah, student.NamaIbu, student.NamaWali, student.NomorKontakWali,

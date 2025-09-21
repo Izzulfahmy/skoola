@@ -3,29 +3,28 @@ import { Form, Input, Button, Row, Col, DatePicker, Select, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 import type { CreateStudentInput, Student } from '../types';
 import dayjs from 'dayjs';
+import AcademicHistoryTab from './AcademicHistoryTab';
 
 interface StudentFormProps {
   onFinish: (values: CreateStudentInput) => void;
   onCancel: () => void;
   initialValues?: Student;
   loading: boolean;
+  onHistoryUpdate: () => void; // <-- TAMBAHKAN PROPS BARU
 }
 
 const { Option } = Select;
 
-const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentFormProps) => {
+const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpdate }: StudentFormProps) => { // <-- GUNAKAN PROPS BARU
   const [form] = Form.useForm();
 
-  // Format nilai awal agar sesuai dengan komponen form (misal: string tanggal ke objek dayjs)
   const formattedInitialValues = initialValues ? {
     ...initialValues,
     tanggal_lahir: initialValues.tanggal_lahir ? dayjs(initialValues.tanggal_lahir, 'YYYY-MM-DD') : null,
   } : {
-    status_siswa: 'Aktif',
     kewarganegaraan: 'Indonesia',
   };
 
-  // Format nilai sebelum dikirim ke API
   const handleFinish = (values: any) => {
     const finalValues = {
       ...values,
@@ -37,22 +36,17 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentForm
   const tabItems: TabsProps['items'] = [
     {
       key: '1',
-      label: 'Data Akademik',
+      label: 'Data Akademik & Pribadi',
       children: (
         <Row gutter={16}>
           <Col xs={24} sm={12}>
-            <Form.Item name="nama_lengkap" label="Nama Lengkap" rules={[{ required: true, message: 'Nama lengkap tidak boleh kosong' }]}>
+            <Form.Item name="nama_lengkap" label="Nama Lengkap" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
-             <Form.Item name="status_siswa" label="Status Siswa" rules={[{ required: true, message: 'Status tidak boleh kosong' }]}>
-                <Select placeholder="Pilih status siswa">
-                  <Option value="Aktif">Aktif</Option>
-                  <Option value="Lulus">Lulus</Option>
-                  <Option value="Pindah">Pindah</Option>
-                  <Option value="Keluar">Keluar</Option>
-                </Select>
+            <Form.Item name="nama_panggilan" label="Nama Panggilan">
+              <Input />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
@@ -65,8 +59,16 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentForm
               <Input />
             </Form.Item>
           </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item name="jenis_kelamin" label="Jenis Kelamin">
+              <Select placeholder="Pilih jenis kelamin">
+                <Option value="Laki-laki">Laki-laki</Option>
+                <Option value="Perempuan">Perempuan</Option>
+              </Select>
+            </Form.Item>
+          </Col>
            <Col xs={24} sm={12}>
-            <Form.Item name="nomor_ujian_sekolah" label="Nomor Ujian Sekolah">
+             <Form.Item name="nomor_ujian_sekolah" label="Nomor Ujian Sekolah">
               <Input />
             </Form.Item>
           </Col>
@@ -75,22 +77,9 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentForm
     },
     {
       key: '2',
-      label: 'Biodata Siswa',
+      label: 'Kelahiran & Domisili',
       children: (
          <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item name="nama_panggilan" label="Nama Panggilan">
-              <Input />
-            </Form.Item>
-          </Col>
-           <Col xs={24} sm={12}>
-            <Form.Item name="jenis_kelamin" label="Jenis Kelamin">
-              <Select placeholder="Pilih jenis kelamin">
-                <Option value="Laki-laki">Laki-laki</Option>
-                <Option value="Perempuan">Perempuan</Option>
-              </Select>
-            </Form.Item>
-          </Col>
           <Col xs={24} sm={12}>
             <Form.Item name="tempat_lahir" label="Tempat Lahir">
               <Input />
@@ -101,8 +90,8 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentForm
               <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
             </Form.Item>
           </Col>
-          <Col xs={24} sm={12}>
-             <Form.Item name="agama" label="Agama">
+           <Col xs={24} sm={12}>
+            <Form.Item name="agama" label="Agama">
                <Select placeholder="Pilih agama">
                   <Option value="Islam">Islam</Option>
                   <Option value="Kristen Protestan">Kristen Protestan</Option>
@@ -119,76 +108,41 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading }: StudentForm
               <Input />
             </Form.Item>
           </Col>
+           <Col span={24}>
+            <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KK)">
+              <Input.TextArea rows={2}/>
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}><Form.Item name="desa_kelurahan" label="Desa / Kelurahan"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kecamatan" label="Kecamatan"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kota_kabupaten" label="Kota / Kabupaten"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="provinsi" label="Provinsi"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kode_pos" label="Kode Pos"><Input /></Form.Item></Col>
         </Row>
       )
     },
     {
       key: '3',
-      label: 'Alamat & Kontak',
-      children: (
-        <Row gutter={16}>
-          <Col span={24}>
-            <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KK)">
-              <Input.TextArea rows={3}/>
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="desa_kelurahan" label="Desa / Kelurahan">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="kecamatan" label="Kecamatan">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="kota_kabupaten" label="Kota / Kabupaten">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="provinsi" label="Provinsi">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="kode_pos" label="Kode Pos">
-              <Input />
-            </Form.Item>
-          </Col>
-        </Row>
-      )
-    },
-    {
-      key: '4',
       label: 'Data Wali',
       children: (
          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item name="nama_ayah" label="Nama Ayah">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="nama_ibu" label="Nama Ibu">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="nama_wali" label="Nama Wali (Jika berbeda dari Ayah/Ibu)">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="nomor_kontak_wali" label="Nomor Kontak Wali/Orang Tua">
-                <Input />
-              </Form.Item>
-            </Col>
+            <Col xs={24} sm={12}><Form.Item name="nama_ayah" label="Nama Ayah"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="nama_ibu" label="Nama Ibu"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="nama_wali" label="Nama Wali (Opsional)"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="nomor_kontak_wali" label="Nomor Kontak Wali/Ortu"><Input /></Form.Item></Col>
          </Row>
       )
     }
   ];
+
+  if (initialValues) {
+    tabItems.push({
+      key: '4',
+      label: 'Riwayat Akademik',
+      // TERUSKAN PROPS KE CHILD COMPONENT
+      children: <AcademicHistoryTab studentId={initialValues.id} onHistoryUpdate={onHistoryUpdate} />,
+    });
+  }
 
   return (
     <Form

@@ -46,7 +46,8 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/002_add_school_profile.sql",
 		"./db/migrations/003_add_teacher_details.sql",
 		"./db/migrations/004_add_employment_history.sql",
-		"./db/migrations/006_enhance_students_table.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
+		"./db/migrations/006_enhance_students_table.sql",
+		"./db/migrations/007_add_academic_history.sql", // <-- TAMBAHKAN MIGRASI INI
 	}
 
 	for _, path := range migrationPaths {
@@ -76,6 +77,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
+// ... (GetAll, CheckSchemaExists, ApplyMigrationToSchema, DeleteTenantBySchema tidak berubah)
 func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	query := `
 		SELECT 

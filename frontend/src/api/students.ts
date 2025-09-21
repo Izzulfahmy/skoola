@@ -1,9 +1,6 @@
 // file: src/api/students.ts
 import apiClient from './axiosInstance';
-import type { Student, CreateStudentInput, UpdateStudentInput } from '../types';
-
-// Ingat: tenantId dan token otentikasi sudah di-handle secara otomatis
-// oleh AuthMiddleware di backend dan axios interceptor di frontend.
+import type { Student, CreateStudentInput, UpdateStudentInput, RiwayatAkademik, UpsertAcademicHistoryInput } from '../types';
 
 export const getStudents = async (): Promise<Student[]> => {
   try {
@@ -35,6 +32,43 @@ export const updateStudent = async (id: string, studentData: UpdateStudentInput)
 export const deleteStudent = async (id: string): Promise<void> => {
   try {
     await apiClient.delete(`/students/${id}`);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// --- FUNGSI BARU UNTUK RIWAYAT AKADEMIK ---
+
+export const getStudentHistory = async (studentId: string): Promise<RiwayatAkademik[]> => {
+  try {
+    const response = await apiClient.get(`/students/history/${studentId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createStudentHistory = async (studentId: string, historyData: UpsertAcademicHistoryInput): Promise<any> => {
+  try {
+    const response = await apiClient.post(`/students/history/${studentId}`, historyData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateStudentHistory = async (historyId: string, historyData: UpsertAcademicHistoryInput): Promise<any> => {
+  try {
+    const response = await apiClient.put(`/students/history/${historyId}`, historyData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteStudentHistory = async (historyId: string): Promise<void> => {
+  try {
+    await apiClient.delete(`/students/history/${historyId}`);
   } catch (error) {
     throw error;
   }

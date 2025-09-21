@@ -109,9 +109,6 @@ export interface CreateTeacherInput {
 
 export type UpdateTeacherInput = Omit<CreateTeacherInput, 'password'>;
 
-
-// --- PERUBAHAN UTAMA DI SINI ---
-// Interface untuk Student diperbarui
 export interface Student {
   id: string;
   created_at: string;
@@ -120,7 +117,6 @@ export interface Student {
   nis?: string;
   nisn?: string;
   nomor_ujian_sekolah?: string;
-  status_siswa: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
 
   nama_lengkap: string;
   nama_panggilan?: string;
@@ -141,15 +137,16 @@ export interface Student {
   nama_ibu?: string;
   nama_wali?: string;
   nomor_kontak_wali?: string;
+
+  // Kolom baru dari backend query
+  status_saat_ini?: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
 }
 
-// Input DTO untuk Create/Update Student juga diperbarui
 export interface CreateStudentInput {
-  status_siswa: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  // status_siswa tidak lagi di sini, karena diatur oleh riwayat
   nis?: string;
   nisn?: string;
   nomor_ujian_sekolah?: string;
-
   nama_lengkap: string;
   nama_panggilan?: string;
   jenis_kelamin?: 'Laki-laki' | 'Perempuan';
@@ -157,14 +154,12 @@ export interface CreateStudentInput {
   tanggal_lahir?: string;
   agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
   kewarganegaraan?: string;
-  
   alamat_lengkap?: string;
   desa_kelurahan?: string;
   kecamatan?: string;
   kota_kabupaten?: string;
   provinsi?: string;
   kode_pos?: string;
-  
   nama_ayah?: string;
   nama_ibu?: string;
   nama_wali?: string;
@@ -172,3 +167,21 @@ export interface CreateStudentInput {
 }
 
 export type UpdateStudentInput = CreateStudentInput;
+
+
+// --- TIPE BARU UNTUK RIWAYAT AKADEMIK ---
+export interface RiwayatAkademik {
+  id: string;
+  student_id: string;
+  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  tanggal_kejadian: string;
+  kelas_tingkat?: string;
+  keterangan?: string;
+}
+
+export interface UpsertAcademicHistoryInput {
+  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  tanggal_kejadian: string;
+  kelas_tingkat?: string;
+  keterangan?: string;
+}

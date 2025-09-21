@@ -3,18 +3,17 @@ package student
 
 import "time"
 
-// Student merepresentasikan data dalam tabel 'students' yang sudah diperbarui.
+// Student merepresentasikan data dalam tabel 'students'.
 type Student struct {
 	// Kolom Identitas & Waktu
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	// Kolom Akademik & Status
+	// Kolom Akademik
 	NIS               *string `json:"nis"`
 	NISN              *string `json:"nisn"`
 	NomorUjianSekolah *string `json:"nomor_ujian_sekolah"`
-	StatusSiswa       string  `json:"status_siswa"`
 
 	// Kolom Biodata Pribadi
 	NamaLengkap     string     `json:"nama_lengkap"`
@@ -38,4 +37,7 @@ type Student struct {
 	NamaIbu         *string `json:"nama_ibu"`
 	NamaWali        *string `json:"nama_wali"`
 	NomorKontakWali *string `json:"nomor_kontak_wali"`
+
+	// Kolom Tambahan (Hasil Query, tidak ada di tabel students)
+	StatusSaatIni *string `json:"status_saat_ini"`
 }

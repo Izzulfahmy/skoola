@@ -48,7 +48,6 @@ const StudentsPage = () => {
   const handleFormSubmit = async (values: CreateStudentInput | UpdateStudentInput) => {
     setIsSubmitting(true);
     
-    // Konversi nilai tanggal dari dayjs ke string YYYY-MM-DD
     const payload = {
         ...values,
         tanggal_lahir: values.tanggal_lahir ? dayjs(values.tanggal_lahir).format('YYYY-MM-DD') : undefined,
@@ -94,9 +93,10 @@ const StudentsPage = () => {
     },
     { 
       title: 'Status', 
-      dataIndex: 'status_siswa', 
-      key: 'status_siswa',
+      dataIndex: 'status_saat_ini',
+      key: 'status_saat_ini',
       render: (status) => {
+        if (!status) return <Tag>BARU</Tag>;
         let color = 'default';
         if (status === 'Aktif') color = 'green';
         if (status === 'Lulus') color = 'blue';
@@ -108,7 +108,6 @@ const StudentsPage = () => {
     { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-', width: 120 },
     { title: 'NISN', dataIndex: 'nisn', key: 'nisn', render: (text) => text || '-', width: 120 },
     { title: 'Jenis Kelamin', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text || '-', width: 120 },
-    // --- PERBAIKAN DI BARIS BERIKUT ---
     { title: 'Nama Wali', dataIndex: 'nama_wali', key: 'nama_wali', render: (_, record) => record.nama_wali || record.nama_ayah || record.nama_ibu || '-', width: 200, },
     {
       title: 'Aksi',
@@ -157,13 +156,14 @@ const StudentsPage = () => {
           onCancel={handleCancel}
           destroyOnClose
           footer={null}
-          width={800} // Perbesar modal agar form terlihat bagus
+          width={800}
         >
           <StudentForm
             onFinish={handleFormSubmit}
             onCancel={handleCancel}
             loading={isSubmitting}
             initialValues={editingStudent || undefined}
+            onHistoryUpdate={fetchStudents} // <-- PASS FUNGSI SEBAGAI CALLBACK
           />
         </Modal>
       )}

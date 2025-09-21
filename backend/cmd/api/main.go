@@ -81,25 +81,32 @@ func main() {
 
 	validate := validator.New()
 
+	// --- Inisialisasi Repository ---
 	foundationRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
 	tenantRepo := tenant.NewRepository(db)
 	profileRepo := profile.NewRepository(db)
+	studentHistoryRepo := student.NewHistoryRepository(db)
 
+	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
+	foundationService := foundation.NewService(foundationRepo, validate)
+	teacherService := teacher.NewService(teacherRepo, validate, db)
+	// --- PERBAIKAN DI BARIS BERIKUT ---
+	studentService := student.NewService(studentRepo, studentHistoryRepo, validate, db) // Tambahkan 'db' di akhir
+	studentHistoryService := student.NewHistoryService(studentHistoryRepo, validate)
+	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
+	profileService := profile.NewService(profileRepo, validate)
+
+	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
-
-	foundationService := foundation.NewService(foundationRepo, validate)
 	foundationHandler := foundation.NewHandler(foundationService)
-	teacherService := teacher.NewService(teacherRepo, validate, db)
 	teacherHandler := teacher.NewHandler(teacherService)
-	studentService := student.NewService(studentRepo, validate)
 	studentHandler := student.NewHandler(studentService)
-	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
+	studentHistoryHandler := student.NewHistoryHandler(studentHistoryService)
 	tenantHandler := tenant.NewHandler(tenantService)
-	profileService := profile.NewService(profileRepo, validate)
 	profileHandler := profile.NewHandler(profileService)
 
 	r := chi.NewRouter()
@@ -149,14 +156,24 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{teacherID}", teacherHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{teacherID}", teacherHandler.Delete)
 	})
+
 	r.Route("/students", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
+
+		r.Route("/history", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/{studentID}", studentHistoryHandler.GetByStudentID)
+			r.With(auth.Authorize("admin")).Post("/{studentID}", studentHistoryHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{historyID}", studentHistoryHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{historyID}", studentHistoryHandler.Delete)
+		})
+
 		r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{studentID}", studentHandler.GetByID)
 		r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
 		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
+
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)

@@ -14,10 +14,8 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// --- 1. Definisikan Input DTO (Data Transfer Object) ---
-// DTO untuk membuat siswa baru
+// --- PERBAIKAN 1: Hapus StatusSiswa dari DTO ---
 type CreateStudentInput struct {
-	StatusSiswa       string `json:"status_siswa" validate:"required,oneof=Aktif Lulus Pindah Keluar"`
 	NIS               string `json:"nis" validate:"omitempty,numeric"`
 	NISN              string `json:"nisn" validate:"omitempty,numeric"`
 	NomorUjianSekolah string `json:"nomor_ujian_sekolah" validate:"omitempty"`
@@ -40,10 +38,29 @@ type CreateStudentInput struct {
 	NomorKontakWali   string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
 }
 
-// DTO untuk memperbarui data siswa (sama seperti Create)
-type UpdateStudentInput = CreateStudentInput
+type UpdateStudentInput struct {
+	NIS               string `json:"nis" validate:"omitempty,numeric"`
+	NISN              string `json:"nisn" validate:"omitempty,numeric"`
+	NomorUjianSekolah string `json:"nomor_ujian_sekolah" validate:"omitempty"`
+	NamaLengkap       string `json:"nama_lengkap" validate:"required,min=1"`
+	NamaPanggilan     string `json:"nama_panggilan" validate:"omitempty"`
+	JenisKelamin      string `json:"jenis_kelamin" validate:"omitempty,oneof=Laki-laki Perempuan"`
+	TempatLahir       string `json:"tempat_lahir" validate:"omitempty"`
+	TanggalLahir      string `json:"tanggal_lahir" validate:"omitempty,datetime=2006-01-02"`
+	Agama             string `json:"agama" validate:"omitempty,oneof=Islam 'Kristen Protestan' 'Kristen Katolik' Hindu Buddha Khonghucu Lainnya"`
+	Kewarganegaraan   string `json:"kewarganegaraan" validate:"omitempty"`
+	AlamatLengkap     string `json:"alamat_lengkap" validate:"omitempty"`
+	DesaKelurahan     string `json:"desa_kelurahan" validate:"omitempty"`
+	Kecamatan         string `json:"kecamatan" validate:"omitempty"`
+	KotaKabupaten     string `json:"kota_kabupaten" validate:"omitempty"`
+	Provinsi          string `json:"provinsi" validate:"omitempty"`
+	KodePos           string `json:"kode_pos" validate:"omitempty,numeric"`
+	NamaAyah          string `json:"nama_ayah" validate:"omitempty"`
+	NamaIbu           string `json:"nama_ibu" validate:"omitempty"`
+	NamaWali          string `json:"nama_wali" validate:"omitempty"`
+	NomorKontakWali   string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
+}
 
-// --- 2. Interface Service tetap sama ---
 type Service interface {
 	Create(ctx context.Context, schemaName string, input CreateStudentInput) (*Student, error)
 	GetAll(ctx context.Context, schemaName string) ([]Student, error)
@@ -53,19 +70,21 @@ type Service interface {
 }
 
 type service struct {
-	repo     Repository
-	validate *validator.Validate
+	repo        Repository
+	historyRepo HistoryRepository
+	validate    *validator.Validate
+	db          *sql.DB
 }
 
-func NewService(repo Repository, validate *validator.Validate) Service {
+func NewService(repo Repository, historyRepo HistoryRepository, validate *validator.Validate, db *sql.DB) Service {
 	return &service{
-		repo:     repo,
-		validate: validate,
+		repo:        repo,
+		historyRepo: historyRepo,
+		validate:    validate,
+		db:          db,
 	}
 }
 
-// --- 3. Helper untuk mengubah string dan waktu ---
-// Mengubah string kosong menjadi nil pointer
 func stringToPtr(s string) *string {
 	if s == "" {
 		return nil
@@ -73,7 +92,6 @@ func stringToPtr(s string) *string {
 	return &s
 }
 
-// Mengubah string tanggal (YYYY-MM-DD) menjadi pointer time.Time
 func dateToPtr(dateStr string) *time.Time {
 	if dateStr == "" {
 		return nil
@@ -85,15 +103,20 @@ func dateToPtr(dateStr string) *time.Time {
 	return &parsedDate
 }
 
-// --- 4. Perbarui Logika Create dan Update ---
+// --- PERBAIKAN 2: Perbarui Logika Create ---
 func (s *service) Create(ctx context.Context, schemaName string, input CreateStudentInput) (*Student, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
 	student := &Student{
 		ID:                uuid.New().String(),
-		StatusSiswa:       input.StatusSiswa,
 		NIS:               stringToPtr(input.NIS),
 		NISN:              stringToPtr(input.NISN),
 		NomorUjianSekolah: stringToPtr(input.NomorUjianSekolah),
@@ -116,11 +139,41 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateStu
 		NomorKontakWali:   stringToPtr(input.NomorKontakWali),
 	}
 
-	if err := s.repo.Create(ctx, schemaName, student); err != nil {
-		return nil, fmt.Errorf("gagal membuat siswa di service: %w", err)
+	if err := s.repo.Create(ctx, tx, schemaName, student); err != nil {
+		return nil, fmt.Errorf("gagal membuat data siswa: %w", err)
 	}
 
-	return student, nil
+	initialHistory := &RiwayatAkademik{
+		ID:              uuid.New().String(),
+		StudentID:       student.ID,
+		Status:          "Aktif",
+		TanggalKejadian: time.Now(),
+		Keterangan:      stringToPtr("Siswa baru"),
+	}
+
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := tx.ExecContext(ctx, setSchemaQuery); err != nil {
+		return nil, fmt.Errorf("gagal mengatur skema untuk riwayat: %w", err)
+	}
+	historyQuery := `
+		INSERT INTO riwayat_akademik (id, student_id, status, tanggal_kejadian, keterangan)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err = tx.ExecContext(ctx, historyQuery, initialHistory.ID, initialHistory.StudentID, initialHistory.Status, initialHistory.TanggalKejadian, initialHistory.Keterangan)
+	if err != nil {
+		return nil, fmt.Errorf("gagal membuat riwayat akademik awal: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
+	}
+
+	createdStudent, err := s.repo.GetByID(ctx, schemaName, student.ID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data siswa setelah dibuat: %w", err)
+	}
+
+	return createdStudent, nil
 }
 
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateStudentInput) error {
@@ -136,8 +189,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 		return sql.ErrNoRows
 	}
 
-	// Map input ke model yang ada
-	student.StatusSiswa = input.StatusSiswa
 	student.NIS = stringToPtr(input.NIS)
 	student.NISN = stringToPtr(input.NISN)
 	student.NomorUjianSekolah = stringToPtr(input.NomorUjianSekolah)
@@ -166,7 +217,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	return nil
 }
 
-// --- Fungsi lain tidak perlu diubah ---
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Student, error) {
 	students, err := s.repo.GetAll(ctx, schemaName)
 	if err != nil {
