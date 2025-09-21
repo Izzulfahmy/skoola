@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Typography, message, Modal, Table, Alert, Form, Input, Space, Row, Col } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleFilled } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleFilled, EyeOutlined } from '@ant-design/icons';
 import { getFoundations, createFoundation, updateFoundation, deleteFoundation } from '../../api/foundations';
 import type { UpsertFoundationInput } from '../../api/foundations';
 import type { Foundation } from '../../types';
@@ -11,9 +11,22 @@ import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
 
+// --- HOOK KUSTOM UNTUK MENDETEKSI UKURAN LAYAR ---
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
 const ManajemenYayasanPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { width } = useWindowSize(); // Ambil lebar layar saat ini
+  const isMobile = width < 768; // Tentukan breakpoint untuk mobile
 
   const [foundations, setFoundations] = useState<Foundation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +44,7 @@ const ManajemenYayasanPage = () => {
     setLoading(true);
     try {
       const data = await getFoundations();
-      setFoundations(data || []); // Pastikan data adalah array
+      setFoundations(data || []);
       setError(null);
     } catch (err) {
       setError('Gagal memuat data yayasan.');
@@ -105,15 +118,16 @@ const ManajemenYayasanPage = () => {
 
   const columns: TableColumnsType<Foundation> = [
     { title: 'Nama Yayasan', dataIndex: 'nama_yayasan', key: 'nama_yayasan', sorter: (a, b) => a.nama_yayasan.localeCompare(b.nama_yayasan) },
-    { title: 'Tanggal Dibuat', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime() },
+    { title: 'Tanggal Dibuat', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(), responsive: ['md'] }, // Sembunyikan di layar kecil
     {
       title: 'Aksi',
       key: 'action',
       align: 'center',
       render: (_, record) => (
         <Space>
-           <Button onClick={() => navigate(`/superadmin/yayasan/${record.id}`)}>
-            Lihat Sekolah
+           <Button icon={<EyeOutlined />} onClick={() => navigate(`/superadmin/yayasan/${record.id}`)}>
+            {/* Tampilkan teks hanya di layar non-mobile */}
+            {!isMobile && 'Lihat Sekolah'}
           </Button>
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
           <Button danger icon={<DeleteOutlined />} onClick={() => showDeleteModal(record)} />
@@ -124,25 +138,42 @@ const ManajemenYayasanPage = () => {
 
   return (
     <>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+      {/* --- PERBAIKAN RESPONSIVE PADA HEADER --- */}
+      <Row 
+        justify="space-between" 
+        align="middle" 
+        style={{ marginBottom: 24 }}
+        gutter={[16, 16]} // Tambahkan gutter untuk spasi
+      >
         <Col>
-          <Title level={2} style={{ margin: 0 }}>Manajemen Yayasan</Title>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Manajemen Yayasan</Title>
         </Col>
-        <Col>
+        <Col style={{ textAlign: isMobile ? 'left' : 'right' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-            Tambah Yayasan Baru
+            {/* Tampilkan teks hanya di layar non-mobile */}
+            {!isMobile && 'Tambah Yayasan Baru'}
           </Button>
         </Col>
       </Row>
 
-      {error ? <Alert message="Error" description={error} type="error" showIcon /> : <Table columns={columns} dataSource={foundations} loading={loading} rowKey="id" />}
+      {error ? (
+        <Alert message="Error" description={error} type="error" showIcon /> 
+      ) : (
+        <Table 
+          columns={columns} 
+          dataSource={foundations} 
+          loading={loading} 
+          rowKey="id" 
+          scroll={{ x: 'max-content' }} // Pastikan tabel bisa di-scroll horizontal
+        />
+      )}
 
       <Modal
         title={editingFoundation ? 'Edit Yayasan' : 'Tambah Yayasan Baru'}
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
-        destroyOnClose // <-- PERBAIKAN DI SINI
+        destroyOnClose
       >
         <Form form={form} layout="vertical" onFinish={handleFinish}>
           <Form.Item name="nama_yayasan" label="Nama Yayasan" rules={[{ required: true, message: 'Nama yayasan tidak boleh kosong' }]}>
@@ -166,8 +197,8 @@ const ManajemenYayasanPage = () => {
         }
         open={isDeleteModalOpen}
         onCancel={handleDeleteCancel}
-        destroyOnClose // <-- PERBAIKAN DI SINI
-        okText="Ya, Saya Mengerti dan Hapus Yayasan Ini"
+        destroyOnClose
+        okText="Ya, Hapus Yayasan Ini"
         okType="danger"
         onOk={handleConfirmDelete}
         confirmLoading={isSubmitting}
@@ -180,7 +211,7 @@ const ManajemenYayasanPage = () => {
           Semua data yang terkait (guru, siswa, dll) akan hilang dan tidak dapat dipulihkan.
         </Paragraph>
         <Paragraph>
-          Untuk melanjutkan, silakan ketik nama yayasan yang benar di bawah ini:
+          Untuk melanjutkan, silakan ketik nama yayasan di bawah ini:
         </Paragraph>
         <Input placeholder={deletingFoundation?.nama_yayasan} value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} />
       </Modal>
