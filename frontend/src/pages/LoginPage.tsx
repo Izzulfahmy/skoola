@@ -92,7 +92,7 @@ const LoginPage = () => {
                 name="tenantId"
                 rules={[{ required: true, message: 'Harap masukkan ID Sekolah!' }]}
               >
-                <Input prefix={<IdcardOutlined />} placeholder="Contoh: sekolah_pertama" />
+                <Input prefix={<IdcardOutlined />} placeholder="Contoh: NPSN/NPYP" />
               </Form.Item>
             )}
             <Form.Item
