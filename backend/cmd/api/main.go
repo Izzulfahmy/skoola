@@ -11,12 +11,13 @@ import (
 	"path/filepath"
 	"skoola/internal/auth"
 	"skoola/internal/foundation"
-	"skoola/internal/jabatan" // <-- 1. IMPOR PAKET JABATAN
+	"skoola/internal/jabatan"
 	"skoola/internal/jenjang"
 	"skoola/internal/profile"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
+	"skoola/internal/tingkatan" // <-- 1. IMPOR PAKET TINGKATAN
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -90,7 +91,8 @@ func main() {
 	profileRepo := profile.NewRepository(db)
 	studentHistoryRepo := student.NewHistoryRepository(db)
 	jenjangRepo := jenjang.NewRepository(db)
-	jabatanRepo := jabatan.NewRepository(db) // <-- 2. INISIALISASI REPO JABATAN
+	jabatanRepo := jabatan.NewRepository(db)
+	tingkatanRepo := tingkatan.NewRepository(db) // <-- 2. INISIALISASI REPO TINGKATAN
 
 	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -101,7 +103,8 @@ func main() {
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	profileService := profile.NewService(profileRepo, validate)
 	jenjangService := jenjang.NewService(jenjangRepo, validate)
-	jabatanService := jabatan.NewService(jabatanRepo, validate) // <-- 3. INISIALISASI SERVICE JABATAN
+	jabatanService := jabatan.NewService(jabatanRepo, validate)
+	tingkatanService := tingkatan.NewService(tingkatanRepo, validate) // <-- 3. INISIALISASI SERVICE TINGKATAN
 
 	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
@@ -113,7 +116,8 @@ func main() {
 	tenantHandler := tenant.NewHandler(tenantService)
 	profileHandler := profile.NewHandler(profileService)
 	jenjangHandler := jenjang.NewHandler(jenjangService)
-	jabatanHandler := jabatan.NewHandler(jabatanService) // <-- 4. INISIALISASI HANDLER JABATAN
+	jabatanHandler := jabatan.NewHandler(jabatanService)
+	tingkatanHandler := tingkatan.NewHandler(tingkatanService) // <-- 4. INISIALISASI HANDLER TINGKATAN
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -196,7 +200,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
 	})
 
-	// --- 5. DAFTARKAN RUTE BARU UNTUK JABATAN ---
 	r.Route("/jabatan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
@@ -204,6 +207,16 @@ func main() {
 		r.With(auth.Authorize("admin")).Get("/{id}", jabatanHandler.GetByID)
 		r.With(auth.Authorize("admin")).Put("/{id}", jabatanHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", jabatanHandler.Delete)
+	})
+
+	// --- 5. DAFTARKAN RUTE BARU UNTUK TINGKATAN ---
+	r.Route("/tingkatan", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", tingkatanHandler.GetAll)
+		r.With(auth.Authorize("admin")).Post("/", tingkatanHandler.Create)
+		r.With(auth.Authorize("admin")).Get("/{id}", tingkatanHandler.GetByID)
+		r.With(auth.Authorize("admin")).Put("/{id}", tingkatanHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{id}", tingkatanHandler.Delete)
 	})
 
 	port := os.Getenv("SERVER_PORT")

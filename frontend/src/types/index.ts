@@ -29,7 +29,6 @@ export interface UpsertJenjangInput {
   nama_jenjang: string;
 }
 
-// --- TIPE BARU UNTUK JABATAN ---
 export interface Jabatan {
   id: number;
   nama_jabatan: string;
@@ -39,6 +38,20 @@ export interface Jabatan {
 
 export interface UpsertJabatanInput {
   nama_jabatan: string;
+}
+
+// --- TIPE BARU UNTUK TINGKATAN KELAS ---
+export interface Tingkatan {
+  id: number;
+  nama_tingkatan: string;
+  urutan?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertTingkatanInput {
+  nama_tingkatan: string;
+  urutan?: number;
 }
 // ------------------------------------
 

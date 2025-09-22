@@ -3,27 +3,23 @@ import { Card, Tabs, Typography } from 'antd';
 import type { TabsProps } from 'antd';
 import AdminSettingsTab from '../components/AdminSettingsTab';
 import JenjangPendidikanTab from '../components/JenjangPendidikanTab';
-import JabatanTab from '../components/JabatanTab'; // <-- 1. IMPOR KOMPONEN BARU
+import JabatanTab from '../components/JabatanTab';
+import TingkatanTab from '../components/TingkatanTab'; // <-- 1. IMPOR KOMPONEN BARU
 
 const { Title } = Typography;
 
-// --- Komponen Placeholder untuk Tab lain ---
-const TingkatanTab = () => (
-  <div>
-    <p>Konten untuk manajemen Tingkatan Kelas akan ditampilkan di sini.</p>
-  </div>
-);
+// --- Komponen Placeholder sudah tidak diperlukan lagi ---
 
 const items: TabsProps['items'] = [
   {
     key: '1',
     label: 'Tingkatan Kelas',
-    children: <TingkatanTab />,
+    children: <TingkatanTab />, // <-- 2. GUNAKAN KOMPONEN BARU DI SINI
   },
   {
     key: '2',
     label: 'Jabatan',
-    children: <JabatanTab />, // <-- 2. GUNAKAN KOMPONEN BARU DI SINI
+    children: <JabatanTab />,
   },
   {
     key: '3',

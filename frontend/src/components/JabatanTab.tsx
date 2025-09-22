@@ -126,6 +126,7 @@ const JabatanTab = () => {
         dataSource={jabatanList}
         loading={loading}
         rowKey="id"
+        pagination={false}
       />
       <Modal
         title={editingJabatan ? 'Edit Jabatan' : 'Tambah Jabatan Baru'}

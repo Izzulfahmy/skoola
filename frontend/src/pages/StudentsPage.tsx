@@ -175,7 +175,8 @@ const StudentsPage = () => {
         dataSource={students} 
         loading={loading} 
         rowKey="id" 
-        scroll={{ x: 'max-content' }} 
+        scroll={{ x: 'max-content' }}
+        pagination={false} 
       />
       {isModalOpen && (
         <Modal

@@ -162,6 +162,7 @@ const TeachersPage = () => {
         loading={loading}
         rowKey="id"
         scroll={{ x: 'max-content' }}
+        pagination={false}
       />
 
       <Modal

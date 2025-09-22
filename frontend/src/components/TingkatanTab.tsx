@@ -1,64 +1,64 @@
-// file: frontend/src/components/JenjangPendidikanTab.tsx
+// file: frontend/src/components/TingkatanTab.tsx
 import { useState, useEffect } from 'react';
-import { Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm } from 'antd';
+import { Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm, InputNumber } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getAllJenjang, createJenjang, updateJenjang, deleteJenjang } from '../api/jenjang';
-import type { JenjangPendidikan, UpsertJenjangInput } from '../types';
+import { getAllTingkatan, createTingkatan, updateTingkatan, deleteTingkatan } from '../api/tingkatan';
+import type { Tingkatan, UpsertTingkatanInput } from '../types';
 import { format } from 'date-fns';
 
-const JenjangPendidikanTab = () => {
+const TingkatanTab = () => {
   const [form] = Form.useForm();
-  const [jenjangList, setJenjangList] = useState<JenjangPendidikan[]>([]);
+  const [tingkatanList, setTingkatanList] = useState<Tingkatan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingJenjang, setEditingJenjang] = useState<JenjangPendidikan | null>(null);
+  const [editingTingkatan, setEditingTingkatan] = useState<Tingkatan | null>(null);
 
-  const fetchJenjang = async () => {
+  const fetchTingkatan = async () => {
     setLoading(true);
     try {
-      const data = await getAllJenjang();
-      setJenjangList(data || []);
+      const data = await getAllTingkatan();
+      setTingkatanList(data || []);
       setError(null);
     } catch (err) {
-      setError('Gagal memuat data jenjang pendidikan.');
+      setError('Gagal memuat data tingkatan kelas.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchJenjang();
+    fetchTingkatan();
   }, []);
 
-  const showModal = (jenjang: JenjangPendidikan | null) => {
-    setEditingJenjang(jenjang);
-    form.setFieldsValue(jenjang || { nama_jenjang: '' });
+  const showModal = (tingkatan: Tingkatan | null) => {
+    setEditingTingkatan(tingkatan);
+    form.setFieldsValue(tingkatan || { nama_tingkatan: '', urutan: undefined });
     setIsModalOpen(true);
   };
 
   const handleCancel = () => {
     setIsModalOpen(false);
-    setEditingJenjang(null);
+    setEditingTingkatan(null);
     form.resetFields();
   };
 
-  const handleFinish = async (values: UpsertJenjangInput) => {
+  const handleFinish = async (values: UpsertTingkatanInput) => {
     setIsSubmitting(true);
     try {
-      if (editingJenjang) {
-        await updateJenjang(editingJenjang.id, values);
-        message.success('Jenjang Pendidikan berhasil diperbarui!');
+      if (editingTingkatan) {
+        await updateTingkatan(editingTingkatan.id, values);
+        message.success('Tingkatan kelas berhasil diperbarui!');
       } else {
-        await createJenjang(values);
-        message.success('Jenjang Pendidikan baru berhasil ditambahkan!');
+        await createTingkatan(values);
+        message.success('Tingkatan kelas baru berhasil ditambahkan!');
       }
       handleCancel();
-      fetchJenjang();
+      fetchTingkatan();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Gagal menyimpan data.';
+      const errorMessage = err.response?.data || 'Gagal menyimpan data. Pastikan nama tingkatan tidak duplikat.';
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -67,20 +67,27 @@ const JenjangPendidikanTab = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await deleteJenjang(id);
-      message.success('Jenjang Pendidikan berhasil dihapus!');
-      fetchJenjang();
+      await deleteTingkatan(id);
+      message.success('Tingkatan kelas berhasil dihapus!');
+      fetchTingkatan();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Gagal menghapus data.';
+      const errorMessage = err.response?.data || 'Gagal menghapus data.';
       message.error(errorMessage);
     }
   };
 
-  const columns: TableColumnsType<JenjangPendidikan> = [
+  const columns: TableColumnsType<Tingkatan> = [
     { 
-      title: 'Nama Jenjang', 
-      dataIndex: 'nama_jenjang', 
-      key: 'nama_jenjang' 
+      title: 'Urutan', 
+      dataIndex: 'urutan', 
+      key: 'urutan',
+      sorter: (a, b) => (a.urutan || 0) - (b.urutan || 0),
+    },
+    { 
+      title: 'Nama Tingkatan', 
+      dataIndex: 'nama_tingkatan', 
+      key: 'nama_tingkatan',
+      sorter: (a, b) => a.nama_tingkatan.localeCompare(b.nama_tingkatan),
     },
     { 
       title: 'Tanggal Dibuat', 
@@ -97,7 +104,7 @@ const JenjangPendidikanTab = () => {
         <Space>
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
           <Popconfirm
-            title="Hapus Jenjang"
+            title="Hapus Tingkatan"
             description="Apakah Anda yakin ingin menghapus data ini?"
             onConfirm={() => handleDelete(record.id)}
             okText="Ya, Hapus"
@@ -118,18 +125,18 @@ const JenjangPendidikanTab = () => {
     <>
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-          Tambah Jenjang
+          Tambah Tingkatan
         </Button>
       </div>
       <Table
         columns={columns}
-        dataSource={jenjangList}
+        dataSource={tingkatanList}
         loading={loading}
         rowKey="id"
         pagination={false}
       />
       <Modal
-        title={editingJenjang ? 'Edit Jenjang Pendidikan' : 'Tambah Jenjang Pendidikan'}
+        title={editingTingkatan ? 'Edit Tingkatan Kelas' : 'Tambah Tingkatan Kelas'}
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
@@ -137,11 +144,18 @@ const JenjangPendidikanTab = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 24 }}>
           <Form.Item
-            name="nama_jenjang"
-            label="Nama Jenjang"
-            rules={[{ required: true, message: 'Nama jenjang tidak boleh kosong' }]}
+            name="nama_tingkatan"
+            label="Nama Tingkatan"
+            rules={[{ required: true, message: 'Nama tingkatan tidak boleh kosong' }]}
           >
-            <Input placeholder="Contoh: SMA/MA" />
+            <Input placeholder="Contoh: Kelas 1 atau Kelas X-A" />
+          </Form.Item>
+          <Form.Item
+            name="urutan"
+            label="Nomor Urut (Opsional)"
+            help="Digunakan untuk mengurutkan tampilan."
+          >
+            <InputNumber placeholder="Contoh: 1" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item style={{ textAlign: 'right', marginTop: 24, marginBottom: 0 }}>
             <Button onClick={handleCancel} style={{ marginRight: 8 }}>Batal</Button>
@@ -155,4 +169,4 @@ const JenjangPendidikanTab = () => {
   );
 };
 
-export default JenjangPendidikanTab;
+export default TingkatanTab;
