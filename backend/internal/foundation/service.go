@@ -14,10 +14,10 @@ import (
 var ErrValidation = errors.New("validation failed")
 
 type Service interface {
-	Create(ctx context.Context, input UpsertFoundationInput) (*Foundation, error)
-	GetAll(ctx context.Context) ([]Foundation, error)
-	GetByID(ctx context.Context, id string) (*Foundation, error) // <-- TAMBAHKAN INI
-	Update(ctx context.Context, id string, input UpsertFoundationInput) error
+	Create(ctx context.Context, input UpsertNaunganInput) (*Naungan, error)
+	GetAll(ctx context.Context) ([]Naungan, error)
+	GetByID(ctx context.Context, id string) (*Naungan, error)
+	Update(ctx context.Context, id string, input UpsertNaunganInput) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -30,50 +30,49 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
-// --- FUNGSI BARU DI SINI ---
-func (s *service) GetByID(ctx context.Context, id string) (*Foundation, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*Naungan, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *service) Create(ctx context.Context, input UpsertFoundationInput) (*Foundation, error) {
+func (s *service) Create(ctx context.Context, input UpsertNaunganInput) (*Naungan, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
-	newFoundation := &Foundation{
+	newNaungan := &Naungan{
 		ID:          uuid.New().String(),
-		NamaYayasan: input.NamaYayasan,
+		NamaNaungan: input.NamaNaungan,
 	}
-	if err := s.repo.Create(ctx, newFoundation); err != nil {
-		return nil, fmt.Errorf("gagal membuat yayasan di service: %w", err)
+	if err := s.repo.Create(ctx, newNaungan); err != nil {
+		return nil, fmt.Errorf("gagal membuat naungan di service: %w", err)
 	}
-	return newFoundation, nil
+	return newNaungan, nil
 }
 
-func (s *service) GetAll(ctx context.Context) ([]Foundation, error) {
+func (s *service) GetAll(ctx context.Context) ([]Naungan, error) {
 	return s.repo.GetAll(ctx)
 }
 
-func (s *service) Update(ctx context.Context, id string, input UpsertFoundationInput) error {
+func (s *service) Update(ctx context.Context, id string, input UpsertNaunganInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
-	foundationToUpdate, err := s.repo.GetByID(ctx, id)
+	naunganToUpdate, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("gagal mencari yayasan untuk diupdate: %w", err)
+		return fmt.Errorf("gagal mencari naungan untuk diupdate: %w", err)
 	}
-	if foundationToUpdate == nil {
+	if naunganToUpdate == nil {
 		return sql.ErrNoRows
 	}
-	foundationToUpdate.NamaYayasan = input.NamaYayasan
-	return s.repo.Update(ctx, foundationToUpdate)
+	naunganToUpdate.NamaNaungan = input.NamaNaungan
+	return s.repo.Update(ctx, naunganToUpdate)
 }
 
 func (s *service) Delete(ctx context.Context, id string) error {
-	foundation, err := s.repo.GetByID(ctx, id)
+	naungan, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("gagal mencari yayasan untuk dihapus: %w", err)
+		return fmt.Errorf("gagal mencari naungan untuk dihapus: %w", err)
 	}
-	if foundation == nil {
+	if naungan == nil {
 		return sql.ErrNoRows
 	}
 	return s.repo.Delete(ctx, id)

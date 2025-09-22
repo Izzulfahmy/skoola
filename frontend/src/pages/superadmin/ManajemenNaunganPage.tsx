@@ -1,11 +1,11 @@
-// file: frontend/src/pages/superadmin/ManajemenYayasanPage.tsx
+// file: frontend/src/pages/superadmin/ManajemenNaunganPage.tsx
 import { useState, useEffect } from 'react';
 import { Button, Typography, message, Modal, Table, Alert, Form, Input, Space, Row, Col } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleFilled, EyeOutlined } from '@ant-design/icons';
-import { getFoundations, createFoundation, updateFoundation, deleteFoundation } from '../../api/foundations';
-import type { UpsertFoundationInput } from '../../api/foundations';
-import type { Foundation } from '../../types';
+import { getAllNaungan, createNaungan, updateNaungan, deleteNaungan } from '../../api/naungan';
+import type { UpsertNaunganInput } from '../../api/naungan';
+import type { Naungan } from '../../types';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,78 +21,78 @@ const useWindowSize = () => {
   return size;
 };
 
-const ManajemenYayasanPage = () => {
+const ManajemenNaunganPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { width } = useWindowSize();
   const isMobile = width < 768;
 
-  const [foundations, setFoundations] = useState<Foundation[]>([]);
+  const [naunganList, setNaunganList] = useState<Naungan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingFoundation, setEditingFoundation] = useState<Foundation | null>(null);
+  const [editingNaungan, setEditingNaungan] = useState<Naungan | null>(null);
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deletingFoundation, setDeletingFoundation] = useState<Foundation | null>(null);
+  const [deletingNaungan, setDeletingNaungan] = useState<Naungan | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
 
 
-  const fetchFoundations = async () => {
+  const fetchNaunganList = async () => {
     setLoading(true);
     try {
-      const data = await getFoundations();
-      setFoundations(data || []);
+      const data = await getAllNaungan();
+      setNaunganList(data || []);
       setError(null);
     } catch (err) {
-      setError('Gagal memuat data yayasan.');
+      setError('Gagal memuat data naungan.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFoundations();
+    fetchNaunganList();
   }, []);
 
-  const showModal = (foundation: Foundation | null) => {
-    setEditingFoundation(foundation);
-    form.setFieldsValue(foundation || { nama_yayasan: '' });
+  const showModal = (naungan: Naungan | null) => {
+    setEditingNaungan(naungan);
+    form.setFieldsValue(naungan || { nama_naungan: '' });
     setIsModalOpen(true);
   };
 
   const handleCancel = () => {
     setIsModalOpen(false);
-    setEditingFoundation(null);
+    setEditingNaungan(null);
     form.resetFields();
   };
   
-  const showDeleteModal = (foundation: Foundation) => {
-    setDeletingFoundation(foundation);
+  const showDeleteModal = (naungan: Naungan) => {
+    setDeletingNaungan(naungan);
     setIsDeleteModalOpen(true);
   };
 
   const handleDeleteCancel = () => {
     setIsDeleteModalOpen(false);
-    setDeletingFoundation(null);
+    setDeletingNaungan(null);
     setDeleteConfirmInput('');
   };
 
-  const handleFinish = async (values: UpsertFoundationInput) => {
+  const handleFinish = async (values: UpsertNaunganInput) => {
     setIsSubmitting(true);
     try {
-      if (editingFoundation) {
-        await updateFoundation(editingFoundation.id, values);
-        message.success('Yayasan berhasil diperbarui!');
+      if (editingNaungan) {
+        await updateNaungan(editingNaungan.id, values);
+        message.success('Naungan berhasil diperbarui!');
       } else {
-        await createFoundation(values);
-        message.success('Yayasan baru berhasil ditambahkan!');
+        await createNaungan(values);
+        message.success('Naungan baru berhasil ditambahkan!');
       }
       handleCancel();
-      fetchFoundations();
+      fetchNaunganList();
     } catch (err: any) {
-      const errorMessage = err.response?.data || 'Gagal menyimpan data yayasan.';
+      const errorMessage = err.response?.data || 'Gagal menyimpan data naungan.';
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -100,24 +100,23 @@ const ManajemenYayasanPage = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deletingFoundation) return;
+    if (!deletingNaungan) return;
     setIsSubmitting(true);
     try {
-      await deleteFoundation(deletingFoundation.id);
-      message.success(`Yayasan "${deletingFoundation.nama_yayasan}" dan semua sekolah di bawahnya berhasil dihapus.`);
+      await deleteNaungan(deletingNaungan.id);
+      message.success(`Naungan "${deletingNaungan.nama_naungan}" dan semua sekolah di bawahnya berhasil dihapus.`);
       handleDeleteCancel();
-      fetchFoundations();
+      fetchNaunganList();
     } catch (err: any) {
-      const errorMessage = err.response?.data || 'Gagal menghapus yayasan.';
+      const errorMessage = err.response?.data || 'Gagal menghapus naungan.';
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const columns: TableColumnsType<Foundation> = [
-    { title: 'Nama Yayasan', dataIndex: 'nama_yayasan', key: 'nama_yayasan', sorter: (a, b) => a.nama_yayasan.localeCompare(b.nama_yayasan) },
-    // --- KOLOM BARU DI SINI ---
+  const columns: TableColumnsType<Naungan> = [
+    { title: 'Nama Naungan', dataIndex: 'nama_naungan', key: 'nama_naungan', sorter: (a, b) => a.nama_naungan.localeCompare(b.nama_naungan) },
     { title: 'Jumlah Sekolah', dataIndex: 'school_count', key: 'school_count', align: 'center', sorter: (a, b) => a.school_count - b.school_count },
     { title: 'Tanggal Dibuat', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(), responsive: ['md'] },
     {
@@ -126,7 +125,7 @@ const ManajemenYayasanPage = () => {
       align: 'center',
       render: (_, record) => (
         <Space>
-           <Button icon={<EyeOutlined />} onClick={() => navigate(`/superadmin/yayasan/${record.id}`)}>
+           <Button icon={<EyeOutlined />} onClick={() => navigate(`/superadmin/naungan/${record.id}`)}>
             {!isMobile && 'Lihat Sekolah'}
           </Button>
           <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
@@ -145,11 +144,11 @@ const ManajemenYayasanPage = () => {
         gutter={[16, 16]}
       >
         <Col>
-          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Manajemen Yayasan</Title>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Manajemen Naungan</Title>
         </Col>
         <Col style={{ textAlign: isMobile ? 'left' : 'right' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-            {!isMobile && 'Tambah Yayasan Baru'}
+            {!isMobile && 'Tambah Naungan Baru'}
           </Button>
         </Col>
       </Row>
@@ -159,7 +158,7 @@ const ManajemenYayasanPage = () => {
       ) : (
         <Table 
           columns={columns} 
-          dataSource={foundations} 
+          dataSource={naunganList} 
           loading={loading} 
           rowKey="id" 
           scroll={{ x: 'max-content' }}
@@ -167,15 +166,15 @@ const ManajemenYayasanPage = () => {
       )}
 
       <Modal
-        title={editingFoundation ? 'Edit Yayasan' : 'Tambah Yayasan Baru'}
+        title={editingNaungan ? 'Edit Naungan' : 'Tambah Naungan Baru'}
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
         destroyOnClose
       >
         <Form form={form} layout="vertical" onFinish={handleFinish}>
-          <Form.Item name="nama_yayasan" label="Nama Yayasan" rules={[{ required: true, message: 'Nama yayasan tidak boleh kosong' }]}>
-            <Input placeholder="Masukkan nama yayasan" />
+          <Form.Item name="nama_naungan" label="Nama Naungan" rules={[{ required: true, message: 'Nama naungan tidak boleh kosong' }]}>
+            <Input placeholder="Masukkan nama naungan" />
           </Form.Item>
           <Form.Item style={{ textAlign: 'right', marginTop: 24 }}>
             <Button onClick={handleCancel} style={{ marginRight: 8 }}>Batal</Button>
@@ -190,31 +189,31 @@ const ManajemenYayasanPage = () => {
         title={
           <Space>
             <ExclamationCircleFilled style={{ color: '#ff4d4f' }} />
-            Konfirmasi Hapus Yayasan
+            Konfirmasi Hapus Naungan
           </Space>
         }
         open={isDeleteModalOpen}
         onCancel={handleDeleteCancel}
         destroyOnClose
-        okText="Ya, Hapus Yayasan Ini"
+        okText="Ya, Hapus Naungan Ini"
         okType="danger"
         onOk={handleConfirmDelete}
         confirmLoading={isSubmitting}
-        okButtonProps={{ disabled: deleteConfirmInput !== deletingFoundation?.nama_yayasan }}
+        okButtonProps={{ disabled: deleteConfirmInput !== deletingNaungan?.nama_naungan }}
       >
         <Paragraph>
-          Tindakan ini akan menghapus <Text strong>{deletingFoundation?.nama_yayasan}</Text> dan <Text strong>semua sekolah</Text> di bawah naungannya secara permanen.
+          Tindakan ini akan menghapus <Text strong>{deletingNaungan?.nama_naungan}</Text> dan <Text strong>semua sekolah</Text> di bawahnya secara permanen.
         </Paragraph>
         <Paragraph>
           Semua data yang terkait (guru, siswa, dll) akan hilang dan tidak dapat dipulihkan.
         </Paragraph>
         <Paragraph>
-          Untuk melanjutkan, silakan ketik nama yayasan di bawah ini:
+          Untuk melanjutkan, silakan ketik nama naungan di bawah ini:
         </Paragraph>
-        <Input placeholder={deletingFoundation?.nama_yayasan} value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} />
+        <Input placeholder={deletingNaungan?.nama_naungan} value={deleteConfirmInput} onChange={(e) => setDeleteConfirmInput(e.target.value)} />
       </Modal>
     </>
   );
 };
 
-export default ManajemenYayasanPage;
+export default ManajemenNaunganPage;

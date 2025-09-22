@@ -82,7 +82,7 @@ func main() {
 	validate := validator.New()
 
 	// --- Inisialisasi Repository ---
-	foundationRepo := foundation.NewRepository(db)
+	naunganRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
 	tenantRepo := tenant.NewRepository(db)
@@ -91,10 +91,9 @@ func main() {
 
 	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
-	foundationService := foundation.NewService(foundationRepo, validate)
+	naunganService := foundation.NewService(naunganRepo, validate)
 	teacherService := teacher.NewService(teacherRepo, validate, db)
-	// --- PERBAIKAN DI BARIS BERIKUT ---
-	studentService := student.NewService(studentRepo, studentHistoryRepo, validate, db) // Tambahkan 'db' di akhir
+	studentService := student.NewService(studentRepo, studentHistoryRepo, validate, db)
 	studentHistoryService := student.NewHistoryService(studentHistoryRepo, validate)
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	profileService := profile.NewService(profileRepo, validate)
@@ -102,7 +101,7 @@ func main() {
 	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
-	foundationHandler := foundation.NewHandler(foundationService)
+	naunganHandler := foundation.NewHandler(naunganService)
 	teacherHandler := teacher.NewHandler(teacherService)
 	studentHandler := student.NewHandler(studentService)
 	studentHistoryHandler := student.NewHistoryHandler(studentHistoryService)
@@ -122,13 +121,13 @@ func main() {
 
 	r.Post("/login", authHandler.Login)
 
-	r.Route("/foundations", func(r chi.Router) {
+	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.AuthorizeSuperadmin).Get("/", foundationHandler.GetAll)
-		r.With(auth.AuthorizeSuperadmin).Get("/{foundationID}", foundationHandler.GetByID)
-		r.With(auth.AuthorizeSuperadmin).Post("/", foundationHandler.Create)
-		r.With(auth.AuthorizeSuperadmin).Put("/{foundationID}", foundationHandler.Update)
-		r.With(auth.AuthorizeSuperadmin).Delete("/{foundationID}", foundationHandler.Delete)
+		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
+		r.With(auth.AuthorizeSuperadmin).Get("/{naunganID}", naunganHandler.GetByID)
+		r.With(auth.AuthorizeSuperadmin).Post("/", naunganHandler.Create)
+		r.With(auth.AuthorizeSuperadmin).Put("/{naunganID}", naunganHandler.Update)
+		r.With(auth.AuthorizeSuperadmin).Delete("/{naunganID}", naunganHandler.Delete)
 	})
 
 	r.Route("/tenants", func(r chi.Router) {

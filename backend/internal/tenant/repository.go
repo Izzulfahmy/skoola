@@ -26,7 +26,7 @@ func NewRepository(db *sql.DB) Repository {
 }
 
 func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name, foundation_id) VALUES ($1, $2, $3)`, input.NamaSekolah, input.SchemaName, input.FoundationID)
+	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name, naungan_id) VALUES ($1, $2, $3)`, input.NamaSekolah, input.SchemaName, input.NaunganID)
 	if err != nil {
 		return fmt.Errorf("gagal insert ke tabel public.tenants: %w", err)
 	}
@@ -47,7 +47,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/003_add_teacher_details.sql",
 		"./db/migrations/004_add_employment_history.sql",
 		"./db/migrations/006_enhance_students_table.sql",
-		"./db/migrations/007_add_academic_history.sql", // <-- TAMBAHKAN MIGRASI INI
+		"./db/migrations/007_add_academic_history.sql",
 	}
 
 	for _, path := range migrationPaths {
@@ -77,13 +77,12 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
-// ... (GetAll, CheckSchemaExists, ApplyMigrationToSchema, DeleteTenantBySchema tidak berubah)
 func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	query := `
 		SELECT 
-			t.id, t.nama_sekolah, t.schema_name, t.foundation_id, f.nama_yayasan, t.created_at, t.updated_at 
+			t.id, t.nama_sekolah, t.schema_name, t.naungan_id, n.nama_naungan, t.created_at, t.updated_at 
 		FROM public.tenants t
-		LEFT JOIN public.foundations f ON t.foundation_id = f.id
+		LEFT JOIN public.naungan n ON t.naungan_id = n.id
 		ORDER BY t.created_at DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query)
@@ -95,17 +94,17 @@ func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	var tenants []Tenant
 	for rows.Next() {
 		var t Tenant
-		var foundationID, namaYayasan sql.NullString
+		var naunganID, namaNaungan sql.NullString
 
-		if err := rows.Scan(&t.ID, &t.NamaSekolah, &t.SchemaName, &foundationID, &namaYayasan, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.NamaSekolah, &t.SchemaName, &naunganID, &namaNaungan, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("gagal memindai data tenant: %w", err)
 		}
 
-		if foundationID.Valid {
-			t.FoundationID = &foundationID.String
+		if naunganID.Valid {
+			t.NaunganID = &naunganID.String
 		}
-		if namaYayasan.Valid {
-			t.NamaYayasan = &namaYayasan.String
+		if namaNaungan.Valid {
+			t.NamaNaungan = &namaNaungan.String
 		}
 
 		tenants = append(tenants, t)

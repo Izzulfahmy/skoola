@@ -7,12 +7,11 @@ import (
 	"fmt"
 )
 
-// ... (Interface tidak berubah) ...
 type Repository interface {
-	Create(ctx context.Context, foundation *Foundation) error
-	GetAll(ctx context.Context) ([]Foundation, error)
-	GetByID(ctx context.Context, id string) (*Foundation, error)
-	Update(ctx context.Context, foundation *Foundation) error
+	Create(ctx context.Context, naungan *Naungan) error
+	GetAll(ctx context.Context) ([]Naungan, error)
+	GetByID(ctx context.Context, id string) (*Naungan, error)
+	Update(ctx context.Context, naungan *Naungan) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -24,39 +23,36 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-func (r *postgresRepository) GetAll(ctx context.Context) ([]Foundation, error) {
-	// --- PERBAIKAN DI SINI: Query diubah untuk menghitung jumlah sekolah ---
+func (r *postgresRepository) GetAll(ctx context.Context) ([]Naungan, error) {
 	query := `
 		SELECT 
-			f.id, 
-			f.nama_yayasan, 
-			f.created_at, 
-			f.updated_at,
+			n.id, 
+			n.nama_naungan, 
+			n.created_at, 
+			n.updated_at,
 			COUNT(t.id) as school_count
-		FROM public.foundations f
-		LEFT JOIN public.tenants t ON f.id = t.foundation_id
-		GROUP BY f.id, f.nama_yayasan, f.created_at, f.updated_at
-		ORDER BY f.nama_yayasan ASC
+		FROM public.naungan n
+		LEFT JOIN public.tenants t ON n.id = t.naungan_id
+		GROUP BY n.id, n.nama_naungan, n.created_at, n.updated_at
+		ORDER BY n.nama_naungan ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("gagal query get all foundations: %w", err)
+		return nil, fmt.Errorf("gagal query get all naungan: %w", err)
 	}
 	defer rows.Close()
 
-	var foundations []Foundation
+	var naunganList []Naungan
 	for rows.Next() {
-		var f Foundation
-		// --- PERBAIKAN DI SINI: Menambahkan &f.SchoolCount saat scan ---
-		if err := rows.Scan(&f.ID, &f.NamaYayasan, &f.CreatedAt, &f.UpdatedAt, &f.SchoolCount); err != nil {
-			return nil, fmt.Errorf("gagal memindai data foundation: %w", err)
+		var n Naungan
+		if err := rows.Scan(&n.ID, &n.NamaNaungan, &n.CreatedAt, &n.UpdatedAt, &n.SchoolCount); err != nil {
+			return nil, fmt.Errorf("gagal memindai data naungan: %w", err)
 		}
-		foundations = append(foundations, f)
+		naunganList = append(naunganList, n)
 	}
-	return foundations, rows.Err()
+	return naunganList, rows.Err()
 }
 
-// --- FUNGSI LAINNYA TIDAK BERUBAH ---
 func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -64,7 +60,7 @@ func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 	}
 	defer tx.Rollback()
 
-	queryTenants := `SELECT schema_name FROM public.tenants WHERE foundation_id = $1`
+	queryTenants := `SELECT schema_name FROM public.tenants WHERE naungan_id = $1`
 	rows, err := tx.QueryContext(ctx, queryTenants, id)
 	if err != nil {
 		return fmt.Errorf("gagal mengambil data tenant terkait: %w", err)
@@ -90,15 +86,15 @@ func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 		}
 	}
 
-	deleteTenantsQuery := `DELETE FROM public.tenants WHERE foundation_id = $1`
+	deleteTenantsQuery := `DELETE FROM public.tenants WHERE naungan_id = $1`
 	if _, err := tx.ExecContext(ctx, deleteTenantsQuery, id); err != nil {
 		return fmt.Errorf("gagal menghapus dari tabel public.tenants: %w", err)
 	}
 
-	deleteFoundationQuery := `DELETE FROM public.foundations WHERE id = $1`
-	result, err := tx.ExecContext(ctx, deleteFoundationQuery, id)
+	deleteNaunganQuery := `DELETE FROM public.naungan WHERE id = $1`
+	result, err := tx.ExecContext(ctx, deleteNaunganQuery, id)
 	if err != nil {
-		return fmt.Errorf("gagal mengeksekusi query delete foundation: %w", err)
+		return fmt.Errorf("gagal mengeksekusi query delete naungan: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -111,45 +107,44 @@ func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 
 	return tx.Commit()
 }
-func (r *postgresRepository) Create(ctx context.Context, f *Foundation) error {
-	query := `INSERT INTO public.foundations (id, nama_yayasan) VALUES ($1, $2)`
-	_, err := r.db.ExecContext(ctx, query, f.ID, f.NamaYayasan)
+func (r *postgresRepository) Create(ctx context.Context, n *Naungan) error {
+	query := `INSERT INTO public.naungan (id, nama_naungan) VALUES ($1, $2)`
+	_, err := r.db.ExecContext(ctx, query, n.ID, n.NamaNaungan)
 	if err != nil {
-		return fmt.Errorf("gagal insert ke tabel public.foundations: %w", err)
+		return fmt.Errorf("gagal insert ke tabel public.naungan: %w", err)
 	}
 	return nil
 }
-func (r *postgresRepository) GetByID(ctx context.Context, id string) (*Foundation, error) {
-	// Query GetByID juga perlu diubah untuk konsistensi
+func (r *postgresRepository) GetByID(ctx context.Context, id string) (*Naungan, error) {
 	query := `
 		SELECT 
-			f.id, 
-			f.nama_yayasan, 
-			f.created_at, 
-			f.updated_at,
+			n.id, 
+			n.nama_naungan, 
+			n.created_at, 
+			n.updated_at,
 			COUNT(t.id) as school_count
-		FROM public.foundations f
-		LEFT JOIN public.tenants t ON f.id = t.foundation_id
-		WHERE f.id = $1
-		GROUP BY f.id, f.nama_yayasan, f.created_at, f.updated_at
+		FROM public.naungan n
+		LEFT JOIN public.tenants t ON n.id = t.naungan_id
+		WHERE n.id = $1
+		GROUP BY n.id, n.nama_naungan, n.created_at, n.updated_at
 	`
 	row := r.db.QueryRowContext(ctx, query, id)
 
-	var f Foundation
-	err := row.Scan(&f.ID, &f.NamaYayasan, &f.CreatedAt, &f.UpdatedAt, &f.SchoolCount)
+	var n Naungan
+	err := row.Scan(&n.ID, &n.NamaNaungan, &n.CreatedAt, &n.UpdatedAt, &n.SchoolCount)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("gagal memindai data foundation by id: %w", err)
+		return nil, fmt.Errorf("gagal memindai data naungan by id: %w", err)
 	}
-	return &f, nil
+	return &n, nil
 }
-func (r *postgresRepository) Update(ctx context.Context, f *Foundation) error {
-	query := `UPDATE public.foundations SET nama_yayasan = $1, updated_at = NOW() WHERE id = $2`
-	result, err := r.db.ExecContext(ctx, query, f.NamaYayasan, f.ID)
+func (r *postgresRepository) Update(ctx context.Context, n *Naungan) error {
+	query := `UPDATE public.naungan SET nama_naungan = $1, updated_at = NOW() WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, n.NamaNaungan, n.ID)
 	if err != nil {
-		return fmt.Errorf("gagal eksekusi query update foundation: %w", err)
+		return fmt.Errorf("gagal eksekusi query update naungan: %w", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {

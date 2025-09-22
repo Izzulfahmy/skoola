@@ -3,16 +3,16 @@ package foundation
 
 import "time"
 
-// Foundation merepresentasikan data dari tabel 'public.foundations'.
-type Foundation struct {
+// Naungan merepresentasikan data dari tabel 'public.naungan'.
+type Naungan struct {
 	ID          string    `json:"id"`
-	NamaYayasan string    `json:"nama_yayasan"`
-	SchoolCount int       `json:"school_count"` // <-- TAMBAHKAN FIELD INI
+	NamaNaungan string    `json:"nama_naungan"`
+	SchoolCount int       `json:"school_count"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// Input DTO untuk membuat atau memperbarui yayasan.
-type UpsertFoundationInput struct {
-	NamaYayasan string `json:"nama_yayasan" validate:"required,min=3"`
+// Input DTO untuk membuat atau memperbarui naungan.
+type UpsertNaunganInput struct {
+	NamaNaungan string `json:"nama_naungan" validate:"required,min=3"`
 }

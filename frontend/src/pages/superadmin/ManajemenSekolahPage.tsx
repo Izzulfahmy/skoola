@@ -19,8 +19,8 @@ import {
   deleteTenant,
   type RegisterTenantInput,
 } from '../../api/tenants';
-import { getFoundationById } from '../../api/foundations';
-import type { Tenant, Foundation } from '../../types';
+import { getNaunganById } from '../../api/naungan';
+import type { Tenant, Naungan } from '../../types';
 import RegisterTenantForm from '../../components/RegisterTenantForm';
 import { format } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
@@ -31,12 +31,12 @@ type ModalType = 'register' | 'editEmail' | 'resetPassword' | 'deleteConfirm' | 
 
 const ManajemenSekolahPage = () => {
   const [form] = Form.useForm();
-  const { foundationId } = useParams<{ foundationId: string }>();
+  const { naunganId } = useParams<{ naunganId: string }>();
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [foundation, setFoundation] = useState<Foundation | null>(null);
+  const [naungan, setNaungan] = useState<Naungan | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
@@ -48,15 +48,14 @@ const ManajemenSekolahPage = () => {
     try {
       const allTenants = await getTenants();
       
-      if (foundationId) {
-        const foundationData = await getFoundationById(foundationId);
-        setFoundation(foundationData);
-        // Pastikan allTenants adalah array sebelum filter
-        const filteredTenants = (allTenants || []).filter(t => t.foundation_id === foundationId);
+      if (naunganId) {
+        const naunganData = await getNaunganById(naunganId);
+        setNaungan(naunganData);
+        const filteredTenants = (allTenants || []).filter(t => t.naungan_id === naunganId);
         setTenants(filteredTenants);
       } else {
         setTenants(allTenants || []);
-        setFoundation(null);
+        setNaungan(null);
       }
       setError(null);
     } catch (err) {
@@ -68,7 +67,7 @@ const ManajemenSekolahPage = () => {
 
   useEffect(() => {
     fetchTenants();
-  }, [foundationId]);
+  }, [naunganId]);
 
   const showModal = (type: ModalType, tenant?: Tenant) => {
     if (tenant) setSelectedTenant(tenant);
@@ -85,7 +84,7 @@ const ManajemenSekolahPage = () => {
   const handleRegisterTenant = async (values: RegisterTenantInput) => {
     setLoading(true);
     try {
-      const payload = foundationId ? { ...values, foundation_id: foundationId } : values;
+      const payload = naunganId ? { ...values, naungan_id: naunganId } : values;
       await registerTenant(payload);
       message.success(`Sekolah "${values.nama_sekolah}" berhasil didaftarkan!`);
       handleCancel();
@@ -148,10 +147,10 @@ const ManajemenSekolahPage = () => {
   const columns: TableColumnsType<Tenant> = [
     { title: 'Nama Sekolah', dataIndex: 'nama_sekolah', key: 'nama_sekolah', sorter: (a, b) => a.nama_sekolah.localeCompare(b.nama_sekolah) },
     { title: 'ID Unik (Schema)', dataIndex: 'schema_name', key: 'schema_name', render: (schema) => <Tag color="blue">{schema}</Tag> },
-    ...(!foundationId ? [{ 
-        title: 'Yayasan', 
-        dataIndex: 'nama_yayasan', 
-        key: 'nama_yayasan', 
+    ...(!naunganId ? [{ 
+        title: 'Naungan', 
+        dataIndex: 'nama_naungan', 
+        key: 'nama_naungan', 
         render: (text: string) => text || '-' 
     }] : []),
     { title: 'Tanggal Didaftarkan', dataIndex: 'created_at', key: 'created_at', render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'), sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime() },
@@ -167,29 +166,28 @@ const ManajemenSekolahPage = () => {
     },
   ];
 
-  // --- PERBAIKAN DI SINI: Membuat array untuk properti 'items' Breadcrumb ---
   const breadcrumbItems = [
     {
       title: <Link to="/superadmin"><HomeOutlined /></Link>,
     },
     {
-      title: <Link to="/superadmin/yayasan">Yayasan</Link>,
+      title: <Link to="/superadmin/naungan">Naungan</Link>,
     },
     {
-      title: foundation?.nama_yayasan,
+      title: naungan?.nama_naungan,
     },
   ];
 
   return (
     <>
-      {foundationId && foundation && (
+      {naunganId && naungan && (
         <Breadcrumb items={breadcrumbItems} style={{ marginBottom: 16 }} />
       )}
 
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <Col>
           <Title level={2} style={{ margin: 0 }}>
-            {foundationId ? `Sekolah di Bawah ${foundation?.nama_yayasan}` : 'Manajemen Semua Sekolah'}
+            {naunganId ? `Sekolah di Bawah ${naungan?.nama_naungan}` : 'Manajemen Semua Sekolah'}
           </Title>
         </Col>
         <Col>

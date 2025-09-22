@@ -1,34 +1,32 @@
 // file: frontend/src/pages/superadmin/SuperAdminDashboard.tsx
 import { Card, Col, Row, Statistic, Typography, Space } from 'antd';
-import { BankOutlined, GoldOutlined } from '@ant-design/icons'; // <-- Impor ikon baru
+import { BankOutlined, GoldOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { getTenants } from '../../api/tenants';
-import { getFoundations } from '../../api/foundations'; // <-- Impor API yayasan
+import { getAllNaungan } from '../../api/naungan'; // <-- Diubah
 
 const { Title, Text } = Typography;
 
 const SuperAdminDashboard = () => {
   const [tenantCount, setTenantCount] = useState(0);
-  const [foundationCount, setFoundationCount] = useState(0); // <-- State baru untuk jumlah yayasan
+  const [naunganCount, setNaunganCount] = useState(0); // <-- Diubah
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // --- PERBAIKAN DI SINI: Ambil data sekolah dan yayasan secara bersamaan ---
-        const [tenants, foundations] = await Promise.all([
+        const [tenants, naunganList] = await Promise.all([ // <-- Diubah
           getTenants(),
-          getFoundations(),
+          getAllNaungan(), // <-- Diubah
         ]);
         
         setTenantCount(tenants?.length || 0);
-        setFoundationCount(foundations?.length || 0);
+        setNaunganCount(naunganList?.length || 0); // <-- Diubah
 
       } catch (error) {
         console.error("Gagal memuat data statistik:", error);
-        // Set ke 0 jika terjadi error
         setTenantCount(0);
-        setFoundationCount(0);
+        setNaunganCount(0); // <-- Diubah
       } finally {
         setLoading(false);
       }
@@ -44,12 +42,11 @@ const SuperAdminDashboard = () => {
         <Text type="secondary">Selamat datang! Anda dapat mengelola semua sekolah dari sini.</Text>
       </div>
       <Row gutter={[16, 16]}>
-        {/* --- KARTU STATISTIK BARU UNTUK YAYASAN --- */}
         <Col xs={24} sm={12} lg={8}>
           <Card>
             <Statistic
-              title="Total Yayasan Terdaftar"
-              value={foundationCount}
+              title="Total Naungan Terdaftar" // <-- Diubah
+              value={naunganCount} // <-- Diubah
               loading={loading}
               prefix={<GoldOutlined />}
             />

@@ -3,25 +3,25 @@ package tenant
 
 import "time"
 
-// --- PERUBAHAN DI SINI ---
+// Tenant merepresentasikan data dari tabel 'public.tenants'.
 type Tenant struct {
-	ID           string    `json:"id"`
-	NamaSekolah  string    `json:"nama_sekolah"`
-	SchemaName   string    `json:"schema_name"`
-	FoundationID *string   `json:"foundation_id"` // Boleh NULL
-	NamaYayasan  *string   `json:"nama_yayasan"`  // Untuk ditampilkan di frontend
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	NamaSekolah string    `json:"nama_sekolah"`
+	SchemaName  string    `json:"schema_name"`
+	NaunganID   *string   `json:"naungan_id"`   // Boleh NULL
+	NamaNaungan *string   `json:"nama_naungan"` // Untuk ditampilkan di frontend
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // DTO untuk input pendaftaran tenant baru
 type RegisterTenantInput struct {
-	NamaSekolah  string  `json:"nama_sekolah" validate:"required"`
-	SchemaName   string  `json:"schema_name" validate:"required"`
-	AdminEmail   string  `json:"admin_email" validate:"required,email"`
-	AdminPass    string  `json:"admin_pass" validate:"required,min=8"`
-	AdminName    string  `json:"admin_name" validate:"required"`
-	FoundationID *string `json:"foundation_id,omitempty"` // Tambahkan ini, omitempty agar bisa kosong
+	NamaSekolah string  `json:"nama_sekolah" validate:"required"`
+	SchemaName  string  `json:"schema_name" validate:"required"`
+	AdminEmail  string  `json:"admin_email" validate:"required,email"`
+	AdminPass   string  `json:"admin_pass" validate:"required,min=8"`
+	AdminName   string  `json:"admin_name" validate:"required"`
+	NaunganID   *string `json:"naungan_id,omitempty"`
 }
 
 // DTO untuk input update email admin

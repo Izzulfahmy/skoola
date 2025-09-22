@@ -9,7 +9,7 @@ export interface RegisterTenantInput {
   admin_email: string;
   admin_pass: string;
   admin_name: string;
-  foundation_id?: string; // <-- TAMBAHKAN INI
+  naungan_id?: string;
 }
 
 // Tipe untuk input update email

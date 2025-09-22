@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Zz7BjtAKxpzuwIRgnHDWhPOjTh98dZJShJA360mkM3VfiPAqnF8Itydw3EEpH1Z
+\restrict qrK6pm2cLsZBRFh0NQAj9gyqN41DK2jgOFE8dWJetSZKkThCmP9U4fN8UQ4gzcL
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -24,18 +24,18 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: foundations; Type: TABLE; Schema: public; Owner: postgres
+-- Name: naungan; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.foundations (
+CREATE TABLE public.naungan (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    nama_yayasan character varying(255) NOT NULL,
+    nama_naungan character varying(255) NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
 
 
-ALTER TABLE public.foundations OWNER TO postgres;
+ALTER TABLE public.naungan OWNER TO postgres;
 
 --
 -- Name: tenants; Type: TABLE; Schema: public; Owner: postgres
@@ -47,7 +47,7 @@ CREATE TABLE public.tenants (
     schema_name character varying(50) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    foundation_id uuid
+    naungan_id uuid
 );
 
 
@@ -70,10 +70,10 @@ CREATE TABLE public.users (
 ALTER TABLE public.users OWNER TO postgres;
 
 --
--- Data for Name: foundations; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: naungan; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.foundations (id, nama_yayasan, created_at, updated_at) FROM stdin;
+COPY public.naungan (id, nama_naungan, created_at, updated_at) FROM stdin;
 \.
 
 
@@ -81,7 +81,7 @@ COPY public.foundations (id, nama_yayasan, created_at, updated_at) FROM stdin;
 -- Data for Name: tenants; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.tenants (id, nama_sekolah, schema_name, created_at, updated_at, foundation_id) FROM stdin;
+COPY public.tenants (id, nama_sekolah, schema_name, created_at, updated_at, naungan_id) FROM stdin;
 \.
 
 
@@ -95,11 +95,11 @@ dad01df5-1937-48cf-829a-7c0446f4f760	superadmin@skoola.com	$2a$10$zyDKgGO5pqFHaD
 
 
 --
--- Name: foundations foundations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: naungan naungan_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.foundations
-    ADD CONSTRAINT foundations_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.naungan
+    ADD CONSTRAINT naungan_pkey PRIMARY KEY (id);
 
 
 --
@@ -135,23 +135,23 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: idx_tenants_foundation_id; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_tenants_naungan_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX idx_tenants_foundation_id ON public.tenants USING btree (foundation_id);
+CREATE INDEX idx_tenants_naungan_id ON public.tenants USING btree (naungan_id);
 
 
 --
--- Name: tenants tenants_foundation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: tenants tenants_naungan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.tenants
-    ADD CONSTRAINT tenants_foundation_id_fkey FOREIGN KEY (foundation_id) REFERENCES public.foundations(id) ON DELETE SET NULL;
+    ADD CONSTRAINT tenants_naungan_id_fkey FOREIGN KEY (naungan_id) REFERENCES public.naungan(id) ON DELETE SET NULL;
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Zz7BjtAKxpzuwIRgnHDWhPOjTh98dZJShJA360mkM3VfiPAqnF8Itydw3EEpH1Z
+\unrestrict qrK6pm2cLsZBRFh0NQAj9gyqN41DK2jgOFE8dWJetSZKkThCmP9U4fN8UQ4gzcL
 

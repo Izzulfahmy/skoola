@@ -18,84 +18,82 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-// --- HANDLER BARU DI SINI ---
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	foundationID := chi.URLParam(r, "foundationID")
-	foundation, err := h.service.GetByID(r.Context(), foundationID)
+	naunganID := chi.URLParam(r, "naunganID")
+	naungan, err := h.service.GetByID(r.Context(), naunganID)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data yayasan: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal mengambil data naungan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if foundation == nil {
-		http.Error(w, "Yayasan tidak ditemukan", http.StatusNotFound)
+	if naungan == nil {
+		http.Error(w, "Naungan tidak ditemukan", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(foundation)
+	json.NewEncoder(w).Encode(naungan)
 }
 
-// --- Handler lainnya tidak berubah ---
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var input UpsertFoundationInput
+	var input UpsertNaunganInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-	newFoundation, err := h.service.Create(r.Context(), input)
+	newNaungan, err := h.service.Create(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		http.Error(w, "Gagal membuat yayasan: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal membuat naungan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newFoundation)
+	json.NewEncoder(w).Encode(newNaungan)
 }
 
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	foundations, err := h.service.GetAll(r.Context())
+	naunganList, err := h.service.GetAll(r.Context())
 	if err != nil {
-		http.Error(w, "Gagal mengambil data yayasan: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal mengambil data naungan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(foundations)
+	json.NewEncoder(w).Encode(naunganList)
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	foundationID := chi.URLParam(r, "foundationID")
-	var input UpsertFoundationInput
+	naunganID := chi.URLParam(r, "naunganID")
+	var input UpsertNaunganInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-	err := h.service.Update(r.Context(), foundationID, input)
+	err := h.service.Update(r.Context(), naunganID, input)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Yayasan tidak ditemukan", http.StatusNotFound)
+			http.Error(w, "Naungan tidak ditemukan", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Gagal memperbarui yayasan: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal memperbarui naungan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Yayasan berhasil diperbarui"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Naungan berhasil diperbarui"})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	foundationID := chi.URLParam(r, "foundationID")
-	err := h.service.Delete(r.Context(), foundationID)
+	naunganID := chi.URLParam(r, "naunganID")
+	err := h.service.Delete(r.Context(), naunganID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Yayasan tidak ditemukan", http.StatusNotFound)
+			http.Error(w, "Naungan tidak ditemukan", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Gagal menghapus yayasan: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal menghapus naungan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -1,8 +1,8 @@
 // file: src/types/index.ts
 
-export interface Foundation {
+export interface Naungan {
   id: string;
-  nama_yayasan: string;
+  nama_naungan: string;
   school_count: number;
   created_at: string;
   updated_at: string;
@@ -12,8 +12,8 @@ export interface Tenant {
   id: string;
   nama_sekolah: string;
   schema_name: string;
-  foundation_id?: string;
-  nama_yayasan?: string;
+  naungan_id?: string;
+  nama_naungan?: string;
   created_at: string;
   updated_at: string;
 }

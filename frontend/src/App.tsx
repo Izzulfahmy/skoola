@@ -10,11 +10,10 @@ import StudentsPage from './pages/StudentsPage';
 import SchoolProfilePage from './pages/SchoolProfilePage';
 import SettingsPage from './pages/SettingsPage';
 
-// --- 1. IMPOR HALAMAN DAN LAYOUT BARU ---
 import SuperAdminLayout from './layouts/SuperAdminLayout';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import ManajemenSekolahPage from './pages/superadmin/ManajemenSekolahPage';
-import ManajemenYayasanPage from './pages/superadmin/ManajemenYayasanPage'; // <-- IMPOR HALAMAN YAYASAN
+import ManajemenNaunganPage from './pages/superadmin/ManajemenNaunganPage'; // <-- Diubah
 
 function App() {
   return (
@@ -32,12 +31,12 @@ function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
-        {/* --- 2. PERBARUI RUTE SUPERADMIN --- */}
+        {/* Rute Superadmin */}
         <Route path="/superadmin" element={<ProtectedRoute><SuperAdminLayout /></ProtectedRoute>}>
           <Route index element={<SuperAdminDashboard />} />
-          <Route path="yayasan" element={<ManajemenYayasanPage />} />
-          <Route path="yayasan/:foundationId" element={<ManajemenSekolahPage />} /> {/* Rute untuk sekolah di bawah yayasan */}
-          <Route path="sekolah" element={<ManajemenSekolahPage />} /> {/* Rute untuk semua sekolah */}
+          <Route path="naungan" element={<ManajemenNaunganPage />} /> 
+          <Route path="naungan/:naunganId" element={<ManajemenSekolahPage />} /> 
+          <Route path="sekolah" element={<ManajemenSekolahPage />} />
         </Route>
 
         {/* Rute untuk URL yang tidak cocok */}

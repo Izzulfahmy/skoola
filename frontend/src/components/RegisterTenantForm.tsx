@@ -1,8 +1,8 @@
 // file: frontend/src/components/RegisterTenantForm.tsx
 import { useState, useEffect } from 'react';
 import { Form, Input, Button, Select } from 'antd';
-import { getFoundations } from '../api/foundations';
-import type { Foundation } from '../types';
+import { getAllNaungan } from '../api/naungan';
+import type { Naungan } from '../types';
 import type { RegisterTenantInput } from '../api/tenants';
 
 const { Option } = Select;
@@ -14,33 +14,33 @@ interface RegisterTenantFormProps {
 }
 
 const RegisterTenantForm = ({ onFinish, onCancel, loading }: RegisterTenantFormProps) => {
-  const [foundations, setFoundations] = useState<Foundation[]>([]);
-  const [foundationLoading, setFoundationLoading] = useState(true);
+  const [naunganList, setNaunganList] = useState<Naungan[]>([]);
+  const [naunganLoading, setNaunganLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFoundations = async () => {
+    const fetchNaunganList = async () => {
       try {
-        const data = await getFoundations();
-        setFoundations(data);
+        const data = await getAllNaungan();
+        setNaunganList(data);
       } catch (error) {
-        console.error("Gagal memuat data yayasan:", error);
+        console.error("Gagal memuat data naungan:", error);
       } finally {
-        setFoundationLoading(false);
+        setNaunganLoading(false);
       }
     };
-    fetchFoundations();
+    fetchNaunganList();
   }, []);
 
   return (
     <Form layout="vertical" onFinish={onFinish}>
-      <Form.Item name="foundation_id" label="Yayasan (Opsional)">
+      <Form.Item name="naungan_id" label="Naungan (Opsional)">
         <Select
-          placeholder="Pilih yayasan jika sekolah bernaung di bawah yayasan"
-          loading={foundationLoading}
+          placeholder="Pilih naungan jika sekolah berada di bawah naungan"
+          loading={naunganLoading}
           allowClear
         >
-          {foundations.map(f => (
-            <Option key={f.id} value={f.id}>{f.nama_yayasan}</Option>
+          {naunganList.map(n => (
+            <Option key={n.id} value={n.id}>{n.nama_naungan}</Option>
           ))}
         </Select>
       </Form.Item>

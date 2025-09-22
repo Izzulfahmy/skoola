@@ -60,13 +60,10 @@ const SuperAdminLayout = () => {
 
   const mainMenuItems = [
     { key: '/superadmin', icon: <DesktopOutlined />, label: <Link to="/superadmin">Dashboard</Link> },
-    { key: '/superadmin/yayasan', icon: <GoldOutlined />, label: <Link to="/superadmin/yayasan">Yayasan</Link> },
+    { key: '/superadmin/naungan', icon: <GoldOutlined />, label: <Link to="/superadmin/naungan">Naungan</Link> }, // <-- Diubah
     { key: '/superadmin/sekolah', icon: <BankOutlined />, label: <Link to="/superadmin/sekolah">Semua Sekolah</Link> },
   ];
 
-  // --- PERBAIKAN DI SINI ---
-  // Urutkan item menu berdasarkan panjang 'key' dari yang terpanjang ke terpendek.
-  // Ini memastikan '/superadmin/yayasan' akan dicocokkan sebelum '/superadmin'.
   const sortedMenuItems = [...mainMenuItems].sort((a, b) => b.key.length - a.key.length);
   const activeKey = sortedMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/superadmin';
 
