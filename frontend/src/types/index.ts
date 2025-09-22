@@ -18,7 +18,6 @@ export interface Tenant {
   updated_at: string;
 }
 
-// --- TIPE BARU UNTUK JENJANG PENDIDIKAN ---
 export interface JenjangPendidikan {
   id: number;
   nama_jenjang: string;
@@ -29,7 +28,19 @@ export interface JenjangPendidikan {
 export interface UpsertJenjangInput {
   nama_jenjang: string;
 }
-// -----------------------------------------
+
+// --- TIPE BARU UNTUK JABATAN ---
+export interface Jabatan {
+  id: number;
+  nama_jabatan: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertJabatanInput {
+  nama_jabatan: string;
+}
+// ------------------------------------
 
 export interface SchoolProfile {
   id: number;

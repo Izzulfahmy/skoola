@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"skoola/internal/auth"
 	"skoola/internal/foundation"
+	"skoola/internal/jabatan" // <-- 1. IMPOR PAKET JABATAN
 	"skoola/internal/jenjang"
 	"skoola/internal/profile"
 	"skoola/internal/student"
@@ -89,6 +90,7 @@ func main() {
 	profileRepo := profile.NewRepository(db)
 	studentHistoryRepo := student.NewHistoryRepository(db)
 	jenjangRepo := jenjang.NewRepository(db)
+	jabatanRepo := jabatan.NewRepository(db) // <-- 2. INISIALISASI REPO JABATAN
 
 	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -99,6 +101,7 @@ func main() {
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	profileService := profile.NewService(profileRepo, validate)
 	jenjangService := jenjang.NewService(jenjangRepo, validate)
+	jabatanService := jabatan.NewService(jabatanRepo, validate) // <-- 3. INISIALISASI SERVICE JABATAN
 
 	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
@@ -110,6 +113,7 @@ func main() {
 	tenantHandler := tenant.NewHandler(tenantService)
 	profileHandler := profile.NewHandler(profileService)
 	jenjangHandler := jenjang.NewHandler(jenjangService)
+	jabatanHandler := jabatan.NewHandler(jabatanService) // <-- 4. INISIALISASI HANDLER JABATAN
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -136,7 +140,7 @@ func main() {
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
-		r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan) // <-- TAMBAHKAN INI
+		r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan)
 		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
@@ -190,6 +194,16 @@ func main() {
 		r.With(auth.Authorize("admin")).Get("/{id}", jenjangHandler.GetByID)
 		r.With(auth.Authorize("admin")).Put("/{id}", jenjangHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
+	})
+
+	// --- 5. DAFTARKAN RUTE BARU UNTUK JABATAN ---
+	r.Route("/jabatan", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
+		r.With(auth.Authorize("admin")).Post("/", jabatanHandler.Create)
+		r.With(auth.Authorize("admin")).Get("/{id}", jabatanHandler.GetByID)
+		r.With(auth.Authorize("admin")).Put("/{id}", jabatanHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{id}", jabatanHandler.Delete)
 	})
 
 	port := os.Getenv("SERVER_PORT")

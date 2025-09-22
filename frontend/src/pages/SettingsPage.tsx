@@ -2,7 +2,8 @@
 import { Card, Tabs, Typography } from 'antd';
 import type { TabsProps } from 'antd';
 import AdminSettingsTab from '../components/AdminSettingsTab';
-import JenjangPendidikanTab from '../components/JenjangPendidikanTab'; // <-- 1. IMPOR KOMPONEN BARU
+import JenjangPendidikanTab from '../components/JenjangPendidikanTab';
+import JabatanTab from '../components/JabatanTab'; // <-- 1. IMPOR KOMPONEN BARU
 
 const { Title } = Typography;
 
@@ -10,12 +11,6 @@ const { Title } = Typography;
 const TingkatanTab = () => (
   <div>
     <p>Konten untuk manajemen Tingkatan Kelas akan ditampilkan di sini.</p>
-  </div>
-);
-
-const JabatanTab = () => (
-  <div>
-    <p>Konten untuk manajemen Jabatan akan ditampilkan di sini.</p>
   </div>
 );
 
@@ -28,12 +23,12 @@ const items: TabsProps['items'] = [
   {
     key: '2',
     label: 'Jabatan',
-    children: <JabatanTab />,
+    children: <JabatanTab />, // <-- 2. GUNAKAN KOMPONEN BARU DI SINI
   },
   {
     key: '3',
     label: 'Jenjang Pendidikan',
-    children: <JenjangPendidikanTab />, // <-- 2. GUNAKAN KOMPONEN BARU DI SINI
+    children: <JenjangPendidikanTab />,
   },
   {
     key: '4',

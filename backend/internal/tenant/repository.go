@@ -12,7 +12,7 @@ import (
 type Repository interface {
 	CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error
 	GetAll(ctx context.Context) ([]Tenant, error)
-	GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error) // <-- TAMBAHKAN INI
+	GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error)
 	DeleteTenantBySchema(ctx context.Context, schemaName string) error
 	ApplyMigrationToSchema(ctx context.Context, schemaName string, migrationSQL []byte) error
 	CheckSchemaExists(ctx context.Context, schemaName string) (bool, error)
@@ -91,6 +91,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/006_enhance_students_table.sql",
 		"./db/migrations/007_add_academic_history.sql",
 		"./db/migrations/008_add_jenjang_pendidikan.sql",
+		"./db/migrations/009_add_jabatan.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
 	}
 
 	for _, path := range migrationPaths {
