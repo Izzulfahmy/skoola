@@ -17,6 +17,7 @@ import {
   updateAdminEmail,
   resetAdminPassword,
   deleteTenant,
+  getTenantsWithoutNaungan,
   type RegisterTenantInput,
 } from '../../api/tenants';
 import { getNaunganById } from '../../api/naungan';
@@ -46,15 +47,19 @@ const ManajemenSekolahPage = () => {
   const fetchTenants = async () => {
     setTableLoading(true);
     try {
-      const allTenants = await getTenants();
-      
       if (naunganId) {
-        const naunganData = await getNaunganById(naunganId);
+        // Jika ada naunganId, ambil semua tenant dan filter, serta data naungan
+        const [allTenants, naunganData] = await Promise.all([
+            getTenants(),
+            getNaunganById(naunganId)
+        ]);
         setNaungan(naunganData);
         const filteredTenants = (allTenants || []).filter(t => t.naungan_id === naunganId);
         setTenants(filteredTenants);
       } else {
-        setTenants(allTenants || []);
+        // Jika tidak ada naunganId, ambil hanya sekolah tanpa naungan
+        const tenantsWithoutNaungan = await getTenantsWithoutNaungan();
+        setTenants(tenantsWithoutNaungan || []);
         setNaungan(null);
       }
       setError(null);
@@ -64,6 +69,7 @@ const ManajemenSekolahPage = () => {
       setTableLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchTenants();
@@ -187,7 +193,7 @@ const ManajemenSekolahPage = () => {
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <Col>
           <Title level={2} style={{ margin: 0 }}>
-            {naunganId ? `Sekolah di Bawah ${naungan?.nama_naungan}` : 'Manajemen Semua Sekolah'}
+            {naunganId ? `Sekolah di Bawah ${naungan?.nama_naungan}` : 'Manajemen Sekolah Mandiri'}
           </Title>
         </Col>
         <Col>
@@ -200,7 +206,13 @@ const ManajemenSekolahPage = () => {
       {error ? <Alert message="Error" description={error} type="error" showIcon /> : <Table columns={columns} dataSource={tenants} loading={tableLoading} rowKey="id" scroll={{ x: 'max-content' }} />}
 
       <Modal title="Daftarkan Sekolah Baru" open={activeModal === 'register'} onCancel={handleCancel} destroyOnClose footer={null}>
-        <RegisterTenantForm onFinish={handleRegisterTenant} onCancel={handleCancel} loading={loading} />
+        <RegisterTenantForm 
+            onFinish={handleRegisterTenant} 
+            onCancel={handleCancel} 
+            loading={loading} 
+            naunganId={naungan?.id}
+            naunganName={naungan?.nama_naungan}
+        />
       </Modal>
 
       <Modal

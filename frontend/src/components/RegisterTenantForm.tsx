@@ -1,49 +1,25 @@
 // file: frontend/src/components/RegisterTenantForm.tsx
-import { useState, useEffect } from 'react';
-import { Form, Input, Button, Select } from 'antd';
-import { getAllNaungan } from '../api/naungan';
-import type { Naungan } from '../types';
+import { Form, Input, Button } from 'antd';
 import type { RegisterTenantInput } from '../api/tenants';
-
-const { Option } = Select;
 
 interface RegisterTenantFormProps {
   onFinish: (values: RegisterTenantInput) => void;
   onCancel: () => void;
   loading: boolean;
+  naunganId?: string;
+  naunganName?: string;
 }
 
-const RegisterTenantForm = ({ onFinish, onCancel, loading }: RegisterTenantFormProps) => {
-  const [naunganList, setNaunganList] = useState<Naungan[]>([]);
-  const [naunganLoading, setNaunganLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchNaunganList = async () => {
-      try {
-        const data = await getAllNaungan();
-        setNaunganList(data);
-      } catch (error) {
-        console.error("Gagal memuat data naungan:", error);
-      } finally {
-        setNaunganLoading(false);
-      }
-    };
-    fetchNaunganList();
-  }, []);
+const RegisterTenantForm = ({ onFinish, onCancel, loading, naunganId, naunganName }: RegisterTenantFormProps) => {
 
   return (
     <Form layout="vertical" onFinish={onFinish}>
-      <Form.Item name="naungan_id" label="Naungan (Opsional)">
-        <Select
-          placeholder="Pilih naungan jika sekolah berada di bawah naungan"
-          loading={naunganLoading}
-          allowClear
-        >
-          {naunganList.map(n => (
-            <Option key={n.id} value={n.id}>{n.nama_naungan}</Option>
-          ))}
-        </Select>
-      </Form.Item>
+      {/* Kolom ini hanya akan muncul jika form dipanggil dari dalam halaman naungan */}
+      {naunganId && (
+        <Form.Item label="Naungan">
+          <Input value={naunganName} disabled />
+        </Form.Item>
+      )}
 
       <Form.Item
         name="nama_sekolah"

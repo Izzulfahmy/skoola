@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"skoola/internal/auth"
 	"skoola/internal/foundation"
-	"skoola/internal/jenjang" // <-- 1. IMPOR PAKET BARU
+	"skoola/internal/jenjang"
 	"skoola/internal/profile"
 	"skoola/internal/student"
 	"skoola/internal/teacher"
@@ -26,7 +26,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// ... (fungsi runPublicMigrations tetap sama)
 func runPublicMigrations(db *sql.DB) error {
 	log.Println("Memeriksa dan menjalankan migrasi untuk skema public...")
 
@@ -89,7 +88,7 @@ func main() {
 	tenantRepo := tenant.NewRepository(db)
 	profileRepo := profile.NewRepository(db)
 	studentHistoryRepo := student.NewHistoryRepository(db)
-	jenjangRepo := jenjang.NewRepository(db) // <-- 2. INISIALISASI REPO BARU
+	jenjangRepo := jenjang.NewRepository(db)
 
 	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -99,7 +98,7 @@ func main() {
 	studentHistoryService := student.NewHistoryService(studentHistoryRepo, validate)
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
 	profileService := profile.NewService(profileRepo, validate)
-	jenjangService := jenjang.NewService(jenjangRepo, validate) // <-- 3. INISIALISASI SERVICE BARU
+	jenjangService := jenjang.NewService(jenjangRepo, validate)
 
 	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
@@ -110,7 +109,7 @@ func main() {
 	studentHistoryHandler := student.NewHistoryHandler(studentHistoryService)
 	tenantHandler := tenant.NewHandler(tenantService)
 	profileHandler := profile.NewHandler(profileService)
-	jenjangHandler := jenjang.NewHandler(jenjangService) // <-- 4. INISIALISASI HANDLER BARU
+	jenjangHandler := jenjang.NewHandler(jenjangService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -125,7 +124,6 @@ func main() {
 
 	r.Post("/login", authHandler.Login)
 
-	// ... (rute /naungan, /tenants, /teachers, /students, /profile tetap sama)
 	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
@@ -138,6 +136,7 @@ func main() {
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
+		r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan) // <-- TAMBAHKAN INI
 		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
 		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
@@ -184,7 +183,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/", profileHandler.UpdateProfile)
 	})
 
-	// --- 5. TAMBAHKAN RUTE BARU UNTUK JENJANG PENDIDIKAN ---
 	r.Route("/jenjang", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", jenjangHandler.GetAll)

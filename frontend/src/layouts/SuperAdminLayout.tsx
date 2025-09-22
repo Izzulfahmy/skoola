@@ -60,8 +60,8 @@ const SuperAdminLayout = () => {
 
   const mainMenuItems = [
     { key: '/superadmin', icon: <DesktopOutlined />, label: <Link to="/superadmin">Dashboard</Link> },
-    { key: '/superadmin/naungan', icon: <GoldOutlined />, label: <Link to="/superadmin/naungan">Naungan</Link> }, // <-- Diubah
-    { key: '/superadmin/sekolah', icon: <BankOutlined />, label: <Link to="/superadmin/sekolah">Semua Sekolah</Link> },
+    { key: '/superadmin/naungan', icon: <GoldOutlined />, label: <Link to="/superadmin/naungan">Naungan</Link> },
+    { key: '/superadmin/sekolah', icon: <BankOutlined />, label: <Link to="/superadmin/sekolah">Sekolah</Link> }, // <-- PERUBAHAN DI SINI
   ];
 
   const sortedMenuItems = [...mainMenuItems].sort((a, b) => b.key.length - a.key.length);

@@ -20,10 +20,11 @@ var ErrValidation = errors.New("validation failed")
 type Service interface {
 	Register(ctx context.Context, input RegisterTenantInput) error
 	GetAll(ctx context.Context) ([]Tenant, error)
+	GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error) // <-- TAMBAHKAN INI
 	UpdateAdminEmail(ctx context.Context, schemaName string, input UpdateAdminEmailInput) error
 	ResetAdminPassword(ctx context.Context, schemaName string, input ResetAdminPasswordInput) error
 	DeleteTenant(ctx context.Context, schemaName string) error
-	RunMigrationsForAllTenants(ctx context.Context) (int, error) // <-- TAMBAHKAN INI
+	RunMigrationsForAllTenants(ctx context.Context) (int, error)
 }
 
 type service struct {
@@ -40,6 +41,15 @@ func NewService(repo Repository, teacherRepo teacher.Repository, validate *valid
 		validate:    validate,
 		db:          db,
 	}
+}
+
+// --- FUNGSI BARU UNTUK MENGAMBIL TENANT TANPA NAUNGAN ---
+func (s *service) GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error) {
+	tenants, err := s.repo.GetTenantsWithoutNaungan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data tenants tanpa naungan di service: %w", err)
+	}
+	return tenants, nil
 }
 
 // --- FUNGSI BARU UNTUK MENJALANKAN MIGRASI KE SEMUA TENANT ---

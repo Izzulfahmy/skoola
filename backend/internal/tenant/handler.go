@@ -19,6 +19,18 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+// --- HANDLER BARU UNTUK MENGAMBIL TENANT TANPA NAUNGAN ---
+func (h *Handler) GetTenantsWithoutNaungan(w http.ResponseWriter, r *http.Request) {
+	tenants, err := h.service.GetTenantsWithoutNaungan(r.Context())
+	if err != nil {
+		http.Error(w, "Gagal mengambil data sekolah: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tenants)
+}
+
 // --- HANDLER BARU UNTUK MENJALANKAN MIGRASI ---
 func (h *Handler) RunMigrations(w http.ResponseWriter, r *http.Request) {
 	count, err := h.service.RunMigrationsForAllTenants(r.Context())

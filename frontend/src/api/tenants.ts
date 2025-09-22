@@ -32,6 +32,16 @@ export const getTenants = async (): Promise<Tenant[]> => {
 	}
 };
 
+// --- FUNGSI BARU UNTUK MENGAMBIL SEKOLAH TANPA NAUNGAN ---
+export const getTenantsWithoutNaungan = async (): Promise<Tenant[]> => {
+  try {
+    const response = await apiClient.get('/tenants/without-naungan');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Fungsi untuk mendaftarkan tenant baru
 export const registerTenant = async (data: RegisterTenantInput) => {
   try {
