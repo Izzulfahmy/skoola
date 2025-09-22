@@ -48,6 +48,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/004_add_employment_history.sql",
 		"./db/migrations/006_enhance_students_table.sql",
 		"./db/migrations/007_add_academic_history.sql",
+		"./db/migrations/008_add_jenjang_pendidikan.sql", // <-- TAMBAHKAN MIGRASI INI
 	}
 
 	for _, path := range migrationPaths {
@@ -77,6 +78,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
+// ... sisa file tetap sama ...
 func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	query := `
 		SELECT 
