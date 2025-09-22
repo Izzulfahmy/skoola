@@ -15,7 +15,22 @@ interface EmploymentHistoryTabProps {
 const { Option } = Select;
 const { TextArea } = Input;
 
+// --- 1. HOOK UNTUK MENDETEKSI UKURAN LAYAR ---
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
+
 const EmploymentHistoryTab = ({ teacherId }: EmploymentHistoryTabProps) => {
+  const { width } = useWindowSize(); // <-- Gunakan hook
+  const isMobile = width < 768; // <-- Tentukan breakpoint mobile
+
   const [history, setHistory] = useState<RiwayatKepegawaian[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,23 +132,28 @@ const EmploymentHistoryTab = ({ teacherId }: EmploymentHistoryTabProps) => {
       title: 'Tanggal Mulai',
       dataIndex: 'tanggal_mulai',
       key: 'tanggal_mulai',
-      render: (date) => format(new Date(date), 'dd MMMM yyyy'),
+      // --- 2. UBAH RENDER TANGGAL ---
+      render: (date) => format(new Date(date), isMobile ? 'dd/MM/yyyy' : 'dd MMMM yyyy'),
     },
     {
       title: 'Tanggal Selesai',
       dataIndex: 'tanggal_selesai',
       key: 'tanggal_selesai',
-      render: (date) => (date ? format(new Date(date), 'dd MMMM yyyy') : '-'),
+      // --- 2. UBAH RENDER TANGGAL ---
+      render: (date) => (date ? format(new Date(date), isMobile ? 'dd/MM/yyyy' : 'dd MMMM yyyy') : '-'),
+      responsive: ['md'],
     },
     {
       title: 'Keterangan',
       dataIndex: 'keterangan',
       key: 'keterangan',
       render: (text) => text || '-',
+      responsive: ['lg'],
     },
     {
         title: 'Aksi',
         key: 'action',
+        align: 'center',
         render: (_, record) => (
             <Space size="middle">
                 <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
@@ -175,6 +195,7 @@ const EmploymentHistoryTab = ({ teacherId }: EmploymentHistoryTabProps) => {
         dataSource={history}
         rowKey="id"
         pagination={false}
+        scroll={{ x: 'max-content' }}
       />
 
       <Modal

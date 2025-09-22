@@ -10,13 +10,27 @@ import dayjs from 'dayjs';
 
 interface AcademicHistoryTabProps {
   studentId: string;
-  onHistoryUpdate: () => void; // <-- TAMBAHKAN PROPS BARU
+  onHistoryUpdate: () => void;
 }
 
 const { Option } = Select;
 const { TextArea } = Input;
 
-const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabProps) => { // <-- GUNAKAN PROPS BARU
+// --- 1. HOOK UNTUK MENDETEKSI UKURAN LAYAR ---
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
+const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabProps) => {
+  const { width } = useWindowSize(); // <-- Gunakan hook
+  const isMobile = width < 768; // <-- Tentukan breakpoint mobile
+
   const [history, setHistory] = useState<RiwayatAkademik[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +98,7 @@ const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabPr
       }
       handleCancel();
       fetchHistory();
-      onHistoryUpdate(); // <-- PANGGIL CALLBACK DI SINI
+      onHistoryUpdate();
     } catch (err: any) {
       const errorMessage = err.response?.data || 'Gagal menyimpan riwayat.';
       message.error(errorMessage);
@@ -98,7 +112,7 @@ const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabPr
       await deleteStudentHistory(historyId);
       message.success('Riwayat berhasil dihapus!');
       fetchHistory();
-      onHistoryUpdate(); // <-- PANGGIL CALLBACK DI SINI
+      onHistoryUpdate();
     } catch (err) {
       message.error('Gagal menghapus riwayat.');
     }
@@ -121,13 +135,27 @@ const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabPr
       title: 'Tanggal Kejadian',
       dataIndex: 'tanggal_kejadian',
       key: 'tanggal_kejadian',
-      render: (date) => format(new Date(date), 'dd MMMM yyyy'),
+      // --- 2. UBAH RENDER TANGGAL ---
+      render: (date) => format(new Date(date), isMobile ? 'dd/MM/yyyy' : 'dd MMMM yyyy'),
     },
-    { title: 'Kelas/Tingkat', dataIndex: 'kelas_tingkat', key: 'kelas_tingkat', render: (text) => text || '-' },
-    { title: 'Keterangan', dataIndex: 'keterangan', key: 'keterangan', render: (text) => text || '-' },
+    { 
+      title: 'Kelas/Tingkat', 
+      dataIndex: 'kelas_tingkat', 
+      key: 'kelas_tingkat', 
+      render: (text) => text || '-',
+      responsive: ['sm'],
+    },
+    { 
+      title: 'Keterangan', 
+      dataIndex: 'keterangan', 
+      key: 'keterangan', 
+      render: (text) => text || '-',
+      responsive: ['md'],
+    },
     {
         title: 'Aksi',
         key: 'action',
+        align: 'center',
         render: (_, record) => (
             <Space size="middle">
                 <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
@@ -159,7 +187,13 @@ const AcademicHistoryTab = ({ studentId, onHistoryUpdate }: AcademicHistoryTabPr
           Tambah Riwayat Baru
         </Button>
       </div>
-      <Table columns={columns} dataSource={history} rowKey="id" pagination={false} />
+      <Table 
+        columns={columns} 
+        dataSource={history} 
+        rowKey="id" 
+        pagination={false} 
+        scroll={{ x: 'max-content' }}
+      />
 
       <Modal
         title={editingHistory ? 'Edit Riwayat Akademik' : 'Tambah Riwayat Akademik Baru'}

@@ -10,12 +10,12 @@ interface StudentFormProps {
   onCancel: () => void;
   initialValues?: Student;
   loading: boolean;
-  onHistoryUpdate: () => void; // <-- TAMBAHKAN PROPS BARU
+  onHistoryUpdate: () => void;
 }
 
 const { Option } = Select;
 
-const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpdate }: StudentFormProps) => { // <-- GUNAKAN PROPS BARU
+const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpdate }: StudentFormProps) => {
   const [form] = Form.useForm();
 
   const formattedInitialValues = initialValues ? {
@@ -108,16 +108,19 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
               <Input />
             </Form.Item>
           </Col>
-           <Col span={24}>
+
+          {/* --- PERUBAHAN URUTAN DI SINI --- */}
+          <Col xs={24} sm={12}><Form.Item name="provinsi" label="Provinsi"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kota_kabupaten" label="Kota / Kabupaten"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kecamatan" label="Kecamatan"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="desa_kelurahan" label="Desa / Kelurahan"><Input /></Form.Item></Col>
+          <Col xs={24} sm={12}><Form.Item name="kode_pos" label="Kode Pos"><Input /></Form.Item></Col>
+          <Col span={24}>
             <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KK)">
               <Input.TextArea rows={2}/>
             </Form.Item>
           </Col>
-          <Col xs={24} sm={12}><Form.Item name="desa_kelurahan" label="Desa / Kelurahan"><Input /></Form.Item></Col>
-          <Col xs={24} sm={12}><Form.Item name="kecamatan" label="Kecamatan"><Input /></Form.Item></Col>
-          <Col xs={24} sm={12}><Form.Item name="kota_kabupaten" label="Kota / Kabupaten"><Input /></Form.Item></Col>
-          <Col xs={24} sm={12}><Form.Item name="provinsi" label="Provinsi"><Input /></Form.Item></Col>
-          <Col xs={24} sm={12}><Form.Item name="kode_pos" label="Kode Pos"><Input /></Form.Item></Col>
+          {/* --- AKHIR PERUBAHAN --- */}
         </Row>
       )
     },
@@ -139,7 +142,6 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
     tabItems.push({
       key: '4',
       label: 'Riwayat Akademik',
-      // TERUSKAN PROPS KE CHILD COMPONENT
       children: <AcademicHistoryTab studentId={initialValues.id} onHistoryUpdate={onHistoryUpdate} />,
     });
   }

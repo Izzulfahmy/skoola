@@ -3,7 +3,6 @@ import { Form, Input, Button, Row, Col, DatePicker, Select, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 import type { CreateTeacherInput, Teacher } from '../types';
 import dayjs from 'dayjs';
-// --- 1. IMPOR KOMPONEN BARU ---
 import EmploymentHistoryTab from './EmploymentHistoryTab';
 
 interface TeacherFormProps {
@@ -120,18 +119,9 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
       label: 'Alamat',
       children: (
         <Row gutter={16}>
-          <Col span={24}>
-            <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KTP)">
-              <Input.TextArea rows={3}/>
-            </Form.Item>
-          </Col>
+          {/* --- PERUBAHAN URUTAN DI SINI --- */}
           <Col xs={24} sm={12}>
-            <Form.Item name="desa_kelurahan" label="Desa / Kelurahan">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item name="kecamatan" label="Kecamatan">
+            <Form.Item name="provinsi" label="Provinsi">
               <Input />
             </Form.Item>
           </Col>
@@ -141,7 +131,12 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
-            <Form.Item name="provinsi" label="Provinsi">
+            <Form.Item name="kecamatan" label="Kecamatan">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item name="desa_kelurahan" label="Desa / Kelurahan">
               <Input />
             </Form.Item>
           </Col>
@@ -150,13 +145,17 @@ const TeacherForm = ({ onFinish, onCancel, initialValues, loading }: TeacherForm
               <Input />
             </Form.Item>
           </Col>
+          <Col span={24}>
+            <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KTP)">
+              <Input.TextArea rows={3}/>
+            </Form.Item>
+          </Col>
+          {/* --- AKHIR PERUBAHAN --- */}
         </Row>
       ),
     },
   ];
 
-  // --- 2. TAMBAHKAN TAB SECARA KONDISIONAL ---
-  // Tab Riwayat Kepegawaian hanya akan muncul jika form dalam mode edit (initialValues ada)
   if (initialValues) {
     tabItems.push({
       key: '4',
