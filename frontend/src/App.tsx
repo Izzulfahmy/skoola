@@ -10,7 +10,8 @@ import StudentsPage from './pages/StudentsPage';
 import SchoolProfilePage from './pages/SchoolProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import TahunAjaranPage from './pages/TahunAjaranPage';
-import MataPelajaranPage from './pages/MataPelajaranPage'; // <-- 1. IMPOR HALAMAN BARU
+import MataPelajaranPage from './pages/MataPelajaranPage';
+import KurikulumPage from './pages/KurikulumPage'; // <-- 1. IMPOR HALAMAN BARU
 
 import SuperAdminLayout from './layouts/SuperAdminLayout';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
@@ -29,7 +30,8 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="profile" element={<SchoolProfilePage />} />
           <Route path="tahun-ajaran" element={<TahunAjaranPage />} />
-          <Route path="mata-pelajaran" element={<MataPelajaranPage />} /> {/* <-- 2. TAMBAHKAN RUTE BARU */}
+          <Route path="kurikulum" element={<KurikulumPage />} /> {/* <-- 2. TAMBAHKAN RUTE BARU */}
+          <Route path="mata-pelajaran" element={<MataPelajaranPage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -73,7 +73,6 @@ export interface UpsertTahunAjaranInput {
   kepala_sekolah_id?: string;
 }
 
-// --- TIPE BARU UNTUK MATA PELAJARAN ---
 export interface MataPelajaran {
   id: string;
   kode_mapel: string;
@@ -85,6 +84,41 @@ export interface MataPelajaran {
 export interface UpsertMataPelajaranInput {
   kode_mapel: string;
   nama_mapel: string;
+}
+
+// --- TIPE BARU UNTUK KURIKULUM & FASE ---
+export interface Kurikulum {
+  id: number;
+  nama_kurikulum: string;
+  deskripsi?: string;
+}
+
+export interface Fase {
+  id: number;
+  nama_fase: string;
+  deskripsi?: string;
+}
+
+export interface FaseTingkatan extends Fase {
+    tingkatan_id: number;
+    nama_tingkatan: string;
+}
+
+export interface PemetaanInput {
+    tahun_ajaran_id: string;
+    kurikulum_id: number;
+    tingkatan_id: number;
+    fase_id: number;
+}
+
+export interface UpsertKurikulumInput {
+    nama_kurikulum: string;
+    deskripsi?: string;
+}
+
+export interface UpsertFaseInput {
+    nama_fase: string;
+    deskripsi?: string;
 }
 // ------------------------------------
 

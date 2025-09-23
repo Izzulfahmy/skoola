@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log" // <-- Impor paket log
 	"net/http"
 	"skoola/internal/middleware"
 
@@ -41,7 +42,9 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	list, err := h.service.GetAll(r.Context(), schemaName)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data: "+err.Error(), http.StatusInternalServerError)
+		// --- PERBAIKAN DI SINI ---
+		log.Printf("ERROR: Gagal mengambil data tahun ajaran untuk schema %s: %v", schemaName, err)
+		http.Error(w, "Gagal mengambil data tahun ajaran: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
