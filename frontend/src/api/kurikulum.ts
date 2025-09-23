@@ -2,7 +2,23 @@
 import apiClient from './axiosInstance';
 import type { Kurikulum, UpsertKurikulumInput, Fase, UpsertFaseInput, FaseTingkatan, Tingkatan, PemetaanInput } from '../types';
 
-// --- FUNGSI BARU ---
+// Tipe data baru untuk DTO
+interface AddKurikulumToTahunAjaranInput {
+  tahun_ajaran_id: string;
+  kurikulum_id: number;
+}
+
+// --- FUNGSI BARU UNTUK MEMBUAT ASOSIASI ---
+export const addKurikulumToTahunAjaran = async (data: AddKurikulumToTahunAjaranInput): Promise<void> => {
+  try {
+    await apiClient.post('/kurikulum/add-to-tahun-ajaran', data);
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+// --- FUNGSI LAMA (TIDAK BERUBAH) ---
 export const getAllKurikulum = async (): Promise<Kurikulum[]> => {
   try {
     const response = await apiClient.get('/kurikulum');
@@ -15,7 +31,7 @@ export const getAllKurikulum = async (): Promise<Kurikulum[]> => {
 // --- Kurikulum ---
 export const getKurikulumByTahunAjaran = async (tahunAjaranId: string): Promise<Kurikulum[]> => {
   try {
-    const response = await apiClient.get('/kurikulum/by-tahun-ajaran', { // <-- Path diubah
+    const response = await apiClient.get('/kurikulum/by-tahun-ajaran', {
       params: { tahun_ajaran_id: tahunAjaranId }
     });
     return response.data;

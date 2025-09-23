@@ -1,6 +1,13 @@
 // file: backend/internal/kurikulum/model.go
 package kurikulum
 
+// --- TAMBAHKAN DTO BARU DI SINI ---
+// DTO untuk input asosiasi kurikulum ke tahun ajaran
+type AddKurikulumToTahunAjaranInput struct {
+	TahunAjaranID string `json:"tahun_ajaran_id" validate:"required"`
+	KurikulumID   int    `json:"kurikulum_id" validate:"required"`
+}
+
 // Kurikulum merepresentasikan data dari tabel 'kurikulum'.
 type Kurikulum struct {
 	ID            int     `json:"id"`

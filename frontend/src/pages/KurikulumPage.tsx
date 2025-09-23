@@ -5,8 +5,8 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
-// --- PERBAIKAN: Impor fungsi yang mengambil semua kurikulum ---
-import { getAllKurikulum, createKurikulum, updateKurikulum, deleteKurikulum } from '../api/kurikulum';
+// --- PERBAIKAN: Impor fungsi baru ---
+import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum, addKurikulumToTahunAjaran } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
 import FasePanel from '../components/FasePanel';
 
@@ -23,7 +23,9 @@ const KurikulumPage: React.FC = () => {
   const [form] = Form.useForm();
   const [tahunAjaranList, setTahunAjaranList] = useState<TahunAjaran[]>([]);
   const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<string | null>(null);
+  
   const [kurikulumList, setKurikulumList] = useState<Kurikulum[]>([]);
+  
   const [loadingTahunAjaran, setLoadingTahunAjaran] = useState(true);
   const [loadingKurikulum, setLoadingKurikulum] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,15 +34,18 @@ const KurikulumPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingKurikulum, setEditingKurikulum] = useState<Kurikulum | null>(null);
-
-  // Fungsi untuk mengambil semua data master kurikulum
-  const fetchAllKurikulum = async () => {
+  
+  const fetchMappedKurikulum = async (tahunAjaranId: string) => {
     setLoadingKurikulum(true);
     try {
-      const data = await getAllKurikulum();
+      const data = await getKurikulumByTahunAjaran(tahunAjaranId);
       setKurikulumList(data || []);
+
+      if (selectedKurikulum && !data.some(k => k.id === selectedKurikulum.id)) {
+        setSelectedKurikulum(null);
+      }
     } catch (err) {
-      setError('Gagal memuat daftar master kurikulum.');
+      setError('Gagal memuat daftar kurikulum untuk tahun ajaran ini.');
       setKurikulumList([]);
     } finally {
       setLoadingKurikulum(false);
@@ -48,7 +53,6 @@ const KurikulumPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // Mengambil data tahun ajaran
     const fetchTahunAjaran = async () => {
       setLoadingTahunAjaran(true);
       try {
@@ -61,18 +65,25 @@ const KurikulumPage: React.FC = () => {
           setSelectedTahunAjaran(aktif.id);
         } else if (listTahunAjaran.length > 0) {
           setSelectedTahunAjaran(listTahunAjaran[0].id);
+        } else {
+          setLoadingKurikulum(false);
         }
       } catch (err: any) {
         setError(`Gagal memuat data tahun ajaran.`);
+        setLoadingKurikulum(false);
       } finally {
         setLoadingTahunAjaran(false);
       }
     };
 
     fetchTahunAjaran();
-    // Mengambil semua data kurikulum saat komponen pertama kali dimuat
-    fetchAllKurikulum();
-  }, []); // Dependency array kosong, hanya berjalan sekali
+  }, []);
+
+  useEffect(() => {
+    if (selectedTahunAjaran) {
+      fetchMappedKurikulum(selectedTahunAjaran);
+    }
+  }, [selectedTahunAjaran]);
     
   useEffect(() => {
     if (isModalOpen) {
@@ -82,7 +93,6 @@ const KurikulumPage: React.FC = () => {
 
   const handleTahunAjaranChange = (value: string) => {
     setSelectedTahunAjaran(value);
-    setSelectedKurikulum(null); // Reset pilihan kurikulum saat tahun ajaran berubah
   };
   
   const showModal = (kurikulum: Kurikulum | null) => {
@@ -102,13 +112,29 @@ const KurikulumPage: React.FC = () => {
       if (editingKurikulum) {
         await updateKurikulum(editingKurikulum.id, values);
         message.success('Kurikulum berhasil diperbarui!');
+        if (selectedTahunAjaran) {
+          fetchMappedKurikulum(selectedTahunAjaran);
+        }
       } else {
-        await createKurikulum(values);
-        message.success('Kurikulum baru berhasil ditambahkan!');
+        // --- PERBAIKAN: Alur baru setelah membuat kurikulum ---
+        if (!selectedTahunAjaran) {
+          message.error("Pilih tahun ajaran terlebih dahulu sebelum membuat kurikulum baru.");
+          setIsSubmitting(false);
+          return;
+        }
+        const newKurikulum = await createKurikulum(values);
+        // Langsung asosiasikan dengan tahun ajaran yang aktif
+        await addKurikulumToTahunAjaran({
+          tahun_ajaran_id: selectedTahunAjaran,
+          kurikulum_id: newKurikulum.id,
+        });
+        message.success(`Kurikulum "${newKurikulum.nama_kurikulum}" berhasil dibuat dan ditambahkan ke tahun ajaran ini.`);
+        
+        // Muat ulang data dan langsung pilih kurikulum yang baru dibuat
+        await fetchMappedKurikulum(selectedTahunAjaran);
+        setSelectedKurikulum(newKurikulum);
       }
       handleCancel();
-      // Muat ulang daftar master kurikulum setelah ada perubahan
-      await fetchAllKurikulum();
     } catch (err: any) {
       message.error(err.response?.data || 'Gagal menyimpan data.');
     } finally {
@@ -120,11 +146,17 @@ const KurikulumPage: React.FC = () => {
     try {
       await deleteKurikulum(id);
       message.success('Kurikulum berhasil dihapus!');
-      // Muat ulang daftar master dan reset pilihan
-      await fetchAllKurikulum();
-      setSelectedKurikulum(null);
+      if (selectedTahunAjaran) {
+        fetchMappedKurikulum(selectedTahunAjaran);
+      }
     } catch (err: any) {
       message.error(err.response?.data || 'Gagal menghapus kurikulum.');
+    }
+  };
+  
+  const handleMappingUpdate = () => {
+    if (selectedTahunAjaran) {
+      fetchMappedKurikulum(selectedTahunAjaran);
     }
   };
 
@@ -144,7 +176,7 @@ const KurikulumPage: React.FC = () => {
         <Flex justify="space-between" align="center">
           <Title level={2} style={{ margin: 0 }}>Manajemen Kurikulum</Title>
           <Space>
-            <Text>Tahun Ajaran untuk Pemetaan:</Text>
+            <Text>Tahun Ajaran:</Text>
             <Select
               value={selectedTahunAjaran}
               style={{ width: 250 }}
@@ -154,6 +186,7 @@ const KurikulumPage: React.FC = () => {
               }))}
               onChange={handleTahunAjaranChange}
               placeholder="Pilih Tahun Ajaran"
+              disabled={tahunAjaranList.length === 0}
             />
           </Space>
         </Flex>
@@ -162,12 +195,13 @@ const KurikulumPage: React.FC = () => {
           <Splitter.Panel defaultSize="40%" min="20%" max="70%">
             <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
               <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Master Kurikulum</Title>
+                <Title level={4} style={{ margin: 0 }}>Kurikulum Aktif</Title>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-                  Tambah
+                  Buat & Tambah
                 </Button>
               </Flex>
               {loadingKurikulum ? <Spin /> : 
+               !selectedTahunAjaran ? <Empty description="Pilih tahun ajaran terlebih dahulu." /> :
                kurikulumList.length > 0 ? (
                   <List
                       dataSource={kurikulumList}
@@ -182,7 +216,7 @@ const KurikulumPage: React.FC = () => {
                             actions={[
                                 <Button type="text" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); showModal(item); }} />,
                                 <Popconfirm
-                                    title="Hapus Kurikulum"
+                                    title="Hapus Master Kurikulum"
                                     description="Menghapus ini akan menghapus semua pemetaan terkait di semua tahun ajaran. Yakin?"
                                     onConfirm={(e) => { e?.stopPropagation(); handleDelete(item.id); }}
                                     onCancel={(e) => e?.stopPropagation()}
@@ -201,7 +235,7 @@ const KurikulumPage: React.FC = () => {
                       )}
                   />
                ) : (
-                  <Empty description="Belum ada data master kurikulum."/>
+                  <Empty description="Belum ada kurikulum untuk tahun ajaran ini."/>
                )
               }
             </div>
@@ -213,16 +247,17 @@ const KurikulumPage: React.FC = () => {
                     tahunAjaranId={selectedTahunAjaran}
                     kurikulumId={selectedKurikulum.id}
                     kurikulumNama={selectedKurikulum.nama_kurikulum}
+                    onMappingUpdate={handleMappingUpdate}
                  />
             ) : (
-                <Desc text="Pilih tahun ajaran dan kurikulum untuk mengelola pemetaan fase." />
+                <Desc text="Pilih kurikulum untuk mengelola pemetaan fase." />
             )}
           </Splitter.Panel>
         </Splitter>
       </Space>
 
       <Modal
-        title={editingKurikulum ? 'Edit Kurikulum' : 'Tambah Kurikulum Baru'}
+        title={editingKurikulum ? 'Edit Master Kurikulum' : 'Buat & Tambah Kurikulum'}
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}

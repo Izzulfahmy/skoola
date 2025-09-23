@@ -20,6 +20,22 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+// --- HANDLER BARU UNTUK ASOSIASI ---
+func (h *Handler) AddKurikulumToTahunAjaran(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input AddKurikulumToTahunAjaranInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.AddKurikulumToTahunAjaran(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal menambahkan kurikulum ke tahun ajaran: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
 // === KURIKULUM HANDLERS ===
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
@@ -33,7 +49,6 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(kurikulumList)
 }
 
-// ... (sisa kode tidak berubah)
 func (h *Handler) GetByTahunAjaran(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	tahunAjaranID := r.URL.Query().Get("tahun_ajaran_id")

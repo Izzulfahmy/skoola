@@ -13,11 +13,12 @@ var ErrValidation = errors.New("validation failed")
 
 type Service interface {
 	// Kurikulum
-	GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error) // <-- TAMBAHKAN INI
+	GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error)
 	GetKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error)
 	CreateKurikulum(ctx context.Context, schemaName string, input UpsertKurikulumInput) (*Kurikulum, error)
 	UpdateKurikulum(ctx context.Context, schemaName string, id int, input UpsertKurikulumInput) error
 	DeleteKurikulum(ctx context.Context, schemaName string, id int) error
+	AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error // <-- TAMBAHKAN FUNGSI BARU DI INTERFACE
 
 	// Fase
 	GetAllFase(ctx context.Context, schemaName string) ([]Fase, error)
@@ -30,7 +31,6 @@ type Service interface {
 	GetAllTingkatan(ctx context.Context, schemaName string) ([]Tingkatan, error)
 }
 
-// ... (sisa kode NewService tidak berubah)
 type service struct {
 	repo     Repository
 	validate *validator.Validate
@@ -40,12 +40,19 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
+// --- FUNGSI BARU UNTUK MENAMBAHKAN ASOSIASI ---
+func (s *service) AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.AddKurikulumToTahunAjaran(ctx, schemaName, input)
+}
+
 // Kurikulum methods
 func (s *service) GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error) {
 	return s.repo.GetAllKurikulum(ctx, schemaName)
 }
 
-// ... (sisa kode tidak berubah)
 func (s *service) GetKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error) {
 	if tahunAjaranID == "" {
 		return nil, errors.New("tahun ajaran ID tidak boleh kosong")

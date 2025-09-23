@@ -9,11 +9,12 @@ import (
 
 type Repository interface {
 	// Kurikulum
-	GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error) // <-- TAMBAHKAN INI
+	GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error)
 	GetAllKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error)
 	CreateKurikulum(ctx context.Context, schemaName string, input UpsertKurikulumInput) (*Kurikulum, error)
 	UpdateKurikulum(ctx context.Context, schemaName string, id int, input UpsertKurikulumInput) error
 	DeleteKurikulum(ctx context.Context, schemaName string, id int) error
+	AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error // <-- TAMBAHKAN FUNGSI BARU DI INTERFACE
 
 	// Fase
 	GetAllFase(ctx context.Context, schemaName string) ([]Fase, error)
@@ -28,7 +29,6 @@ type Repository interface {
 	GetAllTingkatan(ctx context.Context, schemaName string) ([]Tingkatan, error)
 }
 
-// ... (sisa kode NewRepository tidak berubah)
 type postgresRepository struct {
 	db *sql.DB
 }
@@ -37,19 +37,34 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-// === METODE KURIKULUM ===
+// --- FUNGSI BARU UNTUK MENAMBAHKAN ASOSIASI ---
+func (r *postgresRepository) AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+	query := `INSERT INTO tahun_ajaran_kurikulum (tahun_ajaran_id, kurikulum_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	_, err := r.db.ExecContext(ctx, query, input.TahunAjaranID, input.KurikulumID)
+	return err
+}
 
-// GetAllKurikulum mengambil semua data master kurikulum.
-func (r *postgresRepository) GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error) {
+// --- PERBAIKI FUNGSI INI UNTUK MENGAMBIL DATA DARI TABEL ASOSIASI ---
+func (r *postgresRepository) GetAllKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	query := `SELECT id, nama_kurikulum, deskripsi FROM kurikulum ORDER BY nama_kurikulum ASC`
-	rows, err := r.db.QueryContext(ctx, query)
+	query := `
+		SELECT k.id, k.nama_kurikulum, k.deskripsi
+		FROM kurikulum k
+		JOIN tahun_ajaran_kurikulum tak ON k.id = tak.kurikulum_id
+		WHERE tak.tahun_ajaran_id = $1
+		ORDER BY k.nama_kurikulum ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
 	if err != nil {
-		return nil, fmt.Errorf("gagal query get all kurikulum: %w", err)
+		return nil, fmt.Errorf("gagal query get all kurikulum by tahun ajaran: %w", err)
 	}
 	defer rows.Close()
 
@@ -64,23 +79,17 @@ func (r *postgresRepository) GetAllKurikulum(ctx context.Context, schemaName str
 	return kurikulumList, rows.Err()
 }
 
-// ... (sisa kode tidak berubah)
-func (r *postgresRepository) GetAllKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error) {
+// GetAllKurikulum mengambil semua data master kurikulum.
+func (r *postgresRepository) GetAllKurikulum(ctx context.Context, schemaName string) ([]Kurikulum, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
-	query := `
-		SELECT DISTINCT k.id, k.nama_kurikulum, k.deskripsi
-		FROM kurikulum k
-		JOIN pemetaan_kurikulum pk ON k.id = pk.kurikulum_id
-		WHERE pk.tahun_ajaran_id = $1
-		ORDER BY k.nama_kurikulum ASC
-	`
-	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
+	query := `SELECT id, nama_kurikulum, deskripsi FROM kurikulum ORDER BY nama_kurikulum ASC`
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("gagal query get all kurikulum by tahun ajaran: %w", err)
+		return nil, fmt.Errorf("gagal query get all kurikulum: %w", err)
 	}
 	defer rows.Close()
 
@@ -221,17 +230,39 @@ func (r *postgresRepository) GetFaseTingkatanByKurikulum(ctx context.Context, sc
 }
 
 func (r *postgresRepository) CreatePemetaan(ctx context.Context, schemaName string, input PemetaanInput) error {
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
+	tx, err := r.db.Begin()
+	if err != nil {
 		return err
 	}
-	query := `
-		INSERT INTO pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id, fase_id)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (tahun_ajaran_id, kurikulum_id, tingkatan_id)
-		DO UPDATE SET fase_id = EXCLUDED.fase_id
-	`
-	_, err := r.db.ExecContext(ctx, query, input.TahunAjaranID, input.KurikulumID, input.TingkatanID, input.FaseID)
-	return err
+	defer tx.Rollback()
+
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := tx.ExecContext(ctx, setSchemaQuery); err != nil {
+		return err
+	}
+
+	// Pertama, pastikan asosiasi antara tahun ajaran dan kurikulum ada
+	assocQuery := `
+        INSERT INTO tahun_ajaran_kurikulum (tahun_ajaran_id, kurikulum_id)
+        VALUES ($1, $2)
+        ON CONFLICT (tahun_ajaran_id, kurikulum_id) DO NOTHING
+    `
+	if _, err := tx.ExecContext(ctx, assocQuery, input.TahunAjaranID, input.KurikulumID); err != nil {
+		return fmt.Errorf("gagal memastikan asosiasi kurikulum-tahun ajaran: %w", err)
+	}
+
+	// Kedua, masukkan atau perbarui pemetaan tingkatan/fase
+	pemetaanQuery := `
+        INSERT INTO pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id, fase_id)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (tahun_ajaran_id, kurikulum_id, tingkatan_id)
+        DO UPDATE SET fase_id = EXCLUDED.fase_id
+    `
+	if _, err := tx.ExecContext(ctx, pemetaanQuery, input.TahunAjaranID, input.KurikulumID, input.TingkatanID, input.FaseID); err != nil {
+		return fmt.Errorf("gagal menyimpan pemetaan tingkatan-fase: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (r *postgresRepository) DeletePemetaan(ctx context.Context, schemaName string, tahunAjaranID string, kurikulumID int, tingkatanID int) error {

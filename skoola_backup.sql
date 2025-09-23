@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict tNA7cVeI2EgBXQUhZhNAhjDINAlg1KnFhEPyWZhUz1ddQo1vBVoU4rl4lXbOLYY
+\restrict ujPQwcv2w7meSExqBntgz3icSsb3QDNprGbXR67BHtPcSC9AscLt4JaX6rxhdIq
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -578,6 +578,7 @@ ALTER TABLE ONLY "20554021".tingkatan ALTER COLUMN id SET DEFAULT nextval('"2055
 --
 
 COPY "20554021".fase (id, nama_fase, deskripsi) FROM stdin;
+4	Fase A	
 \.
 
 
@@ -611,7 +612,7 @@ COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FR
 --
 
 COPY "20554021".kurikulum (id, nama_kurikulum, deskripsi) FROM stdin;
-1	Kurikulum Merdeka	
+6	Kurikulum Merdeka	
 \.
 
 
@@ -670,8 +671,8 @@ COPY "20554021".students (id, created_at, updated_at, nis, nisn, nomor_ujian_sek
 --
 
 COPY "20554021".tahun_ajaran (id, nama_tahun_ajaran, semester, status, metode_absensi, kepala_sekolah_id, created_at, updated_at) FROM stdin;
-605ded6e-e573-425d-9927-507ec6cbf593	2024/2025	Genap	Tidak Aktif	HARIAN	\N	2025-09-23 09:13:16.395911+07	2025-09-23 09:13:20.232857+07
-acf43b78-8aa8-4fd8-80b2-ae3369688da9	2024/2025	Ganjil	Aktif	HARIAN	\N	2025-09-23 09:13:04.580081+07	2025-09-23 09:13:21.209469+07
+acf43b78-8aa8-4fd8-80b2-ae3369688da9	2024/2025	Ganjil	Tidak Aktif	HARIAN	\N	2025-09-23 09:13:04.580081+07	2025-09-23 10:04:48.745577+07
+605ded6e-e573-425d-9927-507ec6cbf593	2024/2025	Genap	Aktif	HARIAN	\N	2025-09-23 09:13:16.395911+07	2025-09-23 10:04:49.739669+07
 \.
 
 
@@ -738,7 +739,7 @@ dad01df5-1937-48cf-829a-7c0446f4f760	superadmin@skoola.com	$2a$10$zyDKgGO5pqFHaD
 -- Name: fase_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".fase_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".fase_id_seq', 4, true);
 
 
 --
@@ -759,7 +760,7 @@ SELECT pg_catalog.setval('"20554021".jenjang_pendidikan_id_seq', 4, true);
 -- Name: kurikulum_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 6, true);
 
 
 --
@@ -1122,5 +1123,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict tNA7cVeI2EgBXQUhZhNAhjDINAlg1KnFhEPyWZhUz1ddQo1vBVoU4rl4lXbOLYY
+\unrestrict ujPQwcv2w7meSExqBntgz3icSsb3QDNprGbXR67BHtPcSC9AscLt4JaX6rxhdIq
 

@@ -11,9 +11,10 @@ interface FasePanelProps {
   tahunAjaranId: string;
   kurikulumId: number;
   kurikulumNama: string;
+  onMappingUpdate: () => void; // <-- 1. TAMBAHKAN PROPS BARU UNTUK CALLBACK
 }
 
-const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurikulumNama }) => {
+const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurikulumNama, onMappingUpdate }) => {
   const [form] = Form.useForm();
   const [tingkatans, setTingkatans] = useState<Tingkatan[]>([]);
   const [fases, setFases] = useState<Fase[]>([]);
@@ -50,6 +51,7 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
       await deletePemetaan(tahunAjaranId, kurikulumId, tingkatanId);
       message.success('Pemetaan berhasil dihapus!');
       await fetchData();
+      onMappingUpdate(); // <-- 2. PANGGIL CALLBACK SETELAH HAPUS
     } catch (err: any) {
       message.error(err.response?.data || 'Gagal menghapus pemetaan.');
     }
@@ -93,6 +95,7 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
         message.success(`Tingkatan berhasil dipetakan ke fase "${nama_fase.trim()}"!`);
         form.resetFields();
         await fetchData(); // Muat ulang semua data di panel
+        onMappingUpdate(); // <-- 3. PANGGIL CALLBACK SETELAH SUKSES MEMETAKAN
 
     } catch (err: any) {
         message.error(err.response?.data || 'Gagal menyimpan pemetaan.');
