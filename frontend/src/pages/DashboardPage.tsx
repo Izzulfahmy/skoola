@@ -46,8 +46,8 @@ const DashboardPage = () => {
         
         setStats(prev => ({
           ...prev,
-          teacherCount: teachers.length,
-          studentCount: students.length,
+          teacherCount: teachers ? teachers.length : 0,
+          studentCount: students ? students.length : 0,
         }));
         setSchoolName(profile.nama_sekolah);
         
