@@ -40,7 +40,6 @@ export interface UpsertJabatanInput {
   nama_jabatan: string;
 }
 
-// --- TIPE BARU UNTUK TINGKATAN KELAS ---
 export interface Tingkatan {
   id: number;
   nama_tingkatan: string;
@@ -52,6 +51,27 @@ export interface Tingkatan {
 export interface UpsertTingkatanInput {
   nama_tingkatan: string;
   urutan?: number;
+}
+
+// --- TIPE BARU UNTUK TAHUN AJARAN ---
+export interface TahunAjaran {
+  id: string;
+  nama_tahun_ajaran: string;
+  semester: 'Ganjil' | 'Genap';
+  status: 'Aktif' | 'Tidak Aktif';
+  metode_absensi: 'HARIAN' | 'PER_JAM_PELAJARAN';
+  kepala_sekolah_id?: string;
+  nama_kepala_sekolah?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertTahunAjaranInput {
+  nama_tahun_ajaran: string;
+  semester: 'Ganjil' | 'Genap';
+  status: 'Aktif' | 'Tidak Aktif';
+  metode_absensi: 'HARIAN' | 'PER_JAM_PELAJARAN';
+  kepala_sekolah_id?: string;
 }
 // ------------------------------------
 
