@@ -5,7 +5,6 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
-// --- PERBAIKAN: Impor fungsi baru ---
 import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum, addKurikulumToTahunAjaran } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
 import FasePanel from '../components/FasePanel';
@@ -37,6 +36,7 @@ const KurikulumPage: React.FC = () => {
   
   const fetchMappedKurikulum = async (tahunAjaranId: string) => {
     setLoadingKurikulum(true);
+    setError(null); // <-- PERBAIKAN UTAMA: Reset error sebelum fetch
     try {
       const data = await getKurikulumByTahunAjaran(tahunAjaranId);
       setKurikulumList(data || []);
@@ -55,6 +55,7 @@ const KurikulumPage: React.FC = () => {
   useEffect(() => {
     const fetchTahunAjaran = async () => {
       setLoadingTahunAjaran(true);
+      setError(null); // Reset error juga di sini
       try {
         const data = await getAllTahunAjaran();
         const listTahunAjaran = data || [];
@@ -82,6 +83,10 @@ const KurikulumPage: React.FC = () => {
   useEffect(() => {
     if (selectedTahunAjaran) {
       fetchMappedKurikulum(selectedTahunAjaran);
+    } else {
+      // Jika tidak ada tahun ajaran yang dipilih, pastikan list kurikulum kosong
+      setKurikulumList([]);
+      setLoadingKurikulum(false);
     }
   }, [selectedTahunAjaran]);
     
@@ -92,6 +97,7 @@ const KurikulumPage: React.FC = () => {
   }, [isModalOpen, editingKurikulum, form]);
 
   const handleTahunAjaranChange = (value: string) => {
+    setSelectedKurikulum(null); // Reset pilihan kurikulum saat ganti tahun ajaran
     setSelectedTahunAjaran(value);
   };
   
@@ -116,23 +122,22 @@ const KurikulumPage: React.FC = () => {
           fetchMappedKurikulum(selectedTahunAjaran);
         }
       } else {
-        // --- PERBAIKAN: Alur baru setelah membuat kurikulum ---
         if (!selectedTahunAjaran) {
           message.error("Pilih tahun ajaran terlebih dahulu sebelum membuat kurikulum baru.");
           setIsSubmitting(false);
           return;
         }
         const newKurikulum = await createKurikulum(values);
-        // Langsung asosiasikan dengan tahun ajaran yang aktif
         await addKurikulumToTahunAjaran({
           tahun_ajaran_id: selectedTahunAjaran,
           kurikulum_id: newKurikulum.id,
         });
         message.success(`Kurikulum "${newKurikulum.nama_kurikulum}" berhasil dibuat dan ditambahkan ke tahun ajaran ini.`);
         
-        // Muat ulang data dan langsung pilih kurikulum yang baru dibuat
         await fetchMappedKurikulum(selectedTahunAjaran);
-        setSelectedKurikulum(newKurikulum);
+        // Cari instance kurikulum yang baru dari list yang sudah di-refresh untuk memastikan data lengkap
+        const refreshedKurikulum = (await getKurikulumByTahunAjaran(selectedTahunAjaran)).find(k => k.id === newKurikulum.id);
+        setSelectedKurikulum(refreshedKurikulum || null);
       }
       handleCancel();
     } catch (err: any) {
@@ -168,8 +173,6 @@ const KurikulumPage: React.FC = () => {
     );
   }
   
-  if (error) return <Alert message="Error" description={error} type="error" showIcon />;
-
   return (
     <>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -191,7 +194,10 @@ const KurikulumPage: React.FC = () => {
           </Space>
         </Flex>
 
-        <Splitter style={{ height: 'calc(100vh - 220px)', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+        {/* --- PERBAIKAN: Tampilkan error di luar splitter agar selalu terlihat --- */}
+        {error && <Alert message="Error" description={error} type="error" showIcon />}
+
+        <Splitter style={{ height: 'calc(100vh - 220px)', border: '1px solid #f0f0f0', borderRadius: '8px', opacity: error ? 0.5 : 1 }}>
           <Splitter.Panel defaultSize="40%" min="20%" max="70%">
             <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
               <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>

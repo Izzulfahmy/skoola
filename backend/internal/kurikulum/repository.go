@@ -14,7 +14,7 @@ type Repository interface {
 	CreateKurikulum(ctx context.Context, schemaName string, input UpsertKurikulumInput) (*Kurikulum, error)
 	UpdateKurikulum(ctx context.Context, schemaName string, id int, input UpsertKurikulumInput) error
 	DeleteKurikulum(ctx context.Context, schemaName string, id int) error
-	AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error // <-- TAMBAHKAN FUNGSI BARU DI INTERFACE
+	AddKurikulumToTahunAjaran(ctx context.Context, schemaName string, input AddKurikulumToTahunAjaranInput) error
 
 	// Fase
 	GetAllFase(ctx context.Context, schemaName string) ([]Fase, error)
@@ -48,7 +48,6 @@ func (r *postgresRepository) AddKurikulumToTahunAjaran(ctx context.Context, sche
 	return err
 }
 
-// --- PERBAIKI FUNGSI INI UNTUK MENGAMBIL DATA DARI TABEL ASOSIASI ---
 func (r *postgresRepository) GetAllKurikulumByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Kurikulum, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -68,7 +67,8 @@ func (r *postgresRepository) GetAllKurikulumByTahunAjaran(ctx context.Context, s
 	}
 	defer rows.Close()
 
-	var kurikulumList []Kurikulum
+	// --- PERBAIKAN DI SINI: Inisialisasi sebagai slice kosong ---
+	kurikulumList := make([]Kurikulum, 0)
 	for rows.Next() {
 		var k Kurikulum
 		if err := rows.Scan(&k.ID, &k.NamaKurikulum, &k.Deskripsi); err != nil {
