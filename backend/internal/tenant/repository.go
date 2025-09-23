@@ -82,7 +82,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		return fmt.Errorf("gagal mengatur search_path untuk schema baru: %w", err)
 	}
 
-	// Menjalankan migrasi yang sudah ada untuk skema tenant baru
+	// --- PERUBAHAN DI SINI: Tambahkan path migrasi baru ---
 	migrationPaths := []string{
 		"./db/migrations/001_initial_schema.sql",
 		"./db/migrations/002_add_school_profile.sql",
@@ -95,7 +95,8 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/010_add_tingkatan.sql",
 		"./db/migrations/011_add_tahun_ajaran.sql",
 		"./db/migrations/012_add_mata_pelajaran.sql",
-		"./db/migrations/013_add_kurikulum.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
+		"./db/migrations/013_add_kurikulum.sql",
+		"./db/migrations/014_add_rombel.sql", // <-- TAMBAHKAN BARIS INI
 	}
 
 	for _, path := range migrationPaths {

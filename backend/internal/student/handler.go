@@ -21,6 +21,30 @@ func NewHandler(s Service) *Handler {
 	}
 }
 
+// --- HANDLER BARU ---
+func (h *Handler) GetAvailableStudents(w http.ResponseWriter, r *http.Request) {
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
+	tahunAjaranID := r.URL.Query().Get("tahun_ajaran_id")
+	if tahunAjaranID == "" {
+		http.Error(w, "Parameter 'tahun_ajaran_id' diperlukan", http.StatusBadRequest)
+		return
+	}
+
+	students, err := h.service.GetAvailableStudentsByTahunAjaran(r.Context(), schemaName, tahunAjaranID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data siswa yang tersedia: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(students)
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
@@ -40,7 +64,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
 		http.Error(w, "Gagal membuat siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -59,7 +82,6 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	students, err := h.service.GetAll(r.Context(), schemaName)
 	if err != nil {
-		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
 		http.Error(w, "Gagal mengambil data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -79,7 +101,6 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	student, err := h.service.GetByID(r.Context(), schemaName, studentID)
 	if err != nil {
-		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
 		http.Error(w, "Gagal mengambil data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -117,7 +138,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Siswa tidak ditemukan untuk diupdate", http.StatusNotFound)
 			return
 		}
-		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
 		http.Error(w, "Gagal mengupdate data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -141,7 +161,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Siswa tidak ditemukan untuk dihapus", http.StatusNotFound)
 			return
 		}
-		// PERUBAHAN DI SINI: Pesan error lebih deskriptif
 		http.Error(w, "Gagal menghapus data siswa: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

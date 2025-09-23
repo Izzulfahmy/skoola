@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
   BookOutlined,
   ProjectOutlined,
+  ApartmentOutlined, // <-- 1. IMPORT IKON BARU
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
 import type { MenuProps } from 'antd';
@@ -66,6 +67,7 @@ const AdminLayout = () => {
     },
   ];
 
+  // --- 2. TAMBAHKAN MENU ROMBEL DI SINI ---
   const mainMenuItems = [
     { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
     { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
@@ -74,6 +76,7 @@ const AdminLayout = () => {
     { key: '/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/mata-pelajaran">Mata Pelajaran</Link> },
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
+    { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombongan Belajar</Link> },
   ];
   
   const activeKey = mainMenuItems.find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
@@ -87,7 +90,6 @@ const AdminLayout = () => {
         {isMobile || !collapsed ? 'SKOOLA' : ''}
       </div>
       
-      {/* --- 1. PERBAIKAN: Biarkan Menu tumbuh dan scroll jika perlu --- */}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <Menu
           theme="dark"
@@ -114,7 +116,6 @@ const AdminLayout = () => {
   const siderCollapsedWidth = 60;
 
   return (
-    // --- 2. PERBAIKAN: Pastikan Layout utama mengisi seluruh tinggi layar ---
     <Layout style={{ height: '100vh' }}>
       {!isMobile && (
         <Sider 
@@ -124,14 +125,13 @@ const AdminLayout = () => {
           width={siderWidth}
           collapsedWidth={siderCollapsedWidth}
           style={{
-            // overflow: 'auto', <-- Dihapus, karena sudah diatur di dalam `menuContent`
             height: '100vh',
             position: 'fixed',
             left: 0,
             top: 0,
             bottom: 0,
             zIndex: 10,
-            display: 'flex', // Menambahkan flex untuk memastikan konten internal mengisi Sider
+            display: 'flex',
             flexDirection: 'column',
           }}
         >
@@ -156,18 +156,17 @@ const AdminLayout = () => {
             </Dropdown>
           </Space>
         </Header>
-        {/* --- 3. PERBAIKAN: Buat area Konten menjadi scrollable secara independen --- */}
         <Content style={{
           margin: isMobile ? '16px 8px' : '24px 16px',
-          overflow: 'auto', // Ini adalah kunci utama
-          display: 'flex', // Menggunakan flexbox untuk child
+          overflow: 'auto',
+          display: 'flex',
           flexDirection: 'column',
         }}>
           <div style={{
             padding: isMobile ? 12 : 24,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,
-            flex: 1, // Memastikan div ini mengisi ruang yang tersedia
+            flex: 1,
           }}>
             <Outlet />
           </div>
@@ -175,8 +174,6 @@ const AdminLayout = () => {
             Skoola Admin Panel ©{new Date().getFullYear()}
           </Footer>
         </Content>
-
-        {/* --- 4. PERBAIKAN: Pindahkan Footer ke dalam Content agar ikut scroll --- */}
       </Layout>
 
       {isMobile && (

@@ -2,6 +2,19 @@
 import apiClient from './axiosInstance';
 import type { Student, CreateStudentInput, UpdateStudentInput, RiwayatAkademik, UpsertAcademicHistoryInput } from '../types';
 
+// --- FUNGSI BARU ---
+export const getAvailableStudents = async (tahunAjaranId: string): Promise<Student[]> => {
+  try {
+    const response = await apiClient.get('/students/available', {
+      params: { tahun_ajaran_id: tahunAjaranId },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+
 export const getStudents = async (): Promise<Student[]> => {
   try {
     const response = await apiClient.get('/students');
@@ -37,7 +50,7 @@ export const deleteStudent = async (id: string): Promise<void> => {
   }
 };
 
-// --- FUNGSI BARU UNTUK RIWAYAT AKADEMIK ---
+// --- FUNGSI RIWAYAT AKADEMIK (TETAP SAMA) ---
 
 export const getStudentHistory = async (studentId: string): Promise<RiwayatAkademik[]> => {
   try {

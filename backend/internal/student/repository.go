@@ -9,11 +9,12 @@ import (
 
 // Repository mendefinisikan interface untuk interaksi database siswa.
 type Repository interface {
-	Create(ctx context.Context, tx *sql.Tx, schemaName string, student *Student) error // Diubah untuk menerima transaksi
+	Create(ctx context.Context, tx *sql.Tx, schemaName string, student *Student) error
 	GetAll(ctx context.Context, schemaName string) ([]Student, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*Student, error)
 	Update(ctx context.Context, schemaName string, student *Student) error
 	Delete(ctx context.Context, schemaName string, id string) error
+	GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) // <-- TAMBAHKAN INI
 }
 
 type postgresRepository struct {
@@ -35,7 +36,7 @@ const studentColumns = `
 	s.nama_ayah, s.nama_ibu, s.nama_wali, s.nomor_kontak_wali
 `
 
-// Query untuk mengambil detail siswa beserta status terkininya
+// Query untuk mengambil detail siswa beserta status dan info kelasnya
 const studentDetailQuery = `
 	WITH LatestStatus AS (
 		SELECT
@@ -43,10 +44,24 @@ const studentDetailQuery = `
 			status,
 			ROW_NUMBER() OVER(PARTITION BY student_id ORDER BY tanggal_kejadian DESC, created_at DESC) as rn
 		FROM riwayat_akademik
+	),
+	CurrentKelas AS (
+		SELECT
+			ak.student_id,
+			k.id as kelas_id,
+			k.nama_kelas
+		FROM anggota_kelas ak
+		JOIN kelas k ON ak.kelas_id = k.id
+		JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
+		WHERE ta.status = 'Aktif' -- Bisa disesuaikan jika perlu
 	)
-	SELECT ` + studentColumns + `, ls.status AS status_saat_ini
+	SELECT ` + studentColumns + `, 
+		ls.status AS status_saat_ini,
+		ck.kelas_id,
+		ck.nama_kelas
 	FROM students s
 	LEFT JOIN LatestStatus ls ON s.id = ls.student_id AND ls.rn = 1
+	LEFT JOIN CurrentKelas ck ON s.id = ck.student_id
 `
 
 func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, error) {
@@ -58,6 +73,7 @@ func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, e
 		&s.AlamatLengkap, &s.DesaKelurahan, &s.Kecamatan, &s.KotaKabupaten, &s.Provinsi, &s.KodePos,
 		&s.NamaAyah, &s.NamaIbu, &s.NamaWali, &s.NomorKontakWali,
 		&s.StatusSaatIni,
+		&s.KelasID, &s.NamaKelas, // <-- TAMBAHKAN INI
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -66,6 +82,53 @@ func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, e
 		return nil, fmt.Errorf("gagal memindai data detail siswa: %w", err)
 	}
 	return &s, nil
+}
+
+// --- FUNGSI BARU ---
+func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) {
+	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
+		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	query := `
+		SELECT s.id, s.nama_lengkap, s.nis, s.nama_panggilan
+		FROM students s
+		-- Subquery untuk mendapatkan status terakhir siswa
+		JOIN (
+			SELECT student_id, status
+			FROM (
+				SELECT student_id, status, ROW_NUMBER() OVER(PARTITION BY student_id ORDER BY tanggal_kejadian DESC, created_at DESC) as rn
+				FROM riwayat_akademik
+			) ls
+			WHERE ls.rn = 1
+		) AS latest_status ON s.id = latest_status.student_id
+		-- Pastikan siswa tidak ada di rombel manapun pada TAHUN AJARAN YANG SEDANG DIPILIH
+		WHERE 
+			latest_status.status = 'Aktif' AND
+			s.id NOT IN (
+				SELECT ak.student_id
+				FROM anggota_kelas ak
+				JOIN kelas k ON ak.kelas_id = k.id
+				WHERE k.tahun_ajaran_id = $1
+			)
+		ORDER BY s.nama_lengkap ASC;
+	`
+	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal query get available students: %w", err)
+	}
+	defer rows.Close()
+
+	var students []Student
+	for rows.Next() {
+		var s Student
+		// Hanya scan kolom yang dibutuhkan untuk Transfer list
+		if err := rows.Scan(&s.ID, &s.NamaLengkap, &s.NIS, &s.NamaPanggilan); err != nil {
+			return nil, fmt.Errorf("gagal memindai data available student: %w", err)
+		}
+		students = append(students, s)
+	}
+	return students, rows.Err()
 }
 
 // Create sekarang menerima Querier (bisa DB atau TX)
@@ -98,8 +161,7 @@ func (r *postgresRepository) Create(ctx context.Context, tx *sql.Tx, schemaName 
 }
 
 func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]Student, error) {
-	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
-	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 
@@ -122,8 +184,7 @@ func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]S
 }
 
 func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id string) (*Student, error) {
-	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
-	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 	query := studentDetailQuery + " WHERE s.id = $1"
@@ -131,7 +192,6 @@ func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id 
 	return scanStudentDetail(row)
 }
 
-// ... (Update dan Delete tidak perlu diubah signifikan)
 func (r *postgresRepository) Update(ctx context.Context, schemaName string, student *Student) error {
 	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)

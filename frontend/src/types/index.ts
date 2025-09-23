@@ -86,7 +86,7 @@ export interface UpsertMataPelajaranInput {
   nama_mapel: string;
 }
 
-// --- TIPE BARU UNTUK KURIKULUM & FASE ---
+// --- TIPE LAMA UNTUK KURIKULUM & FASE (TETAP SAMA) ---
 export interface Kurikulum {
   id: number;
   nama_kurikulum: string;
@@ -119,6 +119,56 @@ export interface UpsertKurikulumInput {
 export interface UpsertFaseInput {
     nama_fase: string;
     deskripsi?: string;
+}
+
+// --- TIPE BARU UNTUK ROMBEL ---
+export interface Kelas {
+  id: string;
+  nama_kelas: string;
+  tahun_ajaran_id: string;
+  tingkatan_id: number;
+  wali_kelas_id?: string;
+  created_at: string;
+  updated_at: string;
+  nama_tingkatan?: string;
+  nama_wali_kelas?: string;
+  jumlah_siswa: number;
+  jumlah_pengajar: number;
+  nama_tahun_ajaran?: string;
+  semester?: string;
+}
+
+export interface AnggotaKelas {
+  id: string;
+  student_id: string;
+  nis?: string;
+  nisn?: string;
+  nama_lengkap: string;
+  jenis_kelamin?: 'Laki-laki' | 'Perempuan';
+}
+
+export interface PengajarKelas {
+  id: string;
+  teacher_id: string;
+  mata_pelajaran_id: string;
+  nama_guru: string;
+  nama_mapel: string;
+}
+
+export interface UpsertKelasInput {
+  nama_kelas: string;
+  tahun_ajaran_id: string;
+  tingkatan_id: number;
+  wali_kelas_id?: string;
+}
+
+export interface AddAnggotaKelasInput {
+  student_ids: string[];
+}
+
+export interface UpsertPengajarKelasInput {
+  teacher_id: string;
+  mata_pelajaran_id: string;
 }
 // ------------------------------------
 

@@ -14,7 +14,6 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// --- PERBAIKAN 1: Hapus StatusSiswa dari DTO ---
 type CreateStudentInput struct {
 	NIS               string `json:"nis" validate:"omitempty,numeric"`
 	NISN              string `json:"nisn" validate:"omitempty,numeric"`
@@ -67,6 +66,7 @@ type Service interface {
 	GetByID(ctx context.Context, schemaName string, id string) (*Student, error)
 	Update(ctx context.Context, schemaName string, id string, input UpdateStudentInput) error
 	Delete(ctx context.Context, schemaName string, id string) error
+	GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -85,13 +85,21 @@ func NewService(repo Repository, historyRepo HistoryRepository, validate *valida
 	}
 }
 
+// --- FUNGSI BARU ---
+func (s *service) GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) {
+	if tahunAjaranID == "" {
+		return nil, fmt.Errorf("tahun_ajaran_id is required")
+	}
+	return s.repo.GetAvailableStudentsByTahunAjaran(ctx, schemaName, tahunAjaranID)
+}
+
+// ... sisa file tetap sama ...
 func stringToPtr(s string) *string {
 	if s == "" {
 		return nil
 	}
 	return &s
 }
-
 func dateToPtr(dateStr string) *time.Time {
 	if dateStr == "" {
 		return nil
@@ -102,8 +110,6 @@ func dateToPtr(dateStr string) *time.Time {
 	}
 	return &parsedDate
 }
-
-// --- PERBAIKAN 2: Perbarui Logika Create ---
 func (s *service) Create(ctx context.Context, schemaName string, input CreateStudentInput) (*Student, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
@@ -175,7 +181,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateStu
 
 	return createdStudent, nil
 }
-
 func (s *service) Update(ctx context.Context, schemaName string, id string, input UpdateStudentInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
@@ -216,7 +221,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 
 	return nil
 }
-
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Student, error) {
 	students, err := s.repo.GetAll(ctx, schemaName)
 	if err != nil {
@@ -224,7 +228,6 @@ func (s *service) GetAll(ctx context.Context, schemaName string) ([]Student, err
 	}
 	return students, nil
 }
-
 func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*Student, error) {
 	student, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {
@@ -232,7 +235,6 @@ func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*S
 	}
 	return student, nil
 }
-
 func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
 	student, err := s.repo.GetByID(ctx, schemaName, id)
 	if err != nil {

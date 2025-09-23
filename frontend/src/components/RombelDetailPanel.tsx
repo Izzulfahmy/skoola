@@ -1,0 +1,326 @@
+// file: frontend/src/components/RombelDetailPanel.tsx
+import { useState, useEffect } from 'react';
+import {
+  Tabs,
+  Typography,
+  Descriptions,
+  Tag,
+  Table,
+  Button,
+  Modal,
+  Transfer,
+  Form,
+  Select,
+  Popconfirm,
+  message,
+  Space,      // <-- 1. Impor Space
+  Badge,      // <-- 1. Impor Badge
+} from 'antd';
+import type { TableColumnsType, TransferProps } from 'antd';
+import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import type {
+  Kelas,
+  AnggotaKelas,
+  PengajarKelas,
+  Student,
+  Teacher,
+  MataPelajaran,
+  UpsertPengajarKelasInput,
+} from '../types';
+import {
+  getAllAnggotaByKelas,
+  addAnggotaKelas,
+  removeAnggotaKelas,
+  getAllPengajarByKelas,
+  createPengajarKelas,
+  removePengajarKelas,
+} from '../api/rombel';
+import { getAvailableStudents } from '../api/students';
+import { getAllMataPelajaran } from '../api/mataPelajaran';
+
+const { Text, Title } = Typography;
+const { Option } = Select;
+
+interface RombelDetailPanelProps {
+  rombel: Kelas;
+  teachers: Teacher[];
+  onUpdate: () => void;
+  onBack?: () => void;
+}
+
+const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailPanelProps) => {
+  // ... state dan fungsi-fungsi lainnya tetap sama ...
+  const [anggota, setAnggota] = useState<AnggotaKelas[]>([]);
+  const [pengajar, setPengajar] = useState<PengajarKelas[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [isSiswaModalOpen, setIsSiswaModalOpen] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
+  const [targetKeys, setTargetKeys] = useState<string[]>([]);
+
+  const [isGuruModalOpen, setIsGuruModalOpen] = useState(false);
+  const [allMapel, setAllMapel] = useState<MataPelajaran[]>([]);
+  const [form] = Form.useForm();
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [anggotaData, pengajarData] = await Promise.all([
+        getAllAnggotaByKelas(rombel.id),
+        getAllPengajarByKelas(rombel.id),
+      ]);
+      setAnggota(anggotaData || []);
+      setPengajar(pengajarData || []);
+    } catch (error) {
+      message.error('Gagal memuat detail rombel.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [rombel]);
+
+  const handleShowSiswaModal = async () => {
+    try {
+      const studentsData = await getAvailableStudents(rombel.tahun_ajaran_id);
+      setAvailableStudents(studentsData || []);
+      setTargetKeys([]);
+      setIsSiswaModalOpen(true);
+    } catch {
+      message.error("Gagal memuat daftar siswa yang tersedia.");
+    }
+  };
+
+  const handleAddSiswa = async () => {
+    if (targetKeys.length === 0) {
+      message.warning('Pilih minimal satu siswa.');
+      return;
+    }
+    try {
+      await addAnggotaKelas(rombel.id, { student_ids: targetKeys });
+      message.success(`${targetKeys.length} siswa berhasil ditambahkan.`);
+      setIsSiswaModalOpen(false);
+      fetchData();
+      onUpdate();
+    } catch (error) {
+      message.error('Gagal menambahkan siswa.');
+    }
+  };
+  const handleRemoveSiswa = async (anggotaId: string) => {
+    try {
+      await removeAnggotaKelas(anggotaId);
+      message.success('Siswa berhasil dihapus dari rombel.');
+      fetchData();
+      onUpdate();
+    } catch (error) {
+      message.error('Gagal menghapus siswa.');
+    }
+  };
+  const anggotaColumns: TableColumnsType<AnggotaKelas> = [
+    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
+    { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap' },
+    { title: 'L/P', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text?.charAt(0) || '-' },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Popconfirm
+          title="Hapus siswa dari rombel?"
+          onConfirm={() => handleRemoveSiswa(record.id)}
+        >
+          <Button type="link" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+  const handleTransferChange: TransferProps['onChange'] = (newTargetKeys) => {
+    setTargetKeys(newTargetKeys.map(key => String(key)));
+  };
+  const handleShowGuruModal = async () => {
+    try {
+        const mapelData = await getAllMataPelajaran();
+        setAllMapel(mapelData || []);
+        setIsGuruModalOpen(true);
+    } catch {
+        message.error("Gagal memuat daftar mata pelajaran.");
+    }
+  };
+  const handleTugaskanGuru = async (values: UpsertPengajarKelasInput) => {
+    try {
+        await createPengajarKelas(rombel.id, values);
+        message.success("Guru berhasil ditugaskan.");
+        setIsGuruModalOpen(false);
+        form.resetFields();
+        fetchData();
+    } catch (error) {
+        message.error("Gagal menugaskan guru. Mungkin sudah ada.");
+    }
+  };
+  const handleRemovePengajar = async (pengajarId: string) => {
+    try {
+        await removePengajarKelas(pengajarId);
+        message.success("Tugas guru berhasil dihapus.");
+        fetchData();
+    } catch (error) {
+        message.error("Gagal menghapus tugas guru.");
+    }
+  };
+  const pengajarColumns: TableColumnsType<PengajarKelas> = [
+    { title: 'Mata Pelajaran', dataIndex: 'nama_mapel', key: 'nama_mapel' },
+    { title: 'Nama Guru', dataIndex: 'nama_guru', key: 'nama_guru' },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Popconfirm
+          title="Hapus tugas guru ini?"
+          onConfirm={() => handleRemovePengajar(record.id)}
+        >
+          <Button type="link" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  // --- PERBAIKAN 2: Ubah label Tab menjadi JSX dengan Badge ---
+  const tabItems = [
+    {
+      key: '1',
+      label: 'Detail Rombel',
+      children: (
+        <Descriptions bordered column={1} size="small" style={{ marginTop: 16 }}>
+          <Descriptions.Item label="Nama Rombel">{rombel.nama_kelas}</Descriptions.Item>
+          <Descriptions.Item label="Wali Kelas">{rombel.nama_wali_kelas || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Tingkatan">{rombel.nama_tingkatan}</Descriptions.Item>
+          <Descriptions.Item label="Jumlah Siswa">
+            <Tag color="blue">{anggota.length} Siswa</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="Tahun Ajaran">{`${rombel.nama_tahun_ajaran || ''} - ${rombel.semester || ''}`}</Descriptions.Item>
+        </Descriptions>
+      ),
+    },
+    {
+      key: '2',
+      label: (
+        <Space>
+          Anggota Kelas
+          <Badge count={anggota.length} color="green" />
+        </Space>
+      ),
+      children: (
+        <>
+          <Button icon={<UsergroupAddOutlined />} onClick={handleShowSiswaModal} style={{ marginBottom: 16 }}>
+            Tambah Siswa
+          </Button>
+          <Table
+            columns={anggotaColumns}
+            dataSource={anggota}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            size="small"
+          />
+        </>
+      ),
+    },
+    {
+      key: '3',
+      label: (
+        <Space>
+          Guru Pengajar
+          <Badge count={pengajar.length} color="purple" />
+        </Space>
+      ),
+      children: (
+        <>
+          <Button icon={<PlusOutlined />} onClick={handleShowGuruModal} style={{ marginBottom: 16 }}>
+            Tugaskan Guru
+          </Button>
+          <Table
+            columns={pengajarColumns}
+            dataSource={pengajar}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            size="small"
+          />
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      {onBack && (
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={onBack} 
+          style={{ marginBottom: 16 }}
+        >
+          Kembali ke Daftar Rombel
+        </Button>
+      )}
+      <Title level={4} style={{ margin: 0 }}>
+        {rombel.nama_kelas}
+      </Title>
+      <Text type="secondary">{rombel.nama_tingkatan}</Text>
+      
+      <Tabs defaultActiveKey="1" items={tabItems} style={{ marginTop: 16 }} />
+
+      <Modal
+        title="Tambah Siswa ke Rombel"
+        open={isSiswaModalOpen}
+        onCancel={() => setIsSiswaModalOpen(false)}
+        onOk={handleAddSiswa}
+        width={720}
+        okText="Tambahkan"
+        cancelText="Batal"
+      >
+        <Transfer
+            dataSource={availableStudents.map(s => ({
+                key: s.id,
+                title: `${s.nama_lengkap} (${s.nis || 'No NIS'})`,
+                description: s.nama_panggilan
+            }))}
+            targetKeys={targetKeys}
+            onChange={handleTransferChange}
+            render={item => item.title}
+            listStyle={{ width: 300, height: 300 }}
+            showSearch
+            filterOption={(inputValue, option) => 
+                option.title.toLowerCase().indexOf(inputValue.toLowerCase()) > -1
+            }
+        />
+      </Modal>
+
+      <Modal
+        title="Tugaskan Guru Pengajar"
+        open={isGuruModalOpen}
+        onCancel={() => setIsGuruModalOpen(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" onFinish={handleTugaskanGuru} style={{ marginTop: 24 }}>
+          <Form.Item name="mata_pelajaran_id" label="Mata Pelajaran" rules={[{ required: true }]}>
+            <Select showSearch placeholder="Pilih mata pelajaran" optionFilterProp='children'>
+              {allMapel.map(m => <Option key={m.id} value={m.id}>{m.nama_mapel}</Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="teacher_id" label="Guru" rules={[{ required: true }]}>
+            <Select showSearch placeholder="Pilih guru" optionFilterProp='children'>
+              {teachers.map(t => <Option key={t.id} value={t.id}>{t.nama_lengkap}</Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item style={{ textAlign: 'right' }}>
+            <Button onClick={() => setIsGuruModalOpen(false)} style={{ marginRight: 8 }}>Batal</Button>
+            <Button type="primary" htmlType="submit">Simpan</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  );
+};
+
+export default RombelDetailPanel;

@@ -38,6 +38,8 @@ type Student struct {
 	NamaWali        *string `json:"nama_wali"`
 	NomorKontakWali *string `json:"nomor_kontak_wali"`
 
-	// Kolom Tambahan (Hasil Query, tidak ada di tabel students)
+	// Kolom Tambahan (Hasil Query)
 	StatusSaatIni *string `json:"status_saat_ini"`
+	KelasID       *string `json:"kelas_id,omitempty"`   // <-- TAMBAHKAN INI
+	NamaKelas     *string `json:"nama_kelas,omitempty"` // <-- TAMBAHKAN INI
 }

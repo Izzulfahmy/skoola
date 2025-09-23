@@ -16,6 +16,7 @@ import (
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
 	"skoola/internal/profile"
+	"skoola/internal/rombel"
 	"skoola/internal/student"
 	"skoola/internal/tahunajaran"
 	"skoola/internal/teacher"
@@ -31,6 +32,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// ... fungsi runPublicMigrations tetap sama ...
 func runPublicMigrations(db *sql.DB) error {
 	log.Println("Memeriksa dan menjalankan migrasi untuk skema public...")
 
@@ -56,6 +58,7 @@ func runPublicMigrations(db *sql.DB) error {
 }
 
 func main() {
+	// ... inisialisasi db, jwt, repo, service, handler tetap sama ...
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")
@@ -86,7 +89,6 @@ func main() {
 
 	validate := validator.New()
 
-	// --- Inisialisasi Repository ---
 	naunganRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
@@ -99,8 +101,8 @@ func main() {
 	tahunAjaranRepo := tahunajaran.NewRepository(db)
 	mataPelajaranRepo := matapelajaran.NewRepository(db)
 	kurikulumRepo := kurikulum.NewRepository(db)
+	rombelRepo := rombel.NewRepository(db)
 
-	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
 	teacherService := teacher.NewService(teacherRepo, validate, db)
@@ -114,8 +116,8 @@ func main() {
 	tahunAjaranService := tahunajaran.NewService(tahunAjaranRepo, validate, db)
 	mataPelajaranService := matapelajaran.NewService(mataPelajaranRepo, validate)
 	kurikulumService := kurikulum.NewService(kurikulumRepo, validate)
+	rombelService := rombel.NewService(rombelRepo, validate)
 
-	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
 	naunganHandler := foundation.NewHandler(naunganService)
@@ -130,6 +132,7 @@ func main() {
 	tahunAjaranHandler := tahunajaran.NewHandler(tahunAjaranService)
 	mataPelajaranHandler := matapelajaran.NewHandler(mataPelajaranService)
 	kurikulumHandler := kurikulum.NewHandler(kurikulumService)
+	rombelHandler := rombel.NewHandler(rombelService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -143,7 +146,6 @@ func main() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Post("/login", authHandler.Login)
-
 	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
@@ -152,7 +154,6 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Put("/{naunganID}", naunganHandler.Update)
 		r.With(auth.AuthorizeSuperadmin).Delete("/{naunganID}", naunganHandler.Delete)
 	})
-
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
@@ -163,7 +164,6 @@ func main() {
 		r.With(auth.AuthorizeSuperadmin).Delete("/{schemaName}", tenantHandler.DeleteTenant)
 		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 	})
-
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
@@ -182,6 +182,9 @@ func main() {
 
 	r.Route("/students", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
+		// --- TAMBAHKAN RUTE BARU DI SINI ---
+		r.With(auth.Authorize("admin")).Get("/available", studentHandler.GetAvailableStudents)
+
 		r.Route("/history", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/{studentID}", studentHistoryHandler.GetByStudentID)
 			r.With(auth.Authorize("admin")).Post("/{studentID}", studentHistoryHandler.Create)
@@ -195,12 +198,12 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
 
+	// ... sisa rute tetap sama ...
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
 		r.With(auth.Authorize("admin")).Put("/", profileHandler.UpdateProfile)
 	})
-
 	r.Route("/jenjang", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", jenjangHandler.GetAll)
@@ -209,7 +212,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{id}", jenjangHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
 	})
-
 	r.Route("/jabatan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
@@ -218,7 +220,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{id}", jabatanHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", jabatanHandler.Delete)
 	})
-
 	r.Route("/tingkatan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", tingkatanHandler.GetAll)
@@ -227,7 +228,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{id}", tingkatanHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", tingkatanHandler.Delete)
 	})
-
 	r.Route("/tahun-ajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", tahunAjaranHandler.GetAll)
@@ -236,7 +236,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", tahunAjaranHandler.Delete)
 	})
-
 	r.Route("/mata-pelajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", mataPelajaranHandler.GetAll)
@@ -245,7 +244,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
 	})
-
 	r.Route("/kurikulum", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)
@@ -253,21 +251,27 @@ func main() {
 		r.With(auth.Authorize("admin")).Post("/", kurikulumHandler.Create)
 		r.With(auth.Authorize("admin")).Put("/{id}", kurikulumHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", kurikulumHandler.Delete)
-
-		// RUTE BARU UNTUK ASOSIASI
 		r.With(auth.Authorize("admin")).Post("/add-to-tahun-ajaran", kurikulumHandler.AddKurikulumToTahunAjaran)
-
-		// Rute untuk Fase
 		r.With(auth.Authorize("admin")).Get("/fase", kurikulumHandler.GetAllFase)
 		r.With(auth.Authorize("admin")).Post("/fase", kurikulumHandler.CreateFase)
-
-		// Rute untuk Tingkatan (hanya GET)
 		r.With(auth.Authorize("admin")).Get("/tingkatan", kurikulumHandler.GetAllTingkatan)
-
-		// Rute untuk Pemetaan
 		r.With(auth.Authorize("admin")).Get("/pemetaan", kurikulumHandler.GetFaseTingkatan)
 		r.With(auth.Authorize("admin")).Post("/pemetaan", kurikulumHandler.CreatePemetaan)
 		r.With(auth.Authorize("admin")).Delete("/pemetaan/ta/{tahunAjaranID}/k/{kurikulumID}/t/{tingkatanID}", kurikulumHandler.DeletePemetaan)
+	})
+	r.Route("/rombel", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", rombelHandler.GetAllKelasByTahunAjaran)
+		r.With(auth.Authorize("admin")).Post("/", rombelHandler.CreateKelas)
+		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}", rombelHandler.GetKelasByID)
+		r.With(auth.Authorize("admin")).Put("/{kelasID}", rombelHandler.UpdateKelas)
+		r.With(auth.Authorize("admin")).Delete("/{kelasID}", rombelHandler.DeleteKelas)
+		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/anggota", rombelHandler.GetAllAnggotaByKelas)
+		r.With(auth.Authorize("admin")).Post("/{kelasID}/anggota", rombelHandler.AddAnggotaKelas)
+		r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaID}", rombelHandler.RemoveAnggotaKelas)
+		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/pengajar", rombelHandler.GetAllPengajarByKelas)
+		r.With(auth.Authorize("admin")).Post("/{kelasID}/pengajar", rombelHandler.CreatePengajarKelas)
+		r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)
 	})
 
 	port := os.Getenv("SERVER_PORT")
