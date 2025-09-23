@@ -5,8 +5,8 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
-// --- PERUBAHAN DI SINI ---
-import { getAllKurikulum, createKurikulum, updateKurikulum, deleteKurikulum } from '../api/kurikulum';
+// --- PERBAIKAN DI SINI ---
+import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
 import FasePanel from '../components/FasePanel';
 
@@ -57,25 +57,28 @@ const KurikulumPage: React.FC = () => {
     fetchTahunAjaran();
   }, []);
 
-  // --- PERUBAHAN DI FUNGSI INI ---
+  // --- PERBAIKAN DI SINI ---
   const fetchKurikulum = async () => {
-    setLoadingKurikulum(true);
-    setError(null);
-    try {
-      const data = await getAllKurikulum(); // Mengambil semua kurikulum
-      setKurikulumList(data || []);
-    } catch (err) {
-      setError('Gagal memuat data kurikulum.');
-      setKurikulumList([]);
-    } finally {
-      setLoadingKurikulum(false);
+    if (selectedTahunAjaran) {
+      setLoadingKurikulum(true);
+      setError(null);
+      try {
+        // Menggunakan fungsi yang benar untuk mengambil data berdasarkan tahun ajaran
+        const data = await getKurikulumByTahunAjaran(selectedTahunAjaran);
+        setKurikulumList(data || []);
+      } catch (err) {
+        setError('Gagal memuat data kurikulum untuk tahun ajaran yang dipilih.');
+        setKurikulumList([]);
+      } finally {
+        setLoadingKurikulum(false);
+      }
     }
   };
 
-  // --- PERUBAHAN DI SINI: fetchKurikulum tidak lagi bergantung pada selectedTahunAjaran ---
+  // Mengembalikan dependency array agar useEffect ini berjalan setiap kali tahun ajaran berubah
   useEffect(() => {
     fetchKurikulum();
-  }, []);
+  }, [selectedTahunAjaran]);
     
   useEffect(() => {
     if (isModalOpen) {
