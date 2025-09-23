@@ -1,21 +1,36 @@
 // file: frontend/src/components/FasePanel.tsx
 import React, { useState, useEffect } from 'react';
-import { Typography, List, Select, Button, Form, message, Empty, Popconfirm, Spin, Alert, Input } from 'antd';
+// --- 1. Impor 'Flex' dari antd ---
+import { Typography, List, Select, Button, Form, message, Empty, Popconfirm, Spin, Alert, Input, Flex } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllTingkatan, getAllFase, getFaseTingkatan, createPemetaan, deletePemetaan, createFase } from '../api/kurikulum';
 import type { Tingkatan, Fase, FaseTingkatan, PemetaanInput } from '../types';
 
 const { Title, Text } = Typography;
 
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
+
 interface FasePanelProps {
   tahunAjaranId: string;
   kurikulumId: number;
   kurikulumNama: string;
-  onMappingUpdate: () => void; // <-- 1. TAMBAHKAN PROPS BARU UNTUK CALLBACK
+  onMappingUpdate: () => void;
 }
 
 const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurikulumNama, onMappingUpdate }) => {
   const [form] = Form.useForm();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   const [tingkatans, setTingkatans] = useState<Tingkatan[]>([]);
   const [fases, setFases] = useState<Fase[]>([]);
   const [pemetaan, setPemetaan] = useState<FaseTingkatan[]>([]);
@@ -24,7 +39,6 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
-    // Tidak set loading agar tidak berkedip saat refresh data
     try {
       const [tingkatanData, faseData, pemetaanData] = await Promise.all([
         getAllTingkatan(),
@@ -51,13 +65,12 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
       await deletePemetaan(tahunAjaranId, kurikulumId, tingkatanId);
       message.success('Pemetaan berhasil dihapus!');
       await fetchData();
-      onMappingUpdate(); // <-- 2. PANGGIL CALLBACK SETELAH HAPUS
+      onMappingUpdate();
     } catch (err: any) {
       message.error(err.response?.data || 'Gagal menghapus pemetaan.');
     }
   };
 
-  // --- FUNGSI UTAMA UNTUK MEMETAKAN (SEKALIGUS MEMBUAT FASE JIKA PERLU) ---
   const handleMapFase = async (values: { tingkatan_id: number; nama_fase: string }) => {
     setSubmitting(true);
     const { tingkatan_id, nama_fase } = values;
@@ -70,20 +83,15 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
     
     try {
         let faseId: number;
-
-        // 1. Cek apakah fase sudah ada (tidak case-sensitive)
         const existingFase = fases.find(f => f.nama_fase.toLowerCase() === nama_fase.trim().toLowerCase());
 
         if (existingFase) {
-            // Jika sudah ada, gunakan ID yang ada
             faseId = existingFase.id;
         } else {
-            // 2. Jika belum ada, buat fase baru
             const newFase = await createFase({ nama_fase: nama_fase.trim() });
             faseId = newFase.id;
         }
 
-        // 3. Lanjutkan proses pemetaan dengan ID fase yang sudah didapat
         const payload: PemetaanInput = {
             tahun_ajaran_id: tahunAjaranId,
             kurikulum_id: kurikulumId,
@@ -94,8 +102,8 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
 
         message.success(`Tingkatan berhasil dipetakan ke fase "${nama_fase.trim()}"!`);
         form.resetFields();
-        await fetchData(); // Muat ulang semua data di panel
-        onMappingUpdate(); // <-- 3. PANGGIL CALLBACK SETELAH SUKSES MEMETAKAN
+        await fetchData();
+        onMappingUpdate();
 
     } catch (err: any) {
         message.error(err.response?.data || 'Gagal menyimpan pemetaan.');
@@ -110,31 +118,52 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
   const mappedTingkatanIds = pemetaan.map(p => p.tingkatan_id);
   const availableTingkatans = tingkatans.filter(t => !mappedTingkatanIds.includes(t.id));
 
+  // --- 2. PERBAIKAN: Pisahkan Form Content agar bisa dibungkus ---
+  const formContent = (
+    <>
+      <Form.Item name="tingkatan_id" rules={[{ required: true, message: 'Pilih tingkatan' }]} style={{ flex: isMobile ? undefined : 1, width: '100%' }}>
+        <Select
+          showSearch
+          placeholder="Pilih Tingkatan Kelas"
+          options={availableTingkatans.map(t => ({ value: t.id, label: t.nama_tingkatan }))}
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
+      </Form.Item>
+      <Form.Item name="nama_fase" rules={[{ required: true, message: 'Nama fase tidak boleh kosong'}]} style={{ flex: isMobile ? undefined : 1, width: '100%' }}>
+        <Input placeholder="Ketik nama fase (Contoh: Fase A)" />
+      </Form.Item>
+      <Form.Item>
+        <Button 
+          type="primary" 
+          htmlType="submit" 
+          icon={<PlusOutlined />} 
+          loading={submitting}
+          style={{ width: '100%' }}
+        >
+          {!isMobile && 'Petakan'} 
+        </Button>
+      </Form.Item>
+    </>
+  );
+
   return (
     <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
       <Title level={4}>Pemetaan Fase: {kurikulumNama}</Title>
       <Text type="secondary">Hubungkan setiap tingkatan kelas dengan fase kurikulum yang sesuai untuk tahun ajaran ini.</Text>
       
-      {/* --- FORM UTAMA YANG TELAH DIPERBARUI --- */}
-      <Form form={form} layout="inline" onFinish={handleMapFase} style={{ marginTop: 24, marginBottom: 24 }}>
-        <Form.Item name="tingkatan_id" rules={[{ required: true, message: 'Pilih tingkatan' }]} style={{ flex: 1 }}>
-          <Select
-            showSearch
-            placeholder="Pilih Tingkatan Kelas"
-            options={availableTingkatans.map(t => ({ value: t.id, label: t.nama_tingkatan }))}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        </Form.Item>
-        <Form.Item name="nama_fase" rules={[{ required: true, message: 'Nama fase tidak boleh kosong'}]} style={{ flex: 1 }}>
-          <Input placeholder="Ketik nama fase (Contoh: Fase A)" />
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>
-            Petakan
-          </Button>
-        </Form.Item>
+      {/* --- 3. PERBAIKAN: Gunakan Form sebagai pembungkus utama --- */}
+      <Form form={form} onFinish={handleMapFase} style={{ marginTop: 24, marginBottom: 24 }}>
+        {isMobile ? (
+          // Untuk Mobile, biarkan default (vertikal)
+          formContent
+        ) : (
+          // Untuk Desktop, bungkus dengan Flex
+          <Flex gap="small" align="start">
+            {formContent}
+          </Flex>
+        )}
       </Form>
       
       {pemetaan.length > 0 ? (

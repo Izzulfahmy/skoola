@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Flex, Splitter, Typography, Select, Space, Spin, Alert, List, Empty, Button, Modal, Form, Input, message, Popconfirm
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'; // Import ArrowLeftOutlined
 import { getAllTahunAjaran } from '../api/tahunAjaran';
 import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum, addKurikulumToTahunAjaran } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
@@ -11,6 +11,18 @@ import FasePanel from '../components/FasePanel';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// --- 1. HOOK UNTUK MENDETEKSI UKURAN LAYAR ---
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
 
 const Desc: React.FC<Readonly<{ text?: React.ReactNode }>> = ({ text }) => (
   <Flex justify="center" align="center" style={{ height: '100%', padding: '16px' }}>
@@ -20,6 +32,9 @@ const Desc: React.FC<Readonly<{ text?: React.ReactNode }>> = ({ text }) => (
 
 const KurikulumPage: React.FC = () => {
   const [form] = Form.useForm();
+  const { width } = useWindowSize(); // <-- Gunakan hook
+  const isMobile = width < 768;     // <-- Tentukan breakpoint mobile
+
   const [tahunAjaranList, setTahunAjaranList] = useState<TahunAjaran[]>([]);
   const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<string | null>(null);
   
@@ -36,7 +51,7 @@ const KurikulumPage: React.FC = () => {
   
   const fetchMappedKurikulum = async (tahunAjaranId: string) => {
     setLoadingKurikulum(true);
-    setError(null); // <-- PERBAIKAN UTAMA: Reset error sebelum fetch
+    setError(null);
     try {
       const data = await getKurikulumByTahunAjaran(tahunAjaranId);
       setKurikulumList(data || []);
@@ -55,7 +70,7 @@ const KurikulumPage: React.FC = () => {
   useEffect(() => {
     const fetchTahunAjaran = async () => {
       setLoadingTahunAjaran(true);
-      setError(null); // Reset error juga di sini
+      setError(null); 
       try {
         const data = await getAllTahunAjaran();
         const listTahunAjaran = data || [];
@@ -84,7 +99,6 @@ const KurikulumPage: React.FC = () => {
     if (selectedTahunAjaran) {
       fetchMappedKurikulum(selectedTahunAjaran);
     } else {
-      // Jika tidak ada tahun ajaran yang dipilih, pastikan list kurikulum kosong
       setKurikulumList([]);
       setLoadingKurikulum(false);
     }
@@ -97,7 +111,7 @@ const KurikulumPage: React.FC = () => {
   }, [isModalOpen, editingKurikulum, form]);
 
   const handleTahunAjaranChange = (value: string) => {
-    setSelectedKurikulum(null); // Reset pilihan kurikulum saat ganti tahun ajaran
+    setSelectedKurikulum(null);
     setSelectedTahunAjaran(value);
   };
   
@@ -135,7 +149,6 @@ const KurikulumPage: React.FC = () => {
         message.success(`Kurikulum "${newKurikulum.nama_kurikulum}" berhasil dibuat dan ditambahkan ke tahun ajaran ini.`);
         
         await fetchMappedKurikulum(selectedTahunAjaran);
-        // Cari instance kurikulum yang baru dari list yang sudah di-refresh untuk memastikan data lengkap
         const refreshedKurikulum = (await getKurikulumByTahunAjaran(selectedTahunAjaran)).find(k => k.id === newKurikulum.id);
         setSelectedKurikulum(refreshedKurikulum || null);
       }
@@ -172,11 +185,82 @@ const KurikulumPage: React.FC = () => {
       </Flex>
     );
   }
+
+  // --- KONTEN UNTUK PANEL KIRI (DAFTAR KURIKULUM) ---
+  const KurikulumListPanel = (
+    <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Kurikulum Aktif</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
+          Buat & Tambah
+        </Button>
+      </Flex>
+      {loadingKurikulum ? <Spin /> : 
+        !selectedTahunAjaran ? <Empty description="Pilih tahun ajaran terlebih dahulu." /> :
+        kurikulumList.length > 0 ? (
+          <List
+              dataSource={kurikulumList}
+              renderItem={(item) => (
+                  <List.Item
+                    key={item.id}
+                    onClick={() => setSelectedKurikulum(item)}
+                    style={{
+                        cursor: 'pointer',
+                        backgroundColor: selectedKurikulum?.id === item.id ? '#e6f7ff' : 'transparent'
+                    }}
+                    actions={[
+                        <Button type="text" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); showModal(item); }} />,
+                        <Popconfirm
+                            title="Hapus Master Kurikulum"
+                            description="Menghapus ini akan menghapus semua pemetaan terkait di semua tahun ajaran. Yakin?"
+                            onConfirm={(e) => { e?.stopPropagation(); handleDelete(item.id); }}
+                            onCancel={(e) => e?.stopPropagation()}
+                            okText="Ya"
+                            cancelText="Tidak"
+                        >
+                            <Button type="text" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+                        </Popconfirm>
+                    ]}
+                  >
+                      <List.Item.Meta
+                          title={item.nama_kurikulum}
+                          description={item.deskripsi || 'Tidak ada deskripsi'}
+                      />
+                  </List.Item>
+              )}
+          />
+        ) : (
+          <Empty description="Belum ada kurikulum untuk tahun ajaran ini."/>
+        )
+      }
+    </div>
+  );
+
+  // --- KONTEN UNTUK PANEL KANAN (DETAIL & PEMETAAN) ---
+  const DetailPanel = (
+    selectedKurikulum && selectedTahunAjaran ? (
+      <FasePanel 
+          key={`${selectedTahunAjaran}-${selectedKurikulum.id}`}
+          tahunAjaranId={selectedTahunAjaran}
+          kurikulumId={selectedKurikulum.id}
+          kurikulumNama={selectedKurikulum.nama_kurikulum}
+          onMappingUpdate={handleMappingUpdate}
+      />
+    ) : (
+        <Desc text="Pilih kurikulum untuk mengelola pemetaan fase." />
+    )
+  );
   
   return (
     <>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Flex justify="space-between" align="center">
+        {/* --- 2. HEADER YANG RESPONSIVE --- */}
+        <Flex 
+          justify="space-between" 
+          align={isMobile ? "flex-start" : "center"} 
+          vertical={isMobile}
+          gap={isMobile ? "middle" : 0}
+        >
           <Title level={2} style={{ margin: 0 }}>Manajemen Kurikulum</Title>
           <Space>
             <Text>Tahun Ajaran:</Text>
@@ -194,74 +278,41 @@ const KurikulumPage: React.FC = () => {
           </Space>
         </Flex>
 
-        {/* --- PERBAIKAN: Tampilkan error di luar splitter agar selalu terlihat --- */}
-        {error && <Alert message="Error" description={error} type="error" showIcon />}
+        {error && <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} />}
 
-        <Splitter style={{ height: 'calc(100vh - 220px)', border: '1px solid #f0f0f0', borderRadius: '8px', opacity: error ? 0.5 : 1 }}>
-          <Splitter.Panel defaultSize="40%" min="20%" max="70%">
-            <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
-              <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Kurikulum Aktif</Title>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-                  Buat & Tambah
+        {/* --- 3. LAYOUT UTAMA YANG KONDISIONAL --- */}
+        {isMobile ? (
+          // Tampilan Mobile: Tampilkan satu per satu
+          <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+            {selectedKurikulum ? (
+              <div>
+                <Button 
+                  icon={<ArrowLeftOutlined />} 
+                  onClick={() => setSelectedKurikulum(null)}
+                  style={{ margin: '16px 0 0 16px' }}
+                >
+                  Kembali ke Daftar
                 </Button>
-              </Flex>
-              {loadingKurikulum ? <Spin /> : 
-               !selectedTahunAjaran ? <Empty description="Pilih tahun ajaran terlebih dahulu." /> :
-               kurikulumList.length > 0 ? (
-                  <List
-                      dataSource={kurikulumList}
-                      renderItem={(item) => (
-                          <List.Item
-                            key={item.id}
-                            onClick={() => setSelectedKurikulum(item)}
-                            style={{
-                                cursor: 'pointer',
-                                backgroundColor: selectedKurikulum?.id === item.id ? '#e6f7ff' : 'transparent'
-                            }}
-                            actions={[
-                                <Button type="text" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); showModal(item); }} />,
-                                <Popconfirm
-                                    title="Hapus Master Kurikulum"
-                                    description="Menghapus ini akan menghapus semua pemetaan terkait di semua tahun ajaran. Yakin?"
-                                    onConfirm={(e) => { e?.stopPropagation(); handleDelete(item.id); }}
-                                    onCancel={(e) => e?.stopPropagation()}
-                                    okText="Ya"
-                                    cancelText="Tidak"
-                                >
-                                    <Button type="text" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
-                                </Popconfirm>
-                            ]}
-                          >
-                              <List.Item.Meta
-                                  title={item.nama_kurikulum}
-                                  description={item.deskripsi || 'Tidak ada deskripsi'}
-                              />
-                          </List.Item>
-                      )}
-                  />
-               ) : (
-                  <Empty description="Belum ada kurikulum untuk tahun ajaran ini."/>
-               )
-              }
-            </div>
-          </Splitter.Panel>
-          <Splitter.Panel>
-            {selectedKurikulum && selectedTahunAjaran ? (
-                 <FasePanel 
-                    key={`${selectedTahunAjaran}-${selectedKurikulum.id}`}
-                    tahunAjaranId={selectedTahunAjaran}
-                    kurikulumId={selectedKurikulum.id}
-                    kurikulumNama={selectedKurikulum.nama_kurikulum}
-                    onMappingUpdate={handleMappingUpdate}
-                 />
+                {DetailPanel}
+              </div>
             ) : (
-                <Desc text="Pilih kurikulum untuk mengelola pemetaan fase." />
+              KurikulumListPanel
             )}
-          </Splitter.Panel>
-        </Splitter>
+          </div>
+        ) : (
+          // Tampilan Desktop: Gunakan Splitter
+          <Splitter style={{ height: 'calc(100vh - 220px)', border: '1px solid #f0f0f0', borderRadius: '8px', opacity: error ? 0.5 : 1 }}>
+            <Splitter.Panel defaultSize="40%" min="20%" max="70%">
+              {KurikulumListPanel}
+            </Splitter.Panel>
+            <Splitter.Panel>
+              {DetailPanel}
+            </Splitter.Panel>
+          </Splitter>
+        )}
       </Space>
 
+      {/* Modal tidak berubah */}
       <Modal
         title={editingKurikulum ? 'Edit Master Kurikulum' : 'Buat & Tambah Kurikulum'}
         open={isModalOpen}
