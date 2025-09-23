@@ -53,7 +53,6 @@ export interface UpsertTingkatanInput {
   urutan?: number;
 }
 
-// --- TIPE BARU UNTUK TAHUN AJARAN ---
 export interface TahunAjaran {
   id: string;
   nama_tahun_ajaran: string;
@@ -72,6 +71,20 @@ export interface UpsertTahunAjaranInput {
   status: 'Aktif' | 'Tidak Aktif';
   metode_absensi: 'HARIAN' | 'PER_JAM_PELAJARAN';
   kepala_sekolah_id?: string;
+}
+
+// --- TIPE BARU UNTUK MATA PELAJARAN ---
+export interface MataPelajaran {
+  id: string;
+  kode_mapel: string;
+  nama_mapel: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertMataPelajaranInput {
+  kode_mapel: string;
+  nama_mapel: string;
 }
 // ------------------------------------
 

@@ -9,7 +9,8 @@ import {
   BankOutlined,
   LogoutOutlined,
   SettingOutlined,
-  CalendarOutlined, // <-- 1. IMPORT ICON BARU
+  CalendarOutlined,
+  BookOutlined, // <-- 1. IMPORT ICON BARU
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space } from 'antd';
 import type { MenuProps } from 'antd';
@@ -69,6 +70,7 @@ const AdminLayout = () => {
     { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
     { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
     { key: '/tahun-ajaran', icon: <CalendarOutlined />, label: <Link to="/tahun-ajaran">Tahun Pelajaran</Link> },
+    { key: '/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/mata-pelajaran">Mata Pelajaran</Link> },
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
   ];

@@ -13,9 +13,10 @@ import (
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
 	"skoola/internal/jenjang"
+	"skoola/internal/matapelajaran" // <-- 1. IMPOR PAKET BARU
 	"skoola/internal/profile"
 	"skoola/internal/student"
-	"skoola/internal/tahunajaran" // <-- 1. IMPOR PAKET BARU
+	"skoola/internal/tahunajaran"
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
 	"skoola/internal/tingkatan"
@@ -94,7 +95,8 @@ func main() {
 	jenjangRepo := jenjang.NewRepository(db)
 	jabatanRepo := jabatan.NewRepository(db)
 	tingkatanRepo := tingkatan.NewRepository(db)
-	tahunAjaranRepo := tahunajaran.NewRepository(db) // <-- 2. INISIALISASI REPO BARU
+	tahunAjaranRepo := tahunajaran.NewRepository(db)
+	mataPelajaranRepo := matapelajaran.NewRepository(db) // <-- 2. INISIALISASI REPO BARU
 
 	// --- Inisialisasi Service ---
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -107,7 +109,8 @@ func main() {
 	jenjangService := jenjang.NewService(jenjangRepo, validate)
 	jabatanService := jabatan.NewService(jabatanRepo, validate)
 	tingkatanService := tingkatan.NewService(tingkatanRepo, validate)
-	tahunAjaranService := tahunajaran.NewService(tahunAjaranRepo, validate, db) // <-- 3. INISIALISASI SERVICE BARU
+	tahunAjaranService := tahunajaran.NewService(tahunAjaranRepo, validate, db)
+	mataPelajaranService := matapelajaran.NewService(mataPelajaranRepo, validate) // <-- 3. INISIALISASI SERVICE BARU
 
 	// --- Inisialisasi Handler & Middleware ---
 	authHandler := auth.NewHandler(authService)
@@ -121,7 +124,8 @@ func main() {
 	jenjangHandler := jenjang.NewHandler(jenjangService)
 	jabatanHandler := jabatan.NewHandler(jabatanService)
 	tingkatanHandler := tingkatan.NewHandler(tingkatanService)
-	tahunAjaranHandler := tahunajaran.NewHandler(tahunAjaranService) // <-- 4. INISIALISASI HANDLER BARU
+	tahunAjaranHandler := tahunajaran.NewHandler(tahunAjaranService)
+	mataPelajaranHandler := matapelajaran.NewHandler(mataPelajaranService) // <-- 4. INISIALISASI HANDLER BARU
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -221,7 +225,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/{id}", tingkatanHandler.Delete)
 	})
 
-	// --- 5. DAFTARKAN RUTE BARU UNTUK TAHUN AJARAN ---
 	r.Route("/tahun-ajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", tahunAjaranHandler.GetAll)
@@ -229,6 +232,16 @@ func main() {
 		r.With(auth.Authorize("admin")).Get("/{id}", tahunAjaranHandler.GetByID)
 		r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", tahunAjaranHandler.Delete)
+	})
+
+	// --- 5. DAFTARKAN RUTE BARU UNTUK MATA PELAJARAN ---
+	r.Route("/mata-pelajaran", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", mataPelajaranHandler.GetAll)
+		r.With(auth.Authorize("admin")).Post("/", mataPelajaranHandler.Create)
+		r.With(auth.Authorize("admin")).Get("/{id}", mataPelajaranHandler.GetByID)
+		r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
 	})
 
 	port := os.Getenv("SERVER_PORT")
