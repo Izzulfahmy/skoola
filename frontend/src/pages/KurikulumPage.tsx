@@ -1,9 +1,26 @@
 // file: frontend/src/pages/KurikulumPage.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  Flex, Splitter, Typography, Select, Space, Spin, Alert, List, Empty, Button, Modal, Form, Input, message, Popconfirm
+  Flex,
+  Typography,
+  Select,
+  Space,
+  Spin,
+  Alert,
+  List,
+  Empty,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Popconfirm,
+  Row, 
+  Col,
+  Card,
+  Tooltip, // <-- 1. Impor Tooltip
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'; // Import ArrowLeftOutlined
+import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
 import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum, addKurikulumToTahunAjaran } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
@@ -12,7 +29,6 @@ import FasePanel from '../components/FasePanel';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// --- 1. HOOK UNTUK MENDETEKSI UKURAN LAYAR ---
 const useWindowSize = () => {
   const [size, setSize] = useState({ width: window.innerWidth });
   useEffect(() => {
@@ -23,17 +39,10 @@ const useWindowSize = () => {
   return size;
 };
 
-
-const Desc: React.FC<Readonly<{ text?: React.ReactNode }>> = ({ text }) => (
-  <Flex justify="center" align="center" style={{ height: '100%', padding: '16px' }}>
-    <Text type="secondary" style={{ textAlign: 'center' }}>{text}</Text>
-  </Flex>
-);
-
 const KurikulumPage: React.FC = () => {
   const [form] = Form.useForm();
-  const { width } = useWindowSize(); // <-- Gunakan hook
-  const isMobile = width < 768;     // <-- Tentukan breakpoint mobile
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
 
   const [tahunAjaranList, setTahunAjaranList] = useState<TahunAjaran[]>([]);
   const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<string | null>(null);
@@ -41,7 +50,7 @@ const KurikulumPage: React.FC = () => {
   const [kurikulumList, setKurikulumList] = useState<Kurikulum[]>([]);
   
   const [loadingTahunAjaran, setLoadingTahunAjaran] = useState(true);
-  const [loadingKurikulum, setLoadingKurikulum] = useState(true);
+  const [loadingKurikulum, setLoadingKurikulum] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedKurikulum, setSelectedKurikulum] = useState<Kurikulum | null>(null);
 
@@ -81,12 +90,9 @@ const KurikulumPage: React.FC = () => {
           setSelectedTahunAjaran(aktif.id);
         } else if (listTahunAjaran.length > 0) {
           setSelectedTahunAjaran(listTahunAjaran[0].id);
-        } else {
-          setLoadingKurikulum(false);
         }
       } catch (err: any) {
         setError(`Gagal memuat data tahun ajaran.`);
-        setLoadingKurikulum(false);
       } finally {
         setLoadingTahunAjaran(false);
       }
@@ -100,7 +106,6 @@ const KurikulumPage: React.FC = () => {
       fetchMappedKurikulum(selectedTahunAjaran);
     } else {
       setKurikulumList([]);
-      setLoadingKurikulum(false);
     }
   }, [selectedTahunAjaran]);
     
@@ -149,7 +154,8 @@ const KurikulumPage: React.FC = () => {
         message.success(`Kurikulum "${newKurikulum.nama_kurikulum}" berhasil dibuat dan ditambahkan ke tahun ajaran ini.`);
         
         await fetchMappedKurikulum(selectedTahunAjaran);
-        const refreshedKurikulum = (await getKurikulumByTahunAjaran(selectedTahunAjaran)).find(k => k.id === newKurikulum.id);
+        const refreshedList = await getKurikulumByTahunAjaran(selectedTahunAjaran);
+        const refreshedKurikulum = refreshedList.find(k => k.id === newKurikulum.id);
         setSelectedKurikulum(refreshedKurikulum || null);
       }
       handleCancel();
@@ -186,15 +192,22 @@ const KurikulumPage: React.FC = () => {
     );
   }
 
-  // --- KONTEN UNTUK PANEL KIRI (DAFTAR KURIKULUM) ---
-  const KurikulumListPanel = (
-    <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Kurikulum Aktif</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-          Buat & Tambah
-        </Button>
-      </Flex>
+  const renderKurikulumList = () => (
+    <Card
+        title="Kurikulum Aktif"
+        extra={
+            // --- 2. PERBAIKAN: Tombol dibuat ringkas ---
+            <Tooltip title="Buat & Tambah Kurikulum">
+                <Button 
+                    type="primary" 
+                    shape="circle" 
+                    icon={<PlusOutlined />} 
+                    onClick={() => showModal(null)} 
+                />
+            </Tooltip>
+        }
+        style={{ height: '100%' }}
+    >
       {loadingKurikulum ? <Spin /> : 
         !selectedTahunAjaran ? <Empty description="Pilih tahun ajaran terlebih dahulu." /> :
         kurikulumList.length > 0 ? (
@@ -206,7 +219,9 @@ const KurikulumPage: React.FC = () => {
                     onClick={() => setSelectedKurikulum(item)}
                     style={{
                         cursor: 'pointer',
-                        backgroundColor: selectedKurikulum?.id === item.id ? '#e6f7ff' : 'transparent'
+                        backgroundColor: selectedKurikulum?.id === item.id ? '#e6f7ff' : 'transparent',
+                        padding: '12px',
+                        borderRadius: '8px',
                     }}
                     actions={[
                         <Button type="text" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); showModal(item); }} />,
@@ -233,28 +248,58 @@ const KurikulumPage: React.FC = () => {
           <Empty description="Belum ada kurikulum untuk tahun ajaran ini."/>
         )
       }
-    </div>
+    </Card>
   );
 
-  // --- KONTEN UNTUK PANEL KANAN (DETAIL & PEMETAAN) ---
-  const DetailPanel = (
-    selectedKurikulum && selectedTahunAjaran ? (
-      <FasePanel 
-          key={`${selectedTahunAjaran}-${selectedKurikulum.id}`}
-          tahunAjaranId={selectedTahunAjaran}
-          kurikulumId={selectedKurikulum.id}
-          kurikulumNama={selectedKurikulum.nama_kurikulum}
-          onMappingUpdate={handleMappingUpdate}
-      />
+  const renderContent = () => {
+    const detailPanelContent = selectedKurikulum && selectedTahunAjaran ? (
+        <FasePanel 
+            key={`${selectedTahunAjaran}-${selectedKurikulum.id}`}
+            tahunAjaranId={selectedTahunAjaran}
+            kurikulumId={selectedKurikulum.id}
+            kurikulumNama={selectedKurikulum.nama_kurikulum}
+            onMappingUpdate={handleMappingUpdate}
+        />
     ) : (
-        <Desc text="Pilih kurikulum untuk mengelola pemetaan fase." />
+        <Empty description="Pilih kurikulum untuk mengelola pemetaan fase." style={{ paddingTop: '100px' }} />
+    );
+
+    if (isMobile) {
+        if (selectedKurikulum) {
+            return (
+                <Card>
+                    <Button 
+                      icon={<ArrowLeftOutlined />} 
+                      onClick={() => setSelectedKurikulum(null)}
+                      style={{ marginBottom: 16 }}
+                    >
+                      Kembali ke Daftar
+                    </Button>
+                    {detailPanelContent}
+                </Card>
+            )
+        }
+        return renderKurikulumList();
+    }
+
+    return (
+        // --- 3. PERBAIKAN: Ubah lebar kolom menjadi seimbang (12 dan 12) ---
+        <Row gutter={[16, 16]} style={{ minHeight: 'calc(100vh - 250px)' }}>
+            <Col xs={24} md={12}>
+                {renderKurikulumList()}
+            </Col>
+            <Col xs={24} md={12}>
+                <Card style={{ height: '100%' }}>
+                    {detailPanelContent}
+                </Card>
+            </Col>
+        </Row>
     )
-  );
+  }
   
   return (
     <>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* --- 2. HEADER YANG RESPONSIVE --- */}
         <Flex 
           justify="space-between" 
           align={isMobile ? "flex-start" : "center"} 
@@ -273,6 +318,7 @@ const KurikulumPage: React.FC = () => {
               }))}
               onChange={handleTahunAjaranChange}
               placeholder="Pilih Tahun Ajaran"
+              loading={loadingTahunAjaran}
               disabled={tahunAjaranList.length === 0}
             />
           </Space>
@@ -280,39 +326,10 @@ const KurikulumPage: React.FC = () => {
 
         {error && <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} />}
 
-        {/* --- 3. LAYOUT UTAMA YANG KONDISIONAL --- */}
-        {isMobile ? (
-          // Tampilan Mobile: Tampilkan satu per satu
-          <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
-            {selectedKurikulum ? (
-              <div>
-                <Button 
-                  icon={<ArrowLeftOutlined />} 
-                  onClick={() => setSelectedKurikulum(null)}
-                  style={{ margin: '16px 0 0 16px' }}
-                >
-                  Kembali ke Daftar
-                </Button>
-                {DetailPanel}
-              </div>
-            ) : (
-              KurikulumListPanel
-            )}
-          </div>
-        ) : (
-          // Tampilan Desktop: Gunakan Splitter
-          <Splitter style={{ height: 'calc(100vh - 220px)', border: '1px solid #f0f0f0', borderRadius: '8px', opacity: error ? 0.5 : 1 }}>
-            <Splitter.Panel defaultSize="40%" min="20%" max="70%">
-              {KurikulumListPanel}
-            </Splitter.Panel>
-            <Splitter.Panel>
-              {DetailPanel}
-            </Splitter.Panel>
-          </Splitter>
-        )}
+        {renderContent()}
+
       </Space>
 
-      {/* Modal tidak berubah */}
       <Modal
         title={editingKurikulum ? 'Edit Master Kurikulum' : 'Buat & Tambah Kurikulum'}
         open={isModalOpen}

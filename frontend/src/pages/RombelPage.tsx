@@ -21,7 +21,6 @@ import {
   Badge,
   Tooltip,
 } from 'antd';
-// --- PERBAIKAN DI SINI: Hapus 'ApartmentOutlined' ---
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
 import { getTeachers } from '../api/teachers';
@@ -173,14 +172,15 @@ const RombelPage = () => {
     <Card
       title="Daftar Rombel"
       extra={
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => showModal(null)}
-          disabled={!selectedTahunAjaran}
-        >
-          {!isMobile && 'Tambah Rombel'}
-        </Button>
+        <Tooltip title="Tambah Rombel">
+          <Button
+            type="primary"
+            shape="circle"
+            icon={<PlusOutlined />}
+            onClick={() => showModal(null)}
+            disabled={!selectedTahunAjaran}
+          />
+        </Tooltip>
       }
       style={{ height: '100%' }}
     >
@@ -199,36 +199,38 @@ const RombelPage = () => {
                 padding: '12px',
                 borderRadius: '8px',
               }}
-              actions={[
-                <Button type="text" icon={<EditOutlined />} size="small" onClick={(e) => { e.stopPropagation(); showModal(item); }} />,
-                <Popconfirm
-                  title="Hapus Rombel?"
-                  description="Semua data terkait akan dihapus."
-                  onConfirm={(e) => { e?.stopPropagation(); handleDelete(item.id); }}
-                  onCancel={(e) => e?.stopPropagation()}
-                >
-                  <Button type="text" danger icon={<DeleteOutlined />} size="small" onClick={(e) => e.stopPropagation()} />
-                </Popconfirm>
-              ]}
+              extra={
+                <Space direction="vertical" align="end" size={4}>
+                  <Space size="small">
+                    <Tooltip title="Jumlah Siswa">
+                       <Badge count={item.jumlah_siswa} color="green" />
+                    </Tooltip>
+                     <Tooltip title="Jumlah Guru Pengajar">
+                       <Badge count={item.jumlah_pengajar} color="purple" />
+                    </Tooltip>
+                  </Space>
+                  <Space>
+                    <Button type="text" icon={<EditOutlined />} size="small" onClick={(e) => { e?.stopPropagation(); showModal(item); }} />
+                    <Popconfirm
+                      title="Hapus Rombel?"
+                      description="Semua data terkait akan dihapus."
+                      onConfirm={(e) => { e?.stopPropagation(); handleDelete(item.id); }}
+                      onCancel={(e) => e?.stopPropagation()}
+                    >
+                      <Button type="text" danger icon={<DeleteOutlined />} size="small" onClick={(e) => e?.stopPropagation()} />
+                    </Popconfirm>
+                  </Space>
+                </Space>
+              }
             >
               <List.Item.Meta
                 title={<Text strong>{item.nama_kelas}</Text>}
                 description={
                   <Space direction="vertical" size={4} style={{ marginTop: '4px', width: '100%' }}>
                     <Tag color="geekblue">{item.nama_tingkatan || 'Tingkatan belum diatur'}</Tag>
-                    <Space size="middle">
-                      <Tag icon={<UserOutlined />} color="blue">
-                        {item.nama_wali_kelas || 'Belum ada wali'}
-                      </Tag>
-                      <Space size="small">
-                        <Tooltip title="Jumlah Siswa">
-                           <Badge count={item.jumlah_siswa} color="green" />
-                        </Tooltip>
-                         <Tooltip title="Jumlah Guru Pengajar">
-                           <Badge count={item.jumlah_pengajar} color="purple" />
-                        </Tooltip>
-                      </Space>
-                    </Space>
+                    <Tag icon={<UserOutlined />} color="blue">
+                      {item.nama_wali_kelas || 'Belum ada wali'}
+                    </Tag>
                   </Space>
                 }
               />
@@ -255,6 +257,7 @@ const RombelPage = () => {
     }
 
     return (
+      // --- PERBAIKAN DI SINI ---
       <Row gutter={[16, 16]} style={{ minHeight: 'calc(100vh - 250px)' }}>
         <Col xs={24} md={8} lg={7}>
           {renderRombelList()}
