@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict HmPf9kT7DtCQkqNE2C0igEj1Sj6Dfo6df99hwSW4bwHbhaE9GVhg2cz72JASdf4
+\restrict fUAikqQQIbaDgLOqGgVU02cgehb0zjyYJ9b9l9chklaGpapeUoKgRtNca9UOvcx
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -56,6 +56,42 @@ CREATE TYPE "20554021".jenis_kelamin_enum AS ENUM (
 
 
 ALTER TYPE "20554021".jenis_kelamin_enum OWNER TO postgres;
+
+--
+-- Name: metode_absensi_enum; Type: TYPE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TYPE "20554021".metode_absensi_enum AS ENUM (
+    'HARIAN',
+    'PER_JAM_PELAJARAN'
+);
+
+
+ALTER TYPE "20554021".metode_absensi_enum OWNER TO postgres;
+
+--
+-- Name: semester_enum; Type: TYPE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TYPE "20554021".semester_enum AS ENUM (
+    'Ganjil',
+    'Genap'
+);
+
+
+ALTER TYPE "20554021".semester_enum OWNER TO postgres;
+
+--
+-- Name: status_ajaran_enum; Type: TYPE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TYPE "20554021".status_ajaran_enum AS ENUM (
+    'Aktif',
+    'Tidak Aktif'
+);
+
+
+ALTER TYPE "20554021".status_ajaran_enum OWNER TO postgres;
 
 --
 -- Name: status_kepegawaian_enum; Type: TYPE; Schema: 20554021; Owner: postgres
@@ -163,6 +199,21 @@ ALTER SEQUENCE "20554021".jenjang_pendidikan_id_seq OWNED BY "20554021".jenjang_
 
 
 --
+-- Name: mata_pelajaran; Type: TABLE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TABLE "20554021".mata_pelajaran (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    kode_mapel character varying(20) NOT NULL,
+    nama_mapel character varying(100) NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE "20554021".mata_pelajaran OWNER TO postgres;
+
+--
 -- Name: profil_sekolah; Type: TABLE; Schema: 20554021; Owner: postgres
 --
 
@@ -257,6 +308,24 @@ CREATE TABLE "20554021".students (
 ALTER TABLE "20554021".students OWNER TO postgres;
 
 --
+-- Name: tahun_ajaran; Type: TABLE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TABLE "20554021".tahun_ajaran (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nama_tahun_ajaran character varying(50) NOT NULL,
+    semester "20554021".semester_enum NOT NULL,
+    status "20554021".status_ajaran_enum DEFAULT 'Tidak Aktif'::"20554021".status_ajaran_enum NOT NULL,
+    metode_absensi "20554021".metode_absensi_enum DEFAULT 'HARIAN'::"20554021".metode_absensi_enum NOT NULL,
+    kepala_sekolah_id uuid,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE "20554021".tahun_ajaran OWNER TO postgres;
+
+--
 -- Name: teachers; Type: TABLE; Schema: 20554021; Owner: postgres
 --
 
@@ -285,6 +354,43 @@ CREATE TABLE "20554021".teachers (
 
 
 ALTER TABLE "20554021".teachers OWNER TO postgres;
+
+--
+-- Name: tingkatan; Type: TABLE; Schema: 20554021; Owner: postgres
+--
+
+CREATE TABLE "20554021".tingkatan (
+    id integer NOT NULL,
+    nama_tingkatan character varying(100) NOT NULL,
+    urutan integer,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE "20554021".tingkatan OWNER TO postgres;
+
+--
+-- Name: tingkatan_id_seq; Type: SEQUENCE; Schema: 20554021; Owner: postgres
+--
+
+CREATE SEQUENCE "20554021".tingkatan_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "20554021".tingkatan_id_seq OWNER TO postgres;
+
+--
+-- Name: tingkatan_id_seq; Type: SEQUENCE OWNED BY; Schema: 20554021; Owner: postgres
+--
+
+ALTER SEQUENCE "20554021".tingkatan_id_seq OWNED BY "20554021".tingkatan.id;
+
 
 --
 -- Name: users; Type: TABLE; Schema: 20554021; Owner: postgres
@@ -363,15 +469,22 @@ ALTER TABLE ONLY "20554021".jenjang_pendidikan ALTER COLUMN id SET DEFAULT nextv
 
 
 --
+-- Name: tingkatan id; Type: DEFAULT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tingkatan ALTER COLUMN id SET DEFAULT nextval('"20554021".tingkatan_id_seq'::regclass);
+
+
+--
 -- Data for Name: jabatan; Type: TABLE DATA; Schema: 20554021; Owner: postgres
 --
 
 COPY "20554021".jabatan (id, nama_jabatan, created_at, updated_at) FROM stdin;
-1	Kepala Sekolah	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-2	Wakil Kepala Sekolah	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-3	Guru Kelas	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-4	Guru Mata Pelajaran	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-5	Staf Tata Usaha	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
+1	Kepala Sekolah	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+2	Wakil Kepala Sekolah	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+3	Guru Kelas	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+4	Guru Mata Pelajaran	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+5	Staf Tata Usaha	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
 \.
 
 
@@ -380,10 +493,20 @@ COPY "20554021".jabatan (id, nama_jabatan, created_at, updated_at) FROM stdin;
 --
 
 COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FROM stdin;
-1	SD/MI	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-2	SMP/MTs	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-3	SMA/MA	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
-4	SMK	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
+1	SD/MI	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+2	SMP/MTs	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+3	SMA/MA	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+4	SMK	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+\.
+
+
+--
+-- Data for Name: mata_pelajaran; Type: TABLE DATA; Schema: 20554021; Owner: postgres
+--
+
+COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_at) FROM stdin;
+20ad835c-5551-4078-9cdd-3430641607d7	MTK	Matematika (Wajib)	2025-09-23 08:07:27.760549+07	2025-09-23 08:07:35.640695+07
+73ad91eb-bbcb-48a6-bf8f-f56abcca1892	IPAS	Ilmu Pengetahuan Alam dan Sosial	2025-09-23 08:08:02.354034+07	2025-09-23 08:08:02.354034+07
 \.
 
 
@@ -392,7 +515,7 @@ COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FR
 --
 
 COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, telepon, email, website, kepala_sekolah, jenjang_id) FROM stdin;
-1	\N	SD NU 03 NURUL HUDA	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+1	\N	SMAN JEMBER 1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -401,7 +524,6 @@ COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurah
 --
 
 COPY "20554021".riwayat_akademik (id, student_id, status, tanggal_kejadian, kelas_tingkat, keterangan, created_at, updated_at) FROM stdin;
-a199f8b7-1597-40e6-a8d7-ce20819d0ee1	83cbe44b-cee2-455e-8ed5-14468d25be89	Aktif	2025-09-23	\N	Siswa baru	2025-09-23 03:05:18.333945+07	2025-09-23 03:05:18.333945+07
 \.
 
 
@@ -410,7 +532,7 @@ a199f8b7-1597-40e6-a8d7-ce20819d0ee1	83cbe44b-cee2-455e-8ed5-14468d25be89	Aktif	
 --
 
 COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tanggal_selesai, keterangan, created_at, updated_at) FROM stdin;
-f82a4217-f79d-4463-a097-60dce68205d4	0baaefaa-1095-4e14-9ec9-9255a2869afb	Aktif	2025-09-23	\N	\N	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
+14e581ab-0af7-4c0e-b057-c07f95b1c084	cc0e0c38-6e45-42e4-903a-b952ee13b9d5	Aktif	2025-09-23	\N	\N	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
 \.
 
 
@@ -419,7 +541,14 @@ f82a4217-f79d-4463-a097-60dce68205d4	0baaefaa-1095-4e14-9ec9-9255a2869afb	Aktif	
 --
 
 COPY "20554021".students (id, created_at, updated_at, nis, nisn, nomor_ujian_sekolah, nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali) FROM stdin;
-83cbe44b-cee2-455e-8ed5-14468d25be89	2025-09-23 03:05:18.333945+07	2025-09-23 03:05:18.333945+07	\N	\N	\N	Fahmi	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: tahun_ajaran; Type: TABLE DATA; Schema: 20554021; Owner: postgres
+--
+
+COPY "20554021".tahun_ajaran (id, nama_tahun_ajaran, semester, status, metode_absensi, kepala_sekolah_id, created_at, updated_at) FROM stdin;
 \.
 
 
@@ -428,7 +557,21 @@ COPY "20554021".students (id, created_at, updated_at, nis, nisn, nomor_ujian_sek
 --
 
 COPY "20554021".teachers (id, user_id, nama_lengkap, nip_nuptk, alamat_lengkap, no_hp, created_at, updated_at, nama_panggilan, gelar_akademik, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, provinsi, kota_kabupaten, kecamatan, desa_kelurahan, kode_pos) FROM stdin;
-0baaefaa-1095-4e14-9ec9-9255a2869afb	18e6a1f8-ca4c-4f51-810f-651f60e5abe1	Admin Nurul Huda	\N	\N	\N	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+cc0e0c38-6e45-42e4-903a-b952ee13b9d5	78831200-e056-4591-a451-53adcab94d87	adminsmanegeri1	\N	\N	\N	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: tingkatan; Type: TABLE DATA; Schema: 20554021; Owner: postgres
+--
+
+COPY "20554021".tingkatan (id, nama_tingkatan, urutan, created_at, updated_at) FROM stdin;
+1	Kelas 1	1	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+2	Kelas 2	2	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+3	Kelas 3	3	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+4	Kelas 4	4	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+5	Kelas 5	5	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
+6	Kelas 6	6	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
 \.
 
 
@@ -437,7 +580,7 @@ COPY "20554021".teachers (id, user_id, nama_lengkap, nip_nuptk, alamat_lengkap, 
 --
 
 COPY "20554021".users (id, email, password_hash, role, created_at, updated_at) FROM stdin;
-18e6a1f8-ca4c-4f51-810f-651f60e5abe1	admin.sdnu03@gmail.com	$2a$10$.Cc2hFDfrOGwlRKBdvoPK.5iJhbnJGz.NveB3Fi/M/yMkUC1L8GWe	admin	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07
+78831200-e056-4591-a451-53adcab94d87	adminsmanegeri1@gmail.com	$2a$10$k4v0EpG7bIC.lu7WQx83aeD4z8d31WtuJe9sDZDxD3ADmZeES7eBK	admin	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07
 \.
 
 
@@ -455,7 +598,7 @@ COPY public.naungan (id, nama_naungan, created_at, updated_at) FROM stdin;
 --
 
 COPY public.tenants (id, nama_sekolah, schema_name, created_at, updated_at, naungan_id) FROM stdin;
-51f90bc8-cc08-48cb-a31f-f0f792f7bf66	SD NU 03 NURUL HUDA	20554021	2025-09-23 03:04:08.331235+07	2025-09-23 03:04:08.331235+07	912ac329-05cd-401f-ad1e-4bf92e7877de
+40b27e54-d2c6-40a8-bfe7-d533b7ff8f28	SMAN JEMBER 1	20554021	2025-09-23 08:07:01.617073+07	2025-09-23 08:07:01.617073+07	912ac329-05cd-401f-ad1e-4bf92e7877de
 \.
 
 
@@ -483,6 +626,13 @@ SELECT pg_catalog.setval('"20554021".jenjang_pendidikan_id_seq', 4, true);
 
 
 --
+-- Name: tingkatan_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
+--
+
+SELECT pg_catalog.setval('"20554021".tingkatan_id_seq', 6, true);
+
+
+--
 -- Name: jabatan jabatan_pkey; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
 --
 
@@ -496,6 +646,22 @@ ALTER TABLE ONLY "20554021".jabatan
 
 ALTER TABLE ONLY "20554021".jenjang_pendidikan
     ADD CONSTRAINT jenjang_pendidikan_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mata_pelajaran mata_pelajaran_kode_mapel_unique; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".mata_pelajaran
+    ADD CONSTRAINT mata_pelajaran_kode_mapel_unique UNIQUE (kode_mapel);
+
+
+--
+-- Name: mata_pelajaran mata_pelajaran_pkey; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".mata_pelajaran
+    ADD CONSTRAINT mata_pelajaran_pkey PRIMARY KEY (id);
 
 
 --
@@ -547,11 +713,43 @@ ALTER TABLE ONLY "20554021".students
 
 
 --
+-- Name: tahun_ajaran tahun_ajaran_nama_semester_unique; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tahun_ajaran
+    ADD CONSTRAINT tahun_ajaran_nama_semester_unique UNIQUE (nama_tahun_ajaran, semester);
+
+
+--
+-- Name: tahun_ajaran tahun_ajaran_pkey; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tahun_ajaran
+    ADD CONSTRAINT tahun_ajaran_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: teachers teachers_pkey; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
 --
 
 ALTER TABLE ONLY "20554021".teachers
     ADD CONSTRAINT teachers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tingkatan tingkatan_nama_tingkatan_key; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tingkatan
+    ADD CONSTRAINT tingkatan_nama_tingkatan_key UNIQUE (nama_tingkatan);
+
+
+--
+-- Name: tingkatan tingkatan_pkey; Type: CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tingkatan
+    ADD CONSTRAINT tingkatan_pkey PRIMARY KEY (id);
 
 
 --
@@ -625,6 +823,13 @@ CREATE INDEX idx_jenjang_pendidikan_nama ON "20554021".jenjang_pendidikan USING 
 
 
 --
+-- Name: idx_mata_pelajaran_nama_mapel; Type: INDEX; Schema: 20554021; Owner: postgres
+--
+
+CREATE INDEX idx_mata_pelajaran_nama_mapel ON "20554021".mata_pelajaran USING btree (nama_mapel);
+
+
+--
 -- Name: idx_riwayat_akademik_student_id; Type: INDEX; Schema: 20554021; Owner: postgres
 --
 
@@ -643,6 +848,20 @@ CREATE INDEX idx_riwayat_kepegawaian_teacher_id ON "20554021".riwayat_kepegawaia
 --
 
 CREATE INDEX idx_students_nama_lengkap ON "20554021".students USING btree (nama_lengkap);
+
+
+--
+-- Name: idx_tahun_ajaran_kepala_sekolah_id; Type: INDEX; Schema: 20554021; Owner: postgres
+--
+
+CREATE INDEX idx_tahun_ajaran_kepala_sekolah_id ON "20554021".tahun_ajaran USING btree (kepala_sekolah_id);
+
+
+--
+-- Name: idx_tingkatan_nama; Type: INDEX; Schema: 20554021; Owner: postgres
+--
+
+CREATE INDEX idx_tingkatan_nama ON "20554021".tingkatan USING btree (nama_tingkatan);
 
 
 --
@@ -669,6 +888,14 @@ ALTER TABLE ONLY "20554021".riwayat_kepegawaian
 
 
 --
+-- Name: tahun_ajaran tahun_ajaran_kepala_sekolah_id_fkey; Type: FK CONSTRAINT; Schema: 20554021; Owner: postgres
+--
+
+ALTER TABLE ONLY "20554021".tahun_ajaran
+    ADD CONSTRAINT tahun_ajaran_kepala_sekolah_id_fkey FOREIGN KEY (kepala_sekolah_id) REFERENCES "20554021".teachers(id) ON DELETE SET NULL;
+
+
+--
 -- Name: teachers teachers_user_id_fkey; Type: FK CONSTRAINT; Schema: 20554021; Owner: postgres
 --
 
@@ -688,5 +915,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict HmPf9kT7DtCQkqNE2C0igEj1Sj6Dfo6df99hwSW4bwHbhaE9GVhg2cz72JASdf4
+\unrestrict fUAikqQQIbaDgLOqGgVU02cgehb0zjyYJ9b9l9chklaGpapeUoKgRtNca9UOvcx
 
