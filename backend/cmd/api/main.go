@@ -248,7 +248,10 @@ func main() {
 
 	r.Route("/kurikulum", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetByTahunAjaran)
+		// --- PERUBAHAN DI SINI ---
+		r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)                          // Mengambil semua kurikulum
+		r.With(auth.Authorize("admin")).Get("/by-tahun-ajaran", kurikulumHandler.GetByTahunAjaran) // Rute spesifik untuk yang sudah terpetakan
+		// -------------------------
 		r.With(auth.Authorize("admin")).Post("/", kurikulumHandler.Create)
 		r.With(auth.Authorize("admin")).Put("/{id}", kurikulumHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", kurikulumHandler.Delete)

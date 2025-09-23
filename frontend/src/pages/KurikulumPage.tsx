@@ -5,7 +5,8 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
-import { getKurikulumByTahunAjaran, createKurikulum, updateKurikulum, deleteKurikulum } from '../api/kurikulum';
+// --- PERUBAHAN DI SINI ---
+import { getAllKurikulum, createKurikulum, updateKurikulum, deleteKurikulum } from '../api/kurikulum';
 import type { TahunAjaran, Kurikulum, UpsertKurikulumInput } from '../types';
 import FasePanel from '../components/FasePanel';
 
@@ -56,27 +57,26 @@ const KurikulumPage: React.FC = () => {
     fetchTahunAjaran();
   }, []);
 
+  // --- PERUBAHAN DI FUNGSI INI ---
   const fetchKurikulum = async () => {
-    if (selectedTahunAjaran) {
-      setLoadingKurikulum(true);
-      setError(null);
-      try {
-        const data = await getKurikulumByTahunAjaran(selectedTahunAjaran);
-        setKurikulumList(data || []);
-      } catch (err) {
-        setError('Gagal memuat data kurikulum.');
-        setKurikulumList([]);
-      } finally {
-        setLoadingKurikulum(false);
-      }
+    setLoadingKurikulum(true);
+    setError(null);
+    try {
+      const data = await getAllKurikulum(); // Mengambil semua kurikulum
+      setKurikulumList(data || []);
+    } catch (err) {
+      setError('Gagal memuat data kurikulum.');
+      setKurikulumList([]);
+    } finally {
+      setLoadingKurikulum(false);
     }
   };
 
+  // --- PERUBAHAN DI SINI: fetchKurikulum tidak lagi bergantung pada selectedTahunAjaran ---
   useEffect(() => {
     fetchKurikulum();
-  }, [selectedTahunAjaran]);
+  }, []);
     
-  // --- PERBAIKAN DI SINI: Gunakan useEffect untuk mengisi form ---
   useEffect(() => {
     if (isModalOpen) {
       form.setFieldsValue(editingKurikulum || { nama_kurikulum: '', deskripsi: '' });

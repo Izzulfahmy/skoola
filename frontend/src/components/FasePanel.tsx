@@ -1,9 +1,8 @@
 // file: frontend/src/components/FasePanel.tsx
 import React, { useState, useEffect } from 'react';
-import { Typography, List, Select, Button, Form, message, Empty, Popconfirm, Spin, Alert } from 'antd';
+import { Typography, List, Select, Button, Form, message, Empty, Popconfirm, Spin, Alert, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-// --- PERBAIKAN: Hapus import yang tidak digunakan ---
-import { getAllTingkatan, getAllFase, getFaseTingkatan, createPemetaan, deletePemetaan } from '../api/kurikulum';
+import { getAllTingkatan, getAllFase, getFaseTingkatan, createPemetaan, deletePemetaan, createFase } from '../api/kurikulum';
 import type { Tingkatan, Fase, FaseTingkatan, PemetaanInput } from '../types';
 
 const { Title, Text } = Typography;
@@ -24,17 +23,16 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
-    setLoading(true);
-    setError(null);
+    // Tidak set loading agar tidak berkedip saat refresh data
     try {
       const [tingkatanData, faseData, pemetaanData] = await Promise.all([
         getAllTingkatan(),
         getAllFase(),
         getFaseTingkatan(tahunAjaranId, kurikulumId),
       ]);
-      setTingkatans(tingkatanData);
-      setFases(faseData);
-      setPemetaan(pemetaanData);
+      setTingkatans(tingkatanData || []);
+      setFases(faseData || []);
+      setPemetaan(pemetaanData || []);
     } catch (err) {
       setError('Gagal memuat data pemetaan fase.');
     } finally {
@@ -43,42 +41,69 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchData();
   }, [tahunAjaranId, kurikulumId]);
 
-  const handleAddPemetaan = async (values: { tingkatan_id: number, fase_id: number }) => {
-    setSubmitting(true);
-    const payload: PemetaanInput = {
-      tahun_ajaran_id: tahunAjaranId,
-      kurikulum_id: kurikulumId,
-      ...values,
-    };
-    try {
-      await createPemetaan(payload);
-      message.success('Pemetaan berhasil disimpan!');
-      form.resetFields();
-      fetchData(); // Refresh list
-    } catch (err: any) {
-      message.error(err.response?.data || 'Gagal menyimpan pemetaan.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
   const handleDeletePemetaan = async (tingkatanId: number) => {
     try {
       await deletePemetaan(tahunAjaranId, kurikulumId, tingkatanId);
       message.success('Pemetaan berhasil dihapus!');
-      fetchData(); // Refresh list
+      await fetchData();
     } catch (err: any) {
       message.error(err.response?.data || 'Gagal menghapus pemetaan.');
+    }
+  };
+
+  // --- FUNGSI UTAMA UNTUK MEMETAKAN (SEKALIGUS MEMBUAT FASE JIKA PERLU) ---
+  const handleMapFase = async (values: { tingkatan_id: number; nama_fase: string }) => {
+    setSubmitting(true);
+    const { tingkatan_id, nama_fase } = values;
+
+    if (!nama_fase?.trim()) {
+        message.error('Nama Fase tidak boleh kosong.');
+        setSubmitting(false);
+        return;
+    }
+    
+    try {
+        let faseId: number;
+
+        // 1. Cek apakah fase sudah ada (tidak case-sensitive)
+        const existingFase = fases.find(f => f.nama_fase.toLowerCase() === nama_fase.trim().toLowerCase());
+
+        if (existingFase) {
+            // Jika sudah ada, gunakan ID yang ada
+            faseId = existingFase.id;
+        } else {
+            // 2. Jika belum ada, buat fase baru
+            const newFase = await createFase({ nama_fase: nama_fase.trim() });
+            faseId = newFase.id;
+        }
+
+        // 3. Lanjutkan proses pemetaan dengan ID fase yang sudah didapat
+        const payload: PemetaanInput = {
+            tahun_ajaran_id: tahunAjaranId,
+            kurikulum_id: kurikulumId,
+            tingkatan_id: tingkatan_id,
+            fase_id: faseId,
+        };
+        await createPemetaan(payload);
+
+        message.success(`Tingkatan berhasil dipetakan ke fase "${nama_fase.trim()}"!`);
+        form.resetFields();
+        await fetchData(); // Muat ulang semua data di panel
+
+    } catch (err: any) {
+        message.error(err.response?.data || 'Gagal menyimpan pemetaan.');
+    } finally {
+        setSubmitting(false);
     }
   };
 
   if (loading) return <Spin />;
   if (error) return <Alert message="Error" description={error} type="error" showIcon />;
 
-  // Filter tingkatan yang sudah dipetakan
   const mappedTingkatanIds = pemetaan.map(p => p.tingkatan_id);
   const availableTingkatans = tingkatans.filter(t => !mappedTingkatanIds.includes(t.id));
 
@@ -87,22 +112,32 @@ const FasePanel: React.FC<FasePanelProps> = ({ tahunAjaranId, kurikulumId, kurik
       <Title level={4}>Pemetaan Fase: {kurikulumNama}</Title>
       <Text type="secondary">Hubungkan setiap tingkatan kelas dengan fase kurikulum yang sesuai untuk tahun ajaran ini.</Text>
       
-      <Form form={form} layout="inline" onFinish={handleAddPemetaan} style={{ marginTop: 24, marginBottom: 24 }}>
+      {/* --- FORM UTAMA YANG TELAH DIPERBARUI --- */}
+      <Form form={form} layout="inline" onFinish={handleMapFase} style={{ marginTop: 24, marginBottom: 24 }}>
         <Form.Item name="tingkatan_id" rules={[{ required: true, message: 'Pilih tingkatan' }]} style={{ flex: 1 }}>
-          <Select placeholder="Pilih Tingkatan Kelas" options={availableTingkatans.map(t => ({ value: t.id, label: t.nama_tingkatan }))} />
+          <Select
+            showSearch
+            placeholder="Pilih Tingkatan Kelas"
+            options={availableTingkatans.map(t => ({ value: t.id, label: t.nama_tingkatan }))}
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          />
         </Form.Item>
-        <Form.Item name="fase_id" rules={[{ required: true, message: 'Pilih fase' }]} style={{ flex: 1 }}>
-          <Select placeholder="Pilih Fase" options={fases.map(f => ({ value: f.id, label: f.nama_fase }))} />
+        <Form.Item name="nama_fase" rules={[{ required: true, message: 'Nama fase tidak boleh kosong'}]} style={{ flex: 1 }}>
+          <Input placeholder="Ketik nama fase (Contoh: Fase A)" />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>
-            Tambahkan
+            Petakan
           </Button>
         </Form.Item>
       </Form>
       
       {pemetaan.length > 0 ? (
          <List
+            header={<Text strong>Hasil Pemetaan</Text>}
+            bordered
             dataSource={pemetaan}
             renderItem={(item) => (
                 <List.Item

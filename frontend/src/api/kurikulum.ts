@@ -2,10 +2,20 @@
 import apiClient from './axiosInstance';
 import type { Kurikulum, UpsertKurikulumInput, Fase, UpsertFaseInput, FaseTingkatan, Tingkatan, PemetaanInput } from '../types';
 
+// --- FUNGSI BARU ---
+export const getAllKurikulum = async (): Promise<Kurikulum[]> => {
+  try {
+    const response = await apiClient.get('/kurikulum');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // --- Kurikulum ---
 export const getKurikulumByTahunAjaran = async (tahunAjaranId: string): Promise<Kurikulum[]> => {
   try {
-    const response = await apiClient.get('/kurikulum', {
+    const response = await apiClient.get('/kurikulum/by-tahun-ajaran', { // <-- Path diubah
       params: { tahun_ajaran_id: tahunAjaranId }
     });
     return response.data;
