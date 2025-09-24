@@ -1,190 +1,172 @@
 // file: frontend/src/components/PenilaianPanel.tsx
-import { useState, useEffect, useMemo } from 'react';
-import { Button, message, Spin, Empty, Table, InputNumber, Space, Typography, Tooltip } from 'antd';
-import type { TableColumnsType } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { message, Spin, Empty, Space } from 'antd';
+import jspreadsheet from 'jspreadsheet-ce';
+import 'jspreadsheet-ce/dist/jspreadsheet.css';
 import { getAllMateriByPengajarKelas } from '../api/pembelajaran';
 import { getPenilaian, upsertNilai } from '../api/penilaian';
 import type { MateriPembelajaran, PenilaianData, PenilaianInput } from '../types';
-
-const { Text } = Typography;
+import type { PenilaianPanelRef } from '../pages/teacher/PenilaianPage';
 
 interface PenilaianPanelProps {
   pengajarKelasId: string;
   kelasId: string;
 }
 
-const PenilaianPanel = ({ pengajarKelasId, kelasId }: PenilaianPanelProps) => {
-  const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
+const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pengajarKelasId, kelasId }, ref) => {
+  const spreadsheetRef = useRef<HTMLDivElement>(null);
+  const spreadsheetInstance = useRef<any | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  
+  const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
   const [penilaianData, setPenilaianData] = useState<PenilaianData[]>([]);
 
   const allTpDetails = useMemo(() => {
     return materiList.flatMap(m => m.tujuan_pembelajaran);
   }, [materiList]);
 
-  const allTpIds = useMemo(() => {
-    return allTpDetails.map(tp => tp.id);
-  }, [allTpDetails]);
-
-  // Fetch materi dan TP
   useEffect(() => {
-    const fetchMateri = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const data = await getAllMateriByPengajarKelas(pengajarKelasId);
-        setMateriList(data || []);
+        const materiData = await getAllMateriByPengajarKelas(pengajarKelasId);
+        const materi = materiData || [];
+        setMateriList(materi);
+
+        const allTps = materi.flatMap(m => m.tujuan_pembelajaran).map(tp => tp.id);
+        const dataPenilaian = await getPenilaian(kelasId, allTps);
+        setPenilaianData(dataPenilaian.siswa || []);
+
       } catch (error) {
-        message.error('Gagal memuat daftar materi pembelajaran.');
+        message.error('Gagal memuat data awal untuk penilaian.');
       } finally {
         setLoading(false);
       }
     };
-    fetchMateri();
-  }, [pengajarKelasId]);
+    fetchData();
+  }, [pengajarKelasId, kelasId]);
 
-  // Fetch nilai siswa berdasarkan semua TP yang ada
   useEffect(() => {
-    if (allTpIds.length > 0) {
-      const fetchNilai = async () => {
-        setLoading(true);
-        try {
-          const data = await getPenilaian(kelasId, allTpIds);
-          setPenilaianData(data.siswa || []);
-        } catch (error) {
-          message.error('Gagal memuat data nilai siswa.');
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchNilai();
-    } else {
-      setPenilaianData([]);
-    }
-  }, [kelasId, allTpIds]);
+    if (!loading && spreadsheetRef.current && penilaianData.length > 0 && allTpDetails.length > 0) {
+      if (spreadsheetInstance.current) {
+        spreadsheetInstance.current.destroy();
+      }
 
-  const handleNilaiChange = (anggotaKelasId: string, tpId: number, nilai: number | null) => {
-    setPenilaianData(prevData =>
-      prevData.map(siswa => {
-        if (siswa.anggota_kelas_id === anggotaKelasId) {
-          return {
-            ...siswa,
-            nilai: {
-              ...siswa.nilai,
-              [tpId]: nilai,
-            },
-          };
-        }
-        return siswa;
-      })
-    );
-  };
-  
-  const handleSave = async () => {
-    setIsSaving(true);
-    const payload: PenilaianInput[] = [];
-    penilaianData.forEach(siswa => {
-        allTpIds.forEach(tpId => {
-            payload.push({
-                anggota_kelas_id: siswa.anggota_kelas_id,
-                tujuan_pembelajaran_id: tpId,
-                nilai: siswa.nilai[tpId] !== undefined ? siswa.nilai[tpId] : null,
-            });
+      const nestedHeaders: any[][] = [
+        [
+          { title: 'Siswa', colspan: 2, align: 'center' },
+          ...materiList.map(materi => ({
+            title: materi.nama_materi,
+            colspan: materi.tujuan_pembelajaran.length,
+            align: 'center' as const,
+          }))
+        ]
+      ];
+      
+      const columns: jspreadsheet.Column[] = [
+        { type: 'text', title: 'NIS', width: 120, readOnly: true, align: 'left' },
+        { type: 'text', title: 'Nama Lengkap', width: 250, readOnly: true, align: 'left' },
+        ...allTpDetails.map(tp => ({
+          type: 'numeric',
+          title: `TP ${tp.urutan}`,
+          width: 80,
+          mask: '0',
+        } as jspreadsheet.Column)),
+      ];
+
+      const data = penilaianData.map(siswa => {
+        const rowData: (string | number)[] = [
+            siswa.nis || '-',
+            siswa.nama_siswa,
+        ];
+        allTpDetails.forEach(tp => {
+            const nilai = siswa.nilai[tp.id];
+            rowData.push(nilai !== null && nilai !== undefined ? nilai : '');
         });
-    });
+        return rowData;
+      });
 
-    try {
+      spreadsheetInstance.current = jspreadsheet(spreadsheetRef.current, {
+        data,
+        nestedHeaders,
+        columns,
+        // @ts-ignore
+        columnHeaders: false,
+        allowInsertRow: false,
+        allowDeleteRow: false,
+        allowInsertColumn: false,
+        allowDeleteColumn: false,
+        columnDrag: false,
+        rowDrag: false,
+        tableOverflow: true,
+        tableWidth: '100%',
+        tableHeight: '60vh',
+        defaultColAlign: 'center',
+        // --- PERBAIKAN DI SINI: `instance` adalah elemennya, bukan `instance.el` ---
+        onload: function(instance: HTMLElement) { // Beri tipe HTMLElement pada instance
+          allTpDetails.forEach((tp, index) => {
+            const colIndex = index + 2;
+            const headerCell = instance.querySelector(`thead tr:last-child td[data-x="${colIndex}"]`);
+            if (headerCell) {
+              headerCell.setAttribute('title', tp.deskripsi_tujuan);
+            }
+          });
+        },
+        // ----------------------------------------------------------------------
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, penilaianData, allTpDetails]);
+  
+  useImperativeHandle(ref, () => ({
+    handleSave: async () => {
+      if (!spreadsheetInstance.current) return;
+      
+      try {
+        const dataFromSheet = spreadsheetInstance.current.getData();
+        const payload: PenilaianInput[] = [];
+
+        dataFromSheet.forEach((row: any[], rowIndex: number) => {
+          const siswa = penilaianData[rowIndex];
+          if (!siswa) return;
+
+          allTpDetails.forEach((tp, tpIndex) => {
+            const nilaiCell = row[tpIndex + 2];
+            const nilai = (nilaiCell === '' || nilaiCell === null || nilaiCell === undefined) ? null : parseFloat(nilaiCell as string);
+            
+            payload.push({
+              anggota_kelas_id: siswa.anggota_kelas_id,
+              tujuan_pembelajaran_id: tp.id,
+              nilai: nilai,
+            });
+          });
+        });
+        
         await upsertNilai(payload);
         message.success('Semua perubahan nilai berhasil disimpan.');
-    } catch (error) {
-        message.error('Gagal menyimpan nilai.');
-    } finally {
-        setIsSaving(false);
+      } catch (error) {
+        message.error('Gagal menyimpan perubahan.');
+      }
     }
-  };
+  }));
 
-  // --- PERUBAHAN UTAMA DI SINI: Membuat kolom bertingkat ---
-  const columns: TableColumnsType<PenilaianData> = [
-    {
-      title: 'No',
-      key: 'no',
-      width: 50,
-      fixed: 'left',
-      align: 'center',
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: 'Nama Siswa',
-      dataIndex: 'nama_siswa',
-      key: 'nama_siswa',
-      fixed: 'left',
-      width: 220,
-      render: (text, record) => (
-        <div>
-          <Text strong>{text}</Text><br/>
-          <Text type="secondary">NIS: {record.nis || '-'}</Text>
-        </div>
-      )
-    },
-    // Iterasi melalui materi untuk membuat header grup
-    ...materiList.map(materi => ({
-      title: materi.nama_materi,
-      align: 'center' as const,
-      // Setiap materi akan memiliki anak kolom yaitu TP-TP nya
-      children: materi.tujuan_pembelajaran.map(tp => ({
-        title: (
-          <Tooltip title={tp.deskripsi_tujuan}>
-              <span>{`TP ${tp.urutan}`}</span>
-          </Tooltip>
-        ),
-        dataIndex: ['nilai', tp.id],
-        key: `tp-${tp.id}`,
-        width: 80,
-        align: 'center' as const,
-        render: (_: any, record: PenilaianData) => (
-          <InputNumber
-            min={0}
-            max={100}
-            value={record.nilai[tp.id]}
-            onChange={value => handleNilaiChange(record.anggota_kelas_id, tp.id, value)}
-            controls={false}
-            style={{ width: '100%', textAlign: 'center' }}
-          />
-        ),
-      })),
-    })),
-  ];
-
-  if (loading && materiList.length === 0) return <Spin />;
-
+  if (loading) {
+    return <Spin tip="Memuat data penilaian..." style={{ display: 'block', marginTop: '20px' }} />;
+  }
+  
   return (
     <div>
       {allTpDetails.length > 0 ? (
-        <Space direction="vertical" style={{width: '100%'}}>
-            {/* --- Kotak Alert dihilangkan --- */}
-            <Table
-                columns={columns}
-                dataSource={penilaianData}
-                rowKey="anggota_kelas_id"
-                loading={loading}
-                pagination={false}
-                bordered
-                size="small"
-                scroll={{ x: 'max-content' }}
-            />
-            <Space style={{ width: '100%', justifyContent: 'flex-end', marginTop: 16 }}>
-                <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={isSaving}>
-                    Simpan Perubahan
-                </Button>
-            </Space>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div className="spreadsheet-container">
+            <div ref={spreadsheetRef} />
+          </div>
         </Space>
       ) : (
-        <Empty description="Belum ada Tujuan Pembelajaran yang bisa dinilai untuk mata pelajaran ini." style={{marginTop: 32}}/>
+        <Empty description="Belum ada Tujuan Pembelajaran yang bisa dinilai untuk mata pelajaran ini." style={{ marginTop: 32 }} />
       )}
     </div>
   );
-};
+});
 
 export default PenilaianPanel;

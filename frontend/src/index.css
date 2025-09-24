@@ -13,5 +13,35 @@
 
 body {
   margin: 0;
-  background-color: #f0f2f5; /* Warna latar belakang dari App.css bisa dipindah ke sini */
+  background-color: #f0f2f5;
+}
+
+.spreadsheet-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.spreadsheet-container::-webkit-scrollbar {
+  height: 8px;
+}
+.spreadsheet-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.spreadsheet-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+.spreadsheet-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.jspreadsheet .jss-readonly {
+  color: rgba(0, 0, 0, 0.88) !important;
+  background-color: #fafafa;
+}
+
+/* --- TAMBAHKAN KODE DI BAWAH INI UNTUK MENGHILANGKAN BAYANGAN --- */
+.jexcel_content {
+  box-shadow: none !important;
+  border: none !important;
 }

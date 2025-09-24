@@ -1,6 +1,7 @@
 // file: src/pages/teacher/PenilaianPage.tsx
-import { useEffect, useState } from 'react';
-import { Card, Col, Row, Spin, Typography, Select, Empty, Alert } from 'antd';
+import { useEffect, useState, useRef } from 'react';
+import { Card, Typography, Select, Empty, Alert, Space, Button } from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
 import { getMyClasses } from '../../api/teachers';
 import { getAllPengajarByKelas } from '../../api/rombel';
 import type { Kelas, PengajarKelas } from '../../types';
@@ -9,13 +10,21 @@ import PenilaianPanel from '../../components/PenilaianPanel';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
+// Definisikan tipe untuk ref agar bisa memanggil fungsi handleSave dari child
+export interface PenilaianPanelRef {
+  handleSave: () => void;
+}
+
 const PenilaianPage = () => {
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [myClasses, setMyClasses] = useState<Kelas[]>([]);
   const [selectedKelasId, setSelectedKelasId] = useState<string | null>(null);
   const [pengajarList, setPengajarList] = useState<PengajarKelas[]>([]);
   const [selectedPengajarId, setSelectedPengajarId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const penilaianPanelRef = useRef<PenilaianPanelRef>(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -51,6 +60,14 @@ const PenilaianPage = () => {
     }
   }, [selectedKelasId]);
 
+  const triggerSave = async () => {
+    if (penilaianPanelRef.current) {
+      setIsSaving(true);
+      await penilaianPanelRef.current.handleSave();
+      setIsSaving(false);
+    }
+  };
+
   if (error) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
@@ -60,49 +77,60 @@ const PenilaianPage = () => {
       <Title level={2}>Penilaian Siswa</Title>
       <Text type="secondary">Pilih kelas dan mata pelajaran untuk mengelola penilaian siswa.</Text>
       
-      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col xs={24} md={8}>
-          <Typography.Paragraph strong>1. Pilih Kelas</Typography.Paragraph>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="Pilih kelas yang Anda ajar"
-            onChange={(value) => setSelectedKelasId(value)}
-            loading={loading}
-          >
-            {myClasses.map(kelas => (
-              <Option key={kelas.id} value={kelas.id}>{kelas.nama_kelas}</Option>
-            ))}
-          </Select>
+      <Card style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <Space wrap align="center">
+            <Text strong>Pilih Kelas:</Text>
+            <Select
+              style={{ width: 250 }}
+              placeholder="Pilih kelas yang Anda ajar"
+              onChange={(value) => setSelectedKelasId(value)}
+              loading={loading && myClasses.length === 0}
+            >
+              {myClasses.map(kelas => (
+                <Option key={kelas.id} value={kelas.id}>{kelas.nama_kelas}</Option>
+              ))}
+            </Select>
+
+            <Text strong style={{ marginLeft: 16 }}>Pilih Mata Pelajaran:</Text>
+            <Select
+              style={{ width: 250 }}
+              placeholder="Pilih mata pelajaran"
+              onChange={(value) => setSelectedPengajarId(value)}
+              disabled={!selectedKelasId || pengajarList.length === 0}
+              value={selectedPengajarId}
+              loading={loading && selectedKelasId !== null}
+            >
+              {pengajarList.map(p => (
+                <Option key={p.id} value={p.id}>{p.nama_mapel}</Option>
+              ))}
+            </Select>
+          </Space>
           
-          <Typography.Paragraph strong style={{ marginTop: 16 }}>2. Pilih Mata Pelajaran</Typography.Paragraph>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="Pilih mata pelajaran"
-            onChange={(value) => setSelectedPengajarId(value)}
-            disabled={!selectedKelasId || pengajarList.length === 0}
-            value={selectedPengajarId}
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={triggerSave}
+            loading={isSaving}
+            disabled={!selectedPengajarId}
           >
-            {pengajarList.map(p => (
-              <Option key={p.id} value={p.id}>{p.nama_mapel}</Option>
-            ))}
-          </Select>
-        </Col>
-        
-        <Col xs={24} md={16}>
-          <Card>
-            {loading ? <Spin /> :
-             selectedPengajarId && selectedKelasId ? (
-              <PenilaianPanel 
-                key={selectedPengajarId} 
-                pengajarKelasId={selectedPengajarId} 
-                kelasId={selectedKelasId}
-              />
-            ) : (
-              <Empty description="Pilih kelas dan mata pelajaran untuk memulai." style={{ paddingTop: 60, paddingBottom: 60 }} />
-            )}
-          </Card>
-        </Col>
-      </Row>
+            Simpan Perubahan
+          </Button>
+        </div>
+      </Card>
+
+      <div style={{ marginTop: 24 }}>
+        {selectedPengajarId && selectedKelasId ? (
+          <PenilaianPanel
+            ref={penilaianPanelRef}
+            key={selectedPengajarId}
+            pengajarKelasId={selectedPengajarId}
+            kelasId={selectedKelasId}
+          />
+        ) : (
+          <Empty description="Pilih kelas dan mata pelajaran untuk memulai." style={{ paddingTop: 60, paddingBottom: 60 }} />
+        )}
+      </div>
     </Card>
   );
 };
