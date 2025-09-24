@@ -146,14 +146,13 @@ export interface AnggotaKelas {
 }
 
 export interface PengajarKelas {
-  id: string; // Ini adalah ID dari tabel pengajar_kelas (UUID)
+  id: string;
   teacher_id: string;
   mata_pelajaran_id: string;
   nama_guru: string;
   nama_mapel: string;
-  kode_mapel: string; // Kita akan tambahkan ini dari join di backend nanti
+  kode_mapel: string; // <-- Pastikan ini sudah ada
 }
-
 
 export interface UpsertKelasInput {
   nama_kelas: string;
@@ -171,7 +170,6 @@ export interface UpsertPengajarKelasInput {
   mata_pelajaran_id: string;
 }
 
-// --- TIPE BARU UNTUK PEMBELAJARAN ---
 export interface TujuanPembelajaran {
   id: number;
   materi_pembelajaran_id: number;
@@ -200,7 +198,6 @@ export interface UpsertTujuanInput {
   deskripsi_tujuan: string;
   urutan?: number;
 }
-// ------------------------------------
 
 export interface SchoolProfile {
   id: number;

@@ -274,8 +274,9 @@ func (r *postgresRepository) GetAllPengajarByKelas(ctx context.Context, schemaNa
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
+	// --- PERBAIKAN DI SINI: Tambahkan mp.kode_mapel ---
 	query := `
-		SELECT pk.id, pk.teacher_id, pk.mata_pelajaran_id, t.nama_lengkap, mp.nama_mapel
+		SELECT pk.id, pk.teacher_id, pk.mata_pelajaran_id, t.nama_lengkap, mp.nama_mapel, mp.kode_mapel
 		FROM pengajar_kelas pk
 		JOIN teachers t ON pk.teacher_id = t.id
 		JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
@@ -291,7 +292,8 @@ func (r *postgresRepository) GetAllPengajarByKelas(ctx context.Context, schemaNa
 	var list []PengajarKelas
 	for rows.Next() {
 		var p PengajarKelas
-		err := rows.Scan(&p.ID, &p.TeacherID, &p.MataPelajaranID, &p.NamaGuru, &p.NamaMapel)
+		// --- PERBAIKAN DI SINI: Tambahkan &p.KodeMapel di Scan ---
+		err := rows.Scan(&p.ID, &p.TeacherID, &p.MataPelajaranID, &p.NamaGuru, &p.NamaMapel, &p.KodeMapel)
 		if err != nil {
 			return nil, err
 		}

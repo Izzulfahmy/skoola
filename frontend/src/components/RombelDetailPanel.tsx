@@ -15,7 +15,7 @@ import {
   message,
   Space,
   Badge,
-  Empty, // <-- TAMBAHKAN IMPORT INI
+  Empty,
 } from 'antd';
 import type { TableColumnsType, TransferProps } from 'antd';
 import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
@@ -186,9 +186,10 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     },
   ];
 
+  // --- PERBAIKAN DI SINI: Gunakan `p.kode_mapel` untuk label ---
   const materiTabItems = pengajar.map(p => ({
     key: p.id,
-    label: p.nama_mapel,
+    label: p.kode_mapel, // Diubah dari p.nama_mapel
     children: <MateriPembelajaranPanel pengajarKelasId={p.id} />,
   }));
 

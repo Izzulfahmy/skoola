@@ -41,6 +41,7 @@ type PengajarKelas struct {
 	CreatedAt       time.Time `json:"created_at"`
 	NamaGuru        string    `json:"nama_guru,omitempty"`  // Untuk join
 	NamaMapel       string    `json:"nama_mapel,omitempty"` // Untuk join
+	KodeMapel       string    `json:"kode_mapel,omitempty"` // <-- TAMBAHKAN INI
 }
 
 // --- DTO (Data Transfer Objects) untuk Input ---
