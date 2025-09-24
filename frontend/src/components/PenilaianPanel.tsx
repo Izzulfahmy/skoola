@@ -1,6 +1,7 @@
 // file: frontend/src/components/PenilaianPanel.tsx
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { message, Spin, Empty, Space } from 'antd';
+import { message, Spin, Empty, Space, Tooltip } from 'antd'; // <-- Impor Tooltip
+import { createRoot } from 'react-dom/client'; // <-- Impor createRoot
 import jspreadsheet from 'jspreadsheet-ce';
 import 'jspreadsheet-ce/dist/jspreadsheet.css';
 import { getAllMateriByPengajarKelas } from '../api/pembelajaran';
@@ -16,6 +17,7 @@ interface PenilaianPanelProps {
 const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pengajarKelasId, kelasId }, ref) => {
   const spreadsheetRef = useRef<HTMLDivElement>(null);
   const spreadsheetInstance = useRef<any | null>(null);
+  const tooltipRoots = useRef<any[]>([]); // Ref untuk menyimpan root tooltip
 
   const [loading, setLoading] = useState(true);
   const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
@@ -24,6 +26,13 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
   const allTpDetails = useMemo(() => {
     return materiList.flatMap(m => m.tujuan_pembelajaran);
   }, [materiList]);
+
+  // Efek untuk membersihkan tooltip roots saat komponen di-unmount
+  useEffect(() => {
+    return () => {
+      tooltipRoots.current.forEach(root => root.unmount());
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,6 +59,9 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
     if (!loading && spreadsheetRef.current && penilaianData.length > 0 && allTpDetails.length > 0) {
       if (spreadsheetInstance.current) {
         spreadsheetInstance.current.destroy();
+        // Bersihkan tooltip lama sebelum membuat yang baru
+        tooltipRoots.current.forEach(root => root.unmount());
+        tooltipRoots.current = [];
       }
 
       const nestedHeaders: any[][] = [
@@ -102,13 +114,24 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
         tableWidth: '100%',
         tableHeight: '60vh',
         defaultColAlign: 'center',
-        // --- PERBAIKAN DI SINI: `instance` adalah elemennya, bukan `instance.el` ---
-        onload: function(instance: HTMLElement) { // Beri tipe HTMLElement pada instance
+        // --- PERBAIKAN DI SINI: Gunakan `onload` untuk merender Tooltip React ---
+        onload: function(instance: HTMLElement) {
           allTpDetails.forEach((tp, index) => {
             const colIndex = index + 2;
             const headerCell = instance.querySelector(`thead tr:last-child td[data-x="${colIndex}"]`);
             if (headerCell) {
-              headerCell.setAttribute('title', tp.deskripsi_tujuan);
+              const headerText = headerCell.innerHTML;
+              const root = createRoot(headerCell);
+              tooltipRoots.current.push(root); // Simpan root untuk di-unmount nanti
+              
+              root.render(
+                <Tooltip title={tp.deskripsi_tujuan} mouseEnterDelay={0}>
+                  {/* Kita perlu wrapper div agar tooltip berfungsi baik di dalam <td> */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    {headerText}
+                  </div>
+                </Tooltip>
+              );
             }
           });
         },
