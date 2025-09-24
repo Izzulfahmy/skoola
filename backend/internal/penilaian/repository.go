@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // Repository mendefinisikan interface untuk interaksi database.
@@ -48,43 +50,48 @@ func (r *postgresRepository) GetPenilaianByTP(ctx context.Context, schemaName st
 	}
 	defer rowsSiswa.Close()
 
-	penilaianDataMap := make(map[string]*PenilaianData)
-	var siswaList []*PenilaianData
-
+	var siswaList []PenilaianData
+	anggotaKelasIDs := []string{}
 	for rowsSiswa.Next() {
 		var pd PenilaianData
 		if err := rowsSiswa.Scan(&pd.AnggotaKelasID, &pd.NamaSiswa, &pd.NIS); err != nil {
 			return nil, fmt.Errorf("gagal memindai data siswa: %w", err)
 		}
-		pd.Nilai = make(map[int]*float64)
-		penilaianDataMap[pd.AnggotaKelasID] = &pd
-		siswaList = append(siswaList, &pd)
+		pd.Nilai = make(map[int]*float64) // Inisialisasi map nilai
+		siswaList = append(siswaList, pd)
+		anggotaKelasIDs = append(anggotaKelasIDs, pd.AnggotaKelasID)
 	}
 	if err = rowsSiswa.Err(); err != nil {
 		return nil, err
 	}
-	if len(tpIDs) == 0 {
-		finalResult := make([]PenilaianData, len(siswaList))
-		for i, s := range siswaList {
-			finalResult[i] = *s
-		}
-		return &FullPenilaianData{Siswa: finalResult}, nil
+
+	// Jika tidak ada siswa atau tidak ada TP yang dipilih, kembalikan daftar siswa saja
+	if len(siswaList) == 0 || len(tpIDs) == 0 {
+		return &FullPenilaianData{Siswa: siswaList}, nil
 	}
 
-	// 2. Ambil nilai yang sudah ada untuk siswa dan TP yang dipilih
-	args := []interface{}{kelasID}
+	// 2. Buat map untuk akses cepat ke data siswa berdasarkan ID
+	siswaMap := make(map[string]*PenilaianData)
+	for i := range siswaList {
+		siswaMap[siswaList[i].AnggotaKelasID] = &siswaList[i]
+	}
+
+	// 3. Ambil nilai yang sudah ada
+	args := []interface{}{}
 	placeholders := make([]string, len(tpIDs))
 	for i, id := range tpIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args = append(args, id)
 	}
 
 	nilaiQuery := fmt.Sprintf(`
 		SELECT p.anggota_kelas_id, p.tujuan_pembelajaran_id, p.nilai, p.updated_at
 		FROM penilaian p
-		JOIN anggota_kelas ak ON p.anggota_kelas_id = ak.id
-		WHERE ak.kelas_id = $1 AND p.tujuan_pembelajaran_id IN (%s)
-	`, strings.Join(placeholders, ","))
+		WHERE p.anggota_kelas_id = ANY($%d) AND p.tujuan_pembelajaran_id IN (%s)
+	`, len(tpIDs)+1, strings.Join(placeholders, ","))
+
+	// Tambahkan slice anggotaKelasIDs ke argumen
+	args = append(args, pq.Array(anggotaKelasIDs))
 
 	rowsNilai, err := r.db.QueryContext(ctx, nilaiQuery, args...)
 	if err != nil {
@@ -101,12 +108,14 @@ func (r *postgresRepository) GetPenilaianByTP(ctx context.Context, schemaName st
 		if err := rowsNilai.Scan(&anggotaID, &tpID, &nilai, &updatedAt); err != nil {
 			return nil, fmt.Errorf("gagal memindai data nilai: %w", err)
 		}
-		if pd, ok := penilaianDataMap[anggotaID]; ok {
+
+		if siswa, ok := siswaMap[anggotaID]; ok {
 			if nilai.Valid {
 				val := nilai.Float64
-				pd.Nilai[tpID] = &val
+				siswa.Nilai[tpID] = &val
 			}
 		}
+
 		if lastUpdated == nil || updatedAt.After(*lastUpdated) {
 			lastUpdated = &updatedAt
 		}
@@ -115,12 +124,7 @@ func (r *postgresRepository) GetPenilaianByTP(ctx context.Context, schemaName st
 		return nil, err
 	}
 
-	finalResult := make([]PenilaianData, len(siswaList))
-	for i, s := range siswaList {
-		finalResult[i] = *s
-	}
-
-	return &FullPenilaianData{Siswa: finalResult, LastUpdated: lastUpdated}, nil
+	return &FullPenilaianData{Siswa: siswaList, LastUpdated: lastUpdated}, nil
 }
 
 func (r *postgresRepository) UpsertNilai(ctx context.Context, schemaName string, input BulkPenilaianInput) error {
