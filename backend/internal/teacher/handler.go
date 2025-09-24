@@ -21,7 +21,34 @@ func NewHandler(s Service) *Handler {
 	}
 }
 
-// --- FUNGSI BARU UNTUK UPDATE RIWAYAT ---
+// --- FUNGSI BARU UNTUK MENGAMBIL DETAIL GURU YANG LOGIN ---
+func (h *Handler) GetMyDetails(w http.ResponseWriter, r *http.Request) {
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		http.Error(w, "Gagal mengidentifikasi user dari token", http.StatusUnauthorized)
+		return
+	}
+
+	myDetails, err := h.service.GetMyDetails(r.Context(), schemaName, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Data detail guru tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Gagal mengambil detail data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(myDetails)
+}
+
 func (h *Handler) UpdateHistory(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {
@@ -55,7 +82,6 @@ func (h *Handler) UpdateHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Riwayat berhasil diperbarui."})
 }
 
-// --- FUNGSI BARU UNTUK DELETE RIWAYAT ---
 func (h *Handler) DeleteHistory(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {

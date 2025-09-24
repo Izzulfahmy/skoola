@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LockOutlined, UserOutlined, IdcardOutlined, CrownOutlined, BankOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, Row, Col, Typography, message, Tooltip, Alert } from 'antd'; // <-- 1. Impor Alert
+import { Button, Card, Form, Input, Row, Col, Typography, message, Tooltip, Alert } from 'antd';
 import { loginUser } from '../api/auth';
 import type { LoginInput } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,6 @@ const { Title, Text } = Typography;
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [isSuperAdminLogin, setIsSuperAdminLogin] = useState(false);
-  // --- 2. TAMBAHKAN STATE BARU UNTUK PESAN ERROR ---
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -21,13 +20,13 @@ const LoginPage = () => {
 
   const handleModeChange = () => {
     form.resetFields(); 
-    setErrorMessage(null); // Hapus pesan error saat ganti mode
+    setErrorMessage(null);
     setIsSuperAdminLogin(!isSuperAdminLogin);
   };
 
   const onFinish = async (values: any) => {
     setLoading(true);
-    setErrorMessage(null); // Hapus pesan error lama sebelum mencoba login
+    setErrorMessage(null);
     try {
       const tenantId = isSuperAdminLogin ? '' : values.tenantId;
       
@@ -43,13 +42,15 @@ const LoginPage = () => {
       message.success('Login berhasil!');
       const role = getRoleFromToken(token);
 
+      // --- PERUBAHAN LOGIKA REDIRECT DI SINI ---
       if (role === 'superadmin') {
         navigate('/superadmin');
+      } else if (role === 'teacher') {
+        navigate('/teacher/dashboard');
       } else {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      // --- 3. UBAH message.error MENJADI setState ---
       const serverErrorMessage = error.response?.data || 'Email, password, atau ID Sekolah salah.';
       setErrorMessage(serverErrorMessage);
     } finally {
@@ -79,7 +80,6 @@ const LoginPage = () => {
           </div>
 
           <Form name="login" form={form} onFinish={onFinish} layout="vertical">
-            {/* --- 4. TAMPILKAN ALERT JIKA ADA PESAN ERROR --- */}
             {errorMessage && (
               <Form.Item>
                 <Alert message={errorMessage} type="error" showIcon />

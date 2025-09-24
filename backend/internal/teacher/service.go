@@ -64,7 +64,6 @@ type CreateHistoryInput struct {
 	Keterangan     string `json:"keterangan" validate:"omitempty"`
 }
 
-// --- STRUCT BARU UNTUK UPDATE RIWAYAT ---
 type UpdateHistoryInput struct {
 	Status         string `json:"status" validate:"required,oneof=Aktif Cuti Pindah Berhenti Pensiun"`
 	TanggalMulai   string `json:"tanggal_mulai" validate:"required,datetime=2006-01-02"`
@@ -81,9 +80,10 @@ type Service interface {
 	GetAdminDetails(ctx context.Context, schemaName string) (*Teacher, error)
 	GetHistoryByTeacherID(ctx context.Context, schemaName string, teacherID string) ([]RiwayatKepegawaian, error)
 	CreateHistory(ctx context.Context, schemaName string, teacherID string, input CreateHistoryInput) error
-	// --- FUNGSI BARU ---
 	UpdateHistory(ctx context.Context, schemaName string, historyID string, input UpdateHistoryInput) error
 	DeleteHistory(ctx context.Context, schemaName string, historyID string) error
+	// --- FUNGSI BARU UNTUK GURU ---
+	GetMyDetails(ctx context.Context, schemaName string, userID string) (*Teacher, error)
 }
 
 type service struct {
@@ -100,7 +100,20 @@ func NewService(repo Repository, validate *validator.Validate, db *sql.DB) Servi
 	}
 }
 
-// --- FUNGSI BARU UNTUK UPDATE RIWAYAT ---
+// --- IMPLEMENTASI FUNGSI BARU ---
+func (s *service) GetMyDetails(ctx context.Context, schemaName string, userID string) (*Teacher, error) {
+	teacherData, err := s.repo.GetTeacherByUserID(ctx, schemaName, userID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menemukan data detail guru: %w", err)
+	}
+	if teacherData == nil {
+		return nil, sql.ErrNoRows
+	}
+	return teacherData, nil
+}
+
+// ... (sisa kode di file ini tetap sama)
+// (CreateHistory, GetHistoryByTeacherID, Create, Update, GetAdminDetails, GetAll, GetByID, Delete, stringToPtr)
 func (s *service) UpdateHistory(ctx context.Context, schemaName string, historyID string, input UpdateHistoryInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
@@ -125,14 +138,9 @@ func (s *service) UpdateHistory(ctx context.Context, schemaName string, historyI
 
 	return s.repo.UpdateHistory(ctx, schemaName, history)
 }
-
-// --- FUNGSI BARU UNTUK DELETE RIWAYAT ---
 func (s *service) DeleteHistory(ctx context.Context, schemaName string, historyID string) error {
 	return s.repo.DeleteHistory(ctx, schemaName, historyID)
 }
-
-// ... (Sisa kode tidak berubah)
-// (CreateHistory, GetHistoryByTeacherID, Create, Update, GetAdminDetails, GetAll, GetByID, Delete, stringToPtr)
 func (s *service) CreateHistory(ctx context.Context, schemaName string, teacherID string, input CreateHistoryInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("validation failed: %w", err)

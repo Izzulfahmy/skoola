@@ -173,6 +173,8 @@ func main() {
 	})
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
+		// --- RUTE BARU DITAMBAHKAN DI SINI ---
+		r.With(auth.Authorize("teacher")).Get("/me/details", teacherHandler.GetMyDetails)
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
 		r.Route("/history", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)
@@ -284,12 +286,12 @@ func main() {
 		r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
-		r.With(auth.Authorize("admin", "teacher")).Put("/materi/reorder", pembelajaranHandler.UpdateUrutanMateri) // <-- RUTE BARU DITAMBAHKAN
+		r.With(auth.Authorize("admin", "teacher")).Put("/materi/reorder", pembelajaranHandler.UpdateUrutanMateri)
 
 		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
-		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/reorder", pembelajaranHandler.UpdateUrutanTujuan) // <-- RUTE BARU DITAMBAHKAN
+		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/reorder", pembelajaranHandler.UpdateUrutanTujuan)
 	})
 
 	r.Route("/penilaian", func(r chi.Router) {

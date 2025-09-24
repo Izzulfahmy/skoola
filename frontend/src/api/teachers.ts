@@ -1,9 +1,16 @@
 // file: src/api/teachers.ts
 import apiClient from './axiosInstance';
-// --- PERBAIKAN DI SINI ---
 import type { Teacher, CreateTeacherInput, UpdateTeacherInput, RiwayatKepegawaian, CreateHistoryInput, UpdateHistoryInput } from '../types';
 
-// Tipe 'UpdateHistoryInput' dihapus dari sini
+// --- FUNGSI BARU UNTUK MENGAMBIL DETAIL GURU YANG SEDANG LOGIN ---
+export const getMyDetails = async (): Promise<Teacher> => {
+  try {
+    const response = await apiClient.get('/teachers/me/details');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
 export const getTeachers = async (): Promise<Teacher[]> => {
   try {
