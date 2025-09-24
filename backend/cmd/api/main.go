@@ -15,7 +15,8 @@ import (
 	"skoola/internal/jenjang"
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
-	"skoola/internal/pembelajaran" // <-- 1. IMPORT MODUL BARU
+	"skoola/internal/pembelajaran"
+	"skoola/internal/penilaian" // <-- 1. IMPORT MODUL BARU
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -33,7 +34,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// ... fungsi runPublicMigrations tetap sama ...
 func runPublicMigrations(db *sql.DB) error {
 	log.Println("Memeriksa dan menjalankan migrasi untuk skema public...")
 
@@ -104,6 +104,7 @@ func main() {
 	kurikulumRepo := kurikulum.NewRepository(db)
 	rombelRepo := rombel.NewRepository(db)
 	pembelajaranRepo := pembelajaran.NewRepository(db)
+	penilaianRepo := penilaian.NewRepository(db)
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
@@ -120,6 +121,7 @@ func main() {
 	kurikulumService := kurikulum.NewService(kurikulumRepo, validate)
 	rombelService := rombel.NewService(rombelRepo, validate)
 	pembelajaranService := pembelajaran.NewService(pembelajaranRepo, validate)
+	penilaianService := penilaian.NewService(penilaianRepo, validate)
 
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
@@ -137,6 +139,7 @@ func main() {
 	kurikulumHandler := kurikulum.NewHandler(kurikulumService)
 	rombelHandler := rombel.NewHandler(rombelService)
 	pembelajaranHandler := pembelajaran.NewHandler(pembelajaranService)
+	penilaianHandler := penilaian.NewHandler(penilaianService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -151,7 +154,7 @@ func main() {
 
 	r.Post("/login", authHandler.Login)
 
-	// ... rute /naungan, /tenants, /teachers, /students, /profile, dll tetap sama ...
+	// ... rute lainnya tetap sama ...
 	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
@@ -277,7 +280,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)
 	})
 
-	// --- 3. TAMBAHKAN RUTE BARU UNTUK PEMBELAJARAN ---
 	r.Route("/pembelajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/materi/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllMateriByPengajarKelas)
@@ -287,6 +289,13 @@ func main() {
 		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
+	})
+
+	// --- 3. TAMBAHKAN RUTE BARU UNTUK PENILAIAN ---
+	r.Route("/penilaian", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianHandler.GetPenilaian)
+		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianHandler.UpsertNilai)
 	})
 
 	port := os.Getenv("SERVER_PORT")

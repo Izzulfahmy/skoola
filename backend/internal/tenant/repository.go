@@ -26,7 +26,6 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-// --- FUNGSI BARU UNTUK MENGAMBIL TENANT TANPA NAUNGAN ---
 func (r *postgresRepository) GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error) {
 	query := `
 		SELECT 
@@ -96,7 +95,8 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/012_add_mata_pelajaran.sql",
 		"./db/migrations/013_add_kurikulum.sql",
 		"./db/migrations/014_add_rombel.sql",
-		"./db/migrations/015_add_pembelajaran.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
+		"./db/migrations/015_add_pembelajaran.sql",
+		"./db/migrations/016_add_penilaian.sql", // <-- TAMBAHKAN MIGRASI BARU DI SINI
 	}
 
 	for _, path := range migrationPaths {

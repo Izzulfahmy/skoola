@@ -151,7 +151,7 @@ export interface PengajarKelas {
   mata_pelajaran_id: string;
   nama_guru: string;
   nama_mapel: string;
-  kode_mapel: string; // <-- Pastikan ini sudah ada
+  kode_mapel: string;
 }
 
 export interface UpsertKelasInput {
@@ -198,6 +198,27 @@ export interface UpsertTujuanInput {
   deskripsi_tujuan: string;
   urutan?: number;
 }
+
+// --- TIPE BARU UNTUK PENILAIAN ---
+export interface PenilaianInput {
+  anggota_kelas_id: string;
+  tujuan_pembelajaran_id: number;
+  nilai: number | null;
+}
+
+export interface PenilaianData {
+  anggota_kelas_id: string;
+  nama_siswa: string;
+  nis?: string;
+  nilai: Record<number, number | null>; // { [tp_id]: nilai }
+}
+
+export interface FullPenilaianData {
+    siswa: PenilaianData[];
+    last_updated?: string;
+}
+// ------------------------------------
+
 
 export interface SchoolProfile {
   id: number;

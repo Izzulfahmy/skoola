@@ -18,6 +18,7 @@ import {
   Empty,
 } from 'antd';
 import type { TableColumnsType, TransferProps } from 'antd';
+// --- PERBAIKAN DI SINI: Hapus `EditOutlined` yang tidak terpakai ---
 import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type {
   Kelas,
@@ -39,6 +40,7 @@ import {
 import { getAvailableStudents } from '../api/students';
 import { getAllMataPelajaran } from '../api/mataPelajaran';
 import MateriPembelajaranPanel from './MateriPembelajaranPanel';
+import PenilaianPanel from './PenilaianPanel';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -186,11 +188,16 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     },
   ];
 
-  // --- PERBAIKAN DI SINI: Gunakan `p.kode_mapel` untuk label ---
-  const materiTabItems = pengajar.map(p => ({
+  const pembelajaranTabs = pengajar.map(p => ({
     key: p.id,
-    label: p.kode_mapel, // Diubah dari p.nama_mapel
+    label: p.kode_mapel,
     children: <MateriPembelajaranPanel pengajarKelasId={p.id} />,
+  }));
+
+  const penilaianTabs = pengajar.map(p => ({
+    key: p.id,
+    label: p.kode_mapel,
+    children: <PenilaianPanel pengajarKelasId={p.id} kelasId={rombel.id}/>
   }));
 
 
@@ -260,18 +267,26 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     },
     {
         key: '4',
-        label: (
-            <Space>
-                Materi Pembelajaran
-            </Space>
-        ),
+        label: "Materi Pembelajaran",
         children: pengajar.length > 0 ? (
             <Tabs 
                 tabPosition="top"
-                items={materiTabItems}
+                items={pembelajaranTabs}
             />
         ) : (
             <Empty description="Belum ada guru pengajar yang ditugaskan di kelas ini." style={{marginTop: 32}}/>
+        ),
+    },
+    {
+        key: '5',
+        label: "Penilaian",
+        children: pengajar.length > 0 ? (
+            <Tabs 
+                tabPosition="top"
+                items={penilaianTabs}
+            />
+        ) : (
+            <Empty description="Tugaskan guru pengajar terlebih dahulu untuk memulai penilaian." style={{marginTop: 32}}/>
         ),
     }
   ];
