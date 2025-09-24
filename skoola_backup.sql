@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict K1nBFUpdQrlW8jyTqTpFleikrYhDeVaKcpZiAJcuz4MkzmzDEbe6T76xNRzfsg0
+\restrict jGyXAX4serGIObNWDEOp8qu8qbrrgWf4kwcj1Ag52ye5iucMzQesCmtq4g16uQa
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -843,8 +843,8 @@ fe9de975-97d3-4205-8bda-9005a97b91c7	MTK	Matematika	2025-09-24 17:00:06.881817+0
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
-1	552bbd75-fba9-41f4-8922-dc3e1876732b	Bangun Datar	\N	0	2025-09-24 17:00:47.544519+07	2025-09-24 17:00:59.699514+07
-2	552bbd75-fba9-41f4-8922-dc3e1876732b	Bangun Ruang	\N	0	2025-09-24 17:03:37.289866+07	2025-09-24 17:03:43.457508+07
+10	552bbd75-fba9-41f4-8922-dc3e1876732b	Bangun ruang	\N	1	2025-09-25 01:07:03.316538+07	2025-09-25 01:07:12.463768+07
+11	552bbd75-fba9-41f4-8922-dc3e1876732b	Bangun datar	\N	2	2025-09-25 01:07:14.787758+07	2025-09-25 01:07:23.202572+07
 \.
 
 
@@ -871,6 +871,18 @@ COPY "20554021".pengajar_kelas (id, kelas_id, teacher_id, mata_pelajaran_id, cre
 --
 
 COPY "20554021".penilaian (id, anggota_kelas_id, tujuan_pembelajaran_id, nilai, created_at, updated_at) FROM stdin;
+43	87cde373-f259-4524-bbe8-390275603d80	19	90.00	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+44	87cde373-f259-4524-bbe8-390275603d80	20	\N	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+61	87cde373-f259-4524-bbe8-390275603d80	23	\N	2025-09-25 01:13:44.038791+07	2025-09-25 01:13:44.038791+07
+45	87cde373-f259-4524-bbe8-390275603d80	21	90.00	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+46	87cde373-f259-4524-bbe8-390275603d80	22	\N	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+64	87cde373-f259-4524-bbe8-390275603d80	24	\N	2025-09-25 01:13:44.038791+07	2025-09-25 01:13:44.038791+07
+47	4c10172a-44fc-4eb3-8895-46f5dfbc7308	19	80.00	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+48	4c10172a-44fc-4eb3-8895-46f5dfbc7308	20	\N	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+67	4c10172a-44fc-4eb3-8895-46f5dfbc7308	23	\N	2025-09-25 01:13:44.038791+07	2025-09-25 01:13:44.038791+07
+49	4c10172a-44fc-4eb3-8895-46f5dfbc7308	21	\N	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+50	4c10172a-44fc-4eb3-8895-46f5dfbc7308	22	\N	2025-09-25 01:09:01.313208+07	2025-09-25 01:13:44.038791+07
+70	4c10172a-44fc-4eb3-8895-46f5dfbc7308	24	\N	2025-09-25 01:13:44.038791+07	2025-09-25 01:13:44.038791+07
 \.
 
 
@@ -937,7 +949,7 @@ COPY "20554021".tahun_ajaran_kurikulum (tahun_ajaran_id, kurikulum_id) FROM stdi
 
 COPY "20554021".teachers (id, user_id, nama_lengkap, nip_nuptk, alamat_lengkap, no_hp, created_at, updated_at, nama_panggilan, gelar_akademik, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, provinsi, kota_kabupaten, kecamatan, desa_kelurahan, kode_pos) FROM stdin;
 95557f99-9c78-4f46-a325-5867a7f1f279	4f04bf11-0196-4697-b27a-c5b040842cc3	Admin Nurul Huda	\N	\N	\N	2025-09-24 16:59:07.539044+07	2025-09-24 16:59:07.539044+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-1a72b1ca-76ca-4a5b-aced-e51c9319a990	be393932-2d79-42eb-8b28-743e9620cb14	Fahmi	\N	\N	\N	2025-09-24 17:00:15.381295+07	2025-09-24 17:00:15.381295+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+1a72b1ca-76ca-4a5b-aced-e51c9319a990	be393932-2d79-42eb-8b28-743e9620cb14	Fahmi	\N	\N	\N	2025-09-24 17:00:15.381295+07	2025-09-25 01:27:33.275986+07	\N	S.Pd	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -960,10 +972,12 @@ COPY "20554021".tingkatan (id, nama_tingkatan, urutan, created_at, updated_at) F
 --
 
 COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujuan, urutan, created_at, updated_at) FROM stdin;
-1	1	Pengertian Bangun Datar	0	2025-09-24 17:00:49.584843+07	2025-09-24 17:01:08.90813+07
-2	1	Contoh Bangun Datar	0	2025-09-24 17:01:10.20368+07	2025-09-24 17:01:17.879333+07
-3	1	Menerapkan Bangun Datar	0	2025-09-24 17:02:09.893931+07	2025-09-24 17:02:24.224797+07
-5	2	Tujuan Bangun Ruang	0	2025-09-24 17:04:28.971172+07	2025-09-24 17:08:13.589969+07
+21	11	Penertian Bangun Datar	1	2025-09-25 01:07:41.954626+07	2025-09-25 01:07:50.591874+07
+22	11	Rumus Bangun Datar	2	2025-09-25 01:07:52.010967+07	2025-09-25 01:07:58.434694+07
+19	10	Pengertian Bangun Ruang	1	2025-09-25 01:07:24.967225+07	2025-09-25 01:08:08.383343+07
+20	10	Rumus Bangun Ruang	2	2025-09-25 01:07:34.473506+07	2025-09-25 01:08:15.473878+07
+23	10	Permasalahan Bangun Ruang	3	2025-09-25 01:12:21.040034+07	2025-09-25 01:12:32.740647+07
+24	11	Permasalahan Bangun Datar	3	2025-09-25 01:12:54.777862+07	2025-09-25 01:13:07.211817+07
 \.
 
 
@@ -1036,14 +1050,14 @@ SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 1, true);
 -- Name: materi_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 2, true);
+SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 11, true);
 
 
 --
 -- Name: penilaian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".penilaian_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".penilaian_id_seq', 70, true);
 
 
 --
@@ -1057,7 +1071,7 @@ SELECT pg_catalog.setval('"20554021".tingkatan_id_seq', 6, true);
 -- Name: tujuan_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 5, true);
+SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 24, true);
 
 
 --
@@ -1661,5 +1675,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict K1nBFUpdQrlW8jyTqTpFleikrYhDeVaKcpZiAJcuz4MkzmzDEbe6T76xNRzfsg0
+\unrestrict jGyXAX4serGIObNWDEOp8qu8qbrrgWf4kwcj1Ag52ye5iucMzQesCmtq4g16uQa
 
