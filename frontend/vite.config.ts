@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     // Tambahkan URL ngrok Anda ke dalam daftar host yang diizinkan
     allowedHosts: [
-      '4e6f7127a17c.ngrok-free.app'
+      '1ad60cfe8fe7.ngrok-free.app'
     ],
     proxy: {
       '/api': {

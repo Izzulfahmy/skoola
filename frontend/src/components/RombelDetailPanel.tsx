@@ -13,8 +13,9 @@ import {
   Select,
   Popconfirm,
   message,
-  Space,      // <-- 1. Impor Space
-  Badge,      // <-- 1. Impor Badge
+  Space,
+  Badge,
+  Empty, // <-- TAMBAHKAN IMPORT INI
 } from 'antd';
 import type { TableColumnsType, TransferProps } from 'antd';
 import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
@@ -37,6 +38,7 @@ import {
 } from '../api/rombel';
 import { getAvailableStudents } from '../api/students';
 import { getAllMataPelajaran } from '../api/mataPelajaran';
+import MateriPembelajaranPanel from './MateriPembelajaranPanel';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -49,7 +51,6 @@ interface RombelDetailPanelProps {
 }
 
 const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailPanelProps) => {
-  // ... state dan fungsi-fungsi lainnya tetap sama ...
   const [anggota, setAnggota] = useState<AnggotaKelas[]>([]);
   const [pengajar, setPengajar] = useState<PengajarKelas[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,6 +168,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
         message.error("Gagal menghapus tugas guru.");
     }
   };
+  
   const pengajarColumns: TableColumnsType<PengajarKelas> = [
     { title: 'Mata Pelajaran', dataIndex: 'nama_mapel', key: 'nama_mapel' },
     { title: 'Nama Guru', dataIndex: 'nama_guru', key: 'nama_guru' },
@@ -184,8 +186,14 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     },
   ];
 
-  // --- PERBAIKAN 2: Ubah label Tab menjadi JSX dengan Badge ---
-  const tabItems = [
+  const materiTabItems = pengajar.map(p => ({
+    key: p.id,
+    label: p.nama_mapel,
+    children: <MateriPembelajaranPanel pengajarKelasId={p.id} />,
+  }));
+
+
+  const mainTabItems = [
     {
       key: '1',
       label: 'Detail Rombel',
@@ -249,6 +257,22 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
         </>
       ),
     },
+    {
+        key: '4',
+        label: (
+            <Space>
+                Materi Pembelajaran
+            </Space>
+        ),
+        children: pengajar.length > 0 ? (
+            <Tabs 
+                tabPosition="top"
+                items={materiTabItems}
+            />
+        ) : (
+            <Empty description="Belum ada guru pengajar yang ditugaskan di kelas ini." style={{marginTop: 32}}/>
+        ),
+    }
   ];
 
   return (
@@ -267,7 +291,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
       </Title>
       <Text type="secondary">{rombel.nama_tingkatan}</Text>
       
-      <Tabs defaultActiveKey="1" items={tabItems} style={{ marginTop: 16 }} />
+      <Tabs defaultActiveKey="1" items={mainTabItems} style={{ marginTop: 16 }} />
 
       <Modal
         title="Tambah Siswa ke Rombel"

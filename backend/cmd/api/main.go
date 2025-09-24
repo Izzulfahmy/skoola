@@ -15,6 +15,7 @@ import (
 	"skoola/internal/jenjang"
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
+	"skoola/internal/pembelajaran" // <-- 1. IMPORT MODUL BARU
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -58,7 +59,6 @@ func runPublicMigrations(db *sql.DB) error {
 }
 
 func main() {
-	// ... inisialisasi db, jwt, repo, service, handler tetap sama ...
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: Gagal memuat file .env.")
@@ -89,6 +89,7 @@ func main() {
 
 	validate := validator.New()
 
+	// --- 2. INISIALISASI REPO, SERVICE, HANDLER BARU ---
 	naunganRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
@@ -102,6 +103,7 @@ func main() {
 	mataPelajaranRepo := matapelajaran.NewRepository(db)
 	kurikulumRepo := kurikulum.NewRepository(db)
 	rombelRepo := rombel.NewRepository(db)
+	pembelajaranRepo := pembelajaran.NewRepository(db)
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
@@ -117,6 +119,7 @@ func main() {
 	mataPelajaranService := matapelajaran.NewService(mataPelajaranRepo, validate)
 	kurikulumService := kurikulum.NewService(kurikulumRepo, validate)
 	rombelService := rombel.NewService(rombelRepo, validate)
+	pembelajaranService := pembelajaran.NewService(pembelajaranRepo, validate)
 
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
@@ -133,6 +136,7 @@ func main() {
 	mataPelajaranHandler := matapelajaran.NewHandler(mataPelajaranService)
 	kurikulumHandler := kurikulum.NewHandler(kurikulumService)
 	rombelHandler := rombel.NewHandler(rombelService)
+	pembelajaranHandler := pembelajaran.NewHandler(pembelajaranService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -146,6 +150,8 @@ func main() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Post("/login", authHandler.Login)
+
+	// ... rute /naungan, /tenants, /teachers, /students, /profile, dll tetap sama ...
 	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
@@ -182,7 +188,6 @@ func main() {
 
 	r.Route("/students", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		// --- TAMBAHKAN RUTE BARU DI SINI ---
 		r.With(auth.Authorize("admin")).Get("/available", studentHandler.GetAvailableStudents)
 
 		r.Route("/history", func(r chi.Router) {
@@ -197,8 +202,6 @@ func main() {
 		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
 	})
-
-	// ... sisa rute tetap sama ...
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
@@ -272,6 +275,18 @@ func main() {
 		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/pengajar", rombelHandler.GetAllPengajarByKelas)
 		r.With(auth.Authorize("admin")).Post("/{kelasID}/pengajar", rombelHandler.CreatePengajarKelas)
 		r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)
+	})
+
+	// --- 3. TAMBAHKAN RUTE BARU UNTUK PEMBELAJARAN ---
+	r.Route("/pembelajaran", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin", "teacher")).Get("/materi/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllMateriByPengajarKelas)
+		r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
+		r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
+		r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
+		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
+		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
+		r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
 	})
 
 	port := os.Getenv("SERVER_PORT")

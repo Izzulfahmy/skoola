@@ -86,7 +86,6 @@ export interface UpsertMataPelajaranInput {
   nama_mapel: string;
 }
 
-// --- TIPE LAMA UNTUK KURIKULUM & FASE (TETAP SAMA) ---
 export interface Kurikulum {
   id: number;
   nama_kurikulum: string;
@@ -121,7 +120,6 @@ export interface UpsertFaseInput {
     deskripsi?: string;
 }
 
-// --- TIPE BARU UNTUK ROMBEL ---
 export interface Kelas {
   id: string;
   nama_kelas: string;
@@ -148,12 +146,14 @@ export interface AnggotaKelas {
 }
 
 export interface PengajarKelas {
-  id: string;
+  id: string; // Ini adalah ID dari tabel pengajar_kelas (UUID)
   teacher_id: string;
   mata_pelajaran_id: string;
   nama_guru: string;
   nama_mapel: string;
+  kode_mapel: string; // Kita akan tambahkan ini dari join di backend nanti
 }
+
 
 export interface UpsertKelasInput {
   nama_kelas: string;
@@ -169,6 +169,36 @@ export interface AddAnggotaKelasInput {
 export interface UpsertPengajarKelasInput {
   teacher_id: string;
   mata_pelajaran_id: string;
+}
+
+// --- TIPE BARU UNTUK PEMBELAJARAN ---
+export interface TujuanPembelajaran {
+  id: number;
+  materi_pembelajaran_id: number;
+  deskripsi_tujuan: string;
+  urutan: number;
+}
+
+export interface MateriPembelajaran {
+  id: number;
+  pengajar_kelas_id: string;
+  nama_materi: string;
+  deskripsi?: string;
+  urutan: number;
+  tujuan_pembelajaran: TujuanPembelajaran[];
+}
+
+export interface UpsertMateriInput {
+  pengajar_kelas_id: string;
+  nama_materi: string;
+  deskripsi?: string;
+  urutan?: number;
+}
+
+export interface UpsertTujuanInput {
+  materi_pembelajaran_id: number;
+  deskripsi_tujuan: string;
+  urutan?: number;
 }
 // ------------------------------------
 
@@ -292,12 +322,10 @@ export interface Student {
   nama_wali?: string;
   nomor_kontak_wali?: string;
 
-  // Kolom baru dari backend query
   status_saat_ini?: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
 }
 
 export interface CreateStudentInput {
-  // status_siswa tidak lagi di sini, karena diatur oleh riwayat
   nis?: string;
   nisn?: string;
   nomor_ujian_sekolah?: string;
@@ -322,8 +350,6 @@ export interface CreateStudentInput {
 
 export type UpdateStudentInput = CreateStudentInput;
 
-
-// --- TIPE BARU UNTUK RIWAYAT AKADEMIK ---
 export interface RiwayatAkademik {
   id: string;
   student_id: string;
