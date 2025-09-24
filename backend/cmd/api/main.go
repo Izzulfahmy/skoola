@@ -107,7 +107,8 @@ func main() {
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
-	teacherService := teacher.NewService(teacherRepo, validate, db)
+	// --- MODIFIKASI DI SINI ---
+	teacherService := teacher.NewService(teacherRepo, tahunAjaranRepo, validate, db)
 	studentService := student.NewService(studentRepo, studentHistoryRepo, validate, db)
 	studentHistoryService := student.NewHistoryService(studentHistoryRepo, validate)
 	tenantService := tenant.NewService(tenantRepo, teacherRepo, validate, db)
@@ -173,8 +174,9 @@ func main() {
 	})
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		// --- RUTE BARU DITAMBAHKAN DI SINI ---
 		r.With(auth.Authorize("teacher")).Get("/me/details", teacherHandler.GetMyDetails)
+		// --- RUTE BARU DITAMBAHKAN DI SINI ---
+		r.With(auth.Authorize("teacher")).Get("/me/classes", teacherHandler.GetMyKelas)
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
 		r.Route("/history", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)

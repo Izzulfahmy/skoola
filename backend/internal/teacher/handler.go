@@ -21,7 +21,30 @@ func NewHandler(s Service) *Handler {
 	}
 }
 
-// --- FUNGSI BARU UNTUK MENGAMBIL DETAIL GURU YANG LOGIN ---
+// --- HANDLER BARU ---
+func (h *Handler) GetMyKelas(w http.ResponseWriter, r *http.Request) {
+	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
+	if !ok || schemaName == "" {
+		http.Error(w, "Gagal mengidentifikasi tenant dari token", http.StatusUnauthorized)
+		return
+	}
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		http.Error(w, "Gagal mengidentifikasi user dari token", http.StatusUnauthorized)
+		return
+	}
+
+	kelasList, err := h.service.GetMyKelas(r.Context(), schemaName, userID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data kelas: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(kelasList)
+}
+
 func (h *Handler) GetMyDetails(w http.ResponseWriter, r *http.Request) {
 	schemaName, ok := r.Context().Value(middleware.SchemaNameKey).(string)
 	if !ok || schemaName == "" {

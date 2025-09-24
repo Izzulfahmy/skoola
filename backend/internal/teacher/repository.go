@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"skoola/internal/rombel" // <-- Impor paket rombel
 )
 
 type Querier interface {
@@ -27,9 +28,10 @@ type Repository interface {
 	UpdateUserPassword(ctx context.Context, schemaName string, userID string, hashedPassword string) error
 	GetHistoryByTeacherID(ctx context.Context, schemaName string, teacherID string) ([]RiwayatKepegawaian, error)
 	CreateHistory(ctx context.Context, schemaName string, history *RiwayatKepegawaian) error
-	// --- FUNGSI BARU ---
 	UpdateHistory(ctx context.Context, schemaName string, history *RiwayatKepegawaian) error
 	DeleteHistory(ctx context.Context, schemaName string, historyID string) error
+	// --- FUNGSI BARU ---
+	GetKelasByTeacherID(ctx context.Context, schemaName string, teacherID string, tahunAjaranID string) ([]rombel.Kelas, error)
 }
 
 type postgresRepository struct {
@@ -42,7 +44,55 @@ func NewRepository(db *sql.DB) Repository {
 	}
 }
 
-// --- FUNGSI BARU UNTUK UPDATE RIWAYAT ---
+// --- IMPLEMENTASI FUNGSI BARU ---
+func (r *postgresRepository) GetKelasByTeacherID(ctx context.Context, schemaName string, teacherID string, tahunAjaranID string) ([]rombel.Kelas, error) {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+	query := `
+		SELECT
+			k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
+			k.created_at, k.updated_at,
+			t.nama_tingkatan,
+			guru.nama_lengkap as nama_wali_kelas,
+			ta.nama_tahun_ajaran,
+			ta.semester,
+			(SELECT COUNT(*) FROM anggota_kelas ak WHERE ak.kelas_id = k.id) as jumlah_siswa,
+			(SELECT COUNT(DISTINCT pk.teacher_id) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
+		FROM kelas k
+		JOIN pengajar_kelas pk ON k.id = pk.kelas_id
+		LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
+		LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
+		LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
+		WHERE pk.teacher_id = $1 AND k.tahun_ajaran_id = $2
+		ORDER BY t.urutan, k.nama_kelas
+	`
+	rows, err := r.db.QueryContext(ctx, query, teacherID, tahunAjaranID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []rombel.Kelas
+	for rows.Next() {
+		var k rombel.Kelas
+		err := rows.Scan(
+			&k.ID, &k.NamaKelas, &k.TahunAjaranID, &k.TingkatanID, &k.WaliKelasID,
+			&k.CreatedAt, &k.UpdatedAt,
+			&k.NamaTingkatan, &k.NamaWaliKelas,
+			&k.NamaTahunAjaran, &k.Semester,
+			&k.JumlahSiswa,
+			&k.JumlahPengajar,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, k)
+	}
+	return list, nil
+}
+
 func (r *postgresRepository) UpdateHistory(ctx context.Context, schemaName string, history *RiwayatKepegawaian) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -74,7 +124,6 @@ func (r *postgresRepository) UpdateHistory(ctx context.Context, schemaName strin
 	return nil
 }
 
-// --- FUNGSI BARU UNTUK DELETE RIWAYAT ---
 func (r *postgresRepository) DeleteHistory(ctx context.Context, schemaName string, historyID string) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -96,7 +145,7 @@ func (r *postgresRepository) DeleteHistory(ctx context.Context, schemaName strin
 	return nil
 }
 
-// ... (Sisa kode di file ini tidak berubah)
+// ... (sisa kode di file ini tetap sama)
 // ... (CreateHistory, GetHistoryByTeacherID, Create, GetAll, dll...)
 func (r *postgresRepository) CreateHistory(ctx context.Context, schemaName string, history *RiwayatKepegawaian) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)

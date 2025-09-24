@@ -6,7 +6,10 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   UserOutlined,
-  IdcardOutlined, // <-- Impor ikon baru
+  IdcardOutlined,
+  ApartmentOutlined, // <-- Impor ikon baru
+  BookOutlined,       // <-- Impor ikon baru
+  EditOutlined,       // <-- Impor ikon baru
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
 import type { MenuProps } from 'antd';
@@ -23,7 +26,7 @@ const TeacherLayout = () => {
   
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation(); // <-- location diaktifkan kembali
+  const location = useLocation();
 
   const { token } = theme.useToken();
 
@@ -50,13 +53,15 @@ const TeacherLayout = () => {
     },
   ];
 
-  // --- MENU BARU DITAMBAHKAN DI SINI ---
   const allMenuItems: MenuProps['items'] = [
     { key: '/teacher/dashboard', icon: <DesktopOutlined />, label: <Link to="/teacher/dashboard">Dashboard</Link> },
     { key: '/teacher/biodata', icon: <IdcardOutlined />, label: <Link to="/teacher/biodata">Biodata</Link> },
+    { type: 'divider' },
+    { key: '/teacher/my-classes', icon: <ApartmentOutlined />, label: <Link to="/teacher/my-classes">Kelas Saya</Link> },
+    { key: '/teacher/materials', icon: <BookOutlined />, label: <Link to="/teacher/materials">Materi Ajar</Link> },
+    { key: '/teacher/assessments', icon: <EditOutlined />, label: <Link to="/teacher/assessments">Penilaian Siswa</Link> },
   ];
   
-  // --- LOGIKA ACTIVE KEY DIPERBARUI ---
   const validMenuItems = allMenuItems.filter(
     (item): item is { key: string; icon: React.ReactNode; label: React.ReactNode; } => 
       item !== null && typeof item === 'object' && 'key' in item && typeof item.key === 'string'
@@ -93,7 +98,6 @@ const TeacherLayout = () => {
     <ConfigProvider
       theme={{
         token: {
-          // --- WARNA HIJAU TUA UNTUK PANEL GURU ---
           colorPrimary: '#389e0d',
         },
         components: {

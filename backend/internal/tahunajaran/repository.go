@@ -15,6 +15,8 @@ type Repository interface {
 	Update(ctx context.Context, schemaName string, ta *TahunAjaran) error
 	Delete(ctx context.Context, schemaName string, id string) error
 	DeactivateAllOthers(ctx context.Context, tx *sql.Tx, schemaName string, currentID string) error
+	// --- FUNGSI BARU ---
+	GetActiveTahunAjaranID(ctx context.Context, schemaName string) (string, error)
 }
 
 type postgresRepository struct {
@@ -24,6 +26,25 @@ type postgresRepository struct {
 // NewRepository membuat instance baru dari postgresRepository.
 func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
+}
+
+// --- IMPLEMENTASI FUNGSI BARU ---
+func (r *postgresRepository) GetActiveTahunAjaranID(ctx context.Context, schemaName string) (string, error) {
+	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
+	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
+		return "", fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+
+	var id string
+	query := `SELECT id FROM tahun_ajaran WHERE status = 'Aktif' LIMIT 1`
+	err := r.db.QueryRowContext(ctx, query).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil // Tidak ada yang aktif, bukan error
+		}
+		return "", err
+	}
+	return id, nil
 }
 
 const selectQuery = `

@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"skoola/internal/rombel"      // <-- Impor paket rombel
+	"skoola/internal/tahunajaran" // <-- Impor paket tahunajaran
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -82,25 +84,49 @@ type Service interface {
 	CreateHistory(ctx context.Context, schemaName string, teacherID string, input CreateHistoryInput) error
 	UpdateHistory(ctx context.Context, schemaName string, historyID string, input UpdateHistoryInput) error
 	DeleteHistory(ctx context.Context, schemaName string, historyID string) error
-	// --- FUNGSI BARU UNTUK GURU ---
 	GetMyDetails(ctx context.Context, schemaName string, userID string) (*Teacher, error)
+	// --- FUNGSI BARU ---
+	GetMyKelas(ctx context.Context, schemaName string, userID string) ([]rombel.Kelas, error)
 }
 
 type service struct {
-	repo     Repository
-	validate *validator.Validate
-	db       *sql.DB
+	repo            Repository
+	tahunAjaranRepo tahunajaran.Repository // <-- Tambahkan repo tahun ajaran
+	validate        *validator.Validate
+	db              *sql.DB
 }
 
-func NewService(repo Repository, validate *validator.Validate, db *sql.DB) Service {
+func NewService(repo Repository, tahunAjaranRepo tahunajaran.Repository, validate *validator.Validate, db *sql.DB) Service {
 	return &service{
-		repo:     repo,
-		validate: validate,
-		db:       db,
+		repo:            repo,
+		tahunAjaranRepo: tahunAjaranRepo, // <-- Tambahkan ini
+		validate:        validate,
+		db:              db,
 	}
 }
 
 // --- IMPLEMENTASI FUNGSI BARU ---
+func (s *service) GetMyKelas(ctx context.Context, schemaName string, userID string) ([]rombel.Kelas, error) {
+	// 1. Dapatkan data guru berdasarkan userID dari token
+	teacherData, err := s.repo.GetTeacherByUserID(ctx, schemaName, userID)
+	if err != nil || teacherData == nil {
+		return nil, fmt.Errorf("data guru tidak ditemukan: %w", err)
+	}
+
+	// 2. Dapatkan tahun ajaran yang aktif
+	activeTahunAjaranID, err := s.tahunAjaranRepo.GetActiveTahunAjaranID(ctx, schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan tahun ajaran aktif: %w", err)
+	}
+	if activeTahunAjaranID == "" {
+		// Jika tidak ada tahun ajaran aktif, kembalikan slice kosong
+		return []rombel.Kelas{}, nil
+	}
+
+	// 3. Panggil repository untuk mendapatkan kelas
+	return s.repo.GetKelasByTeacherID(ctx, schemaName, teacherData.ID, activeTahunAjaranID)
+}
+
 func (s *service) GetMyDetails(ctx context.Context, schemaName string, userID string) (*Teacher, error) {
 	teacherData, err := s.repo.GetTeacherByUserID(ctx, schemaName, userID)
 	if err != nil {

@@ -21,8 +21,11 @@ import ManajemenNaunganPage from './pages/superadmin/ManajemenNaunganPage';
 
 import TeacherLayout from './layouts/TeacherLayout';
 import TeacherDashboardPage from './pages/teacher/TeacherDashboardPage';
-// --- IMPOR HALAMAN BIODATA BARU ---
 import TeacherBiodataPage from './pages/teacher/TeacherBiodataPage';
+// --- IMPOR HALAMAN BARU ---
+import KelasSayaPage from './pages/teacher/KelasSayaPage';
+import MateriAjarPage from './pages/teacher/MateriAjarPage';
+import PenilaianPage from './pages/teacher/PenilaianPage';
 
 function App() {
   return (
@@ -41,6 +44,7 @@ function App() {
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="rombel" element={<RombelPage />} />
+          <Route path="rombel/:kelasId" element={<RombelPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
@@ -48,8 +52,11 @@ function App() {
         <Route path="/teacher" element={<ProtectedRoute><TeacherLayout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboardPage />} />
-          {/* --- TAMBAHKAN RUTE BIODATA DI SINI --- */}
           <Route path="biodata" element={<TeacherBiodataPage />} />
+          {/* --- TAMBAHKAN RUTE BARU DI SINI --- */}
+          <Route path="my-classes" element={<KelasSayaPage />} />
+          <Route path="materials" element={<MateriAjarPage />} />
+          <Route path="assessments" element={<PenilaianPage />} />
         </Route>
 
         {/* Rute Superadmin */}
