@@ -16,7 +16,7 @@ import (
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
 	"skoola/internal/pembelajaran"
-	"skoola/internal/penilaian" // <-- 1. IMPORT MODUL BARU
+	"skoola/internal/penilaian"
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -89,7 +89,6 @@ func main() {
 
 	validate := validator.New()
 
-	// --- 2. INISIALISASI REPO, SERVICE, HANDLER BARU ---
 	naunganRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
@@ -154,7 +153,6 @@ func main() {
 
 	r.Post("/login", authHandler.Login)
 
-	// ... rute lainnya tetap sama ...
 	r.Route("/naungan", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
@@ -286,12 +284,14 @@ func main() {
 		r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
+		r.With(auth.Authorize("admin", "teacher")).Put("/materi/reorder", pembelajaranHandler.UpdateUrutanMateri) // <-- RUTE BARU DITAMBAHKAN
+
 		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
+		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/reorder", pembelajaranHandler.UpdateUrutanTujuan) // <-- RUTE BARU DITAMBAHKAN
 	})
 
-	// --- 3. TAMBAHKAN RUTE BARU UNTUK PENILAIAN ---
 	r.Route("/penilaian", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianHandler.GetPenilaian)

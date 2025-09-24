@@ -5,6 +5,7 @@ import type {
   TujuanPembelajaran,
   UpsertMateriInput,
   UpsertTujuanInput,
+  UpdateUrutanInput, // <-- Impor tipe baru
 } from '../types';
 
 // --- API untuk Materi Pembelajaran ---
@@ -43,6 +44,15 @@ export const deleteMateri = async (materiID: number): Promise<void> => {
   }
 };
 
+// --- FUNGSI BARU UNTUK UPDATE URUTAN MATERI ---
+export const updateUrutanMateri = async (data: UpdateUrutanInput): Promise<void> => {
+    try {
+      await apiClient.put('/pembelajaran/materi/reorder', data);
+    } catch (error) {
+      throw error;
+    }
+};
+
 
 // --- API untuk Tujuan Pembelajaran ---
 
@@ -70,3 +80,12 @@ export const createTujuan = async (data: UpsertTujuanInput): Promise<TujuanPembe
       throw error;
     }
   };
+
+// --- FUNGSI BARU UNTUK UPDATE URUTAN TUJUAN ---
+export const updateUrutanTujuan = async (data: UpdateUrutanInput): Promise<void> => {
+    try {
+        await apiClient.put('/pembelajaran/tujuan/reorder', data);
+    } catch (error) {
+        throw error;
+    }
+};

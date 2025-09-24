@@ -18,8 +18,36 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-// --- Materi Handlers ---
+// --- HANDLER BARU ---
+func (h *Handler) UpdateUrutanMateri(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpdateUrutanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+	if err := h.service.UpdateUrutanMateri(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal memperbarui urutan materi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
+func (h *Handler) UpdateUrutanTujuan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpdateUrutanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+	if err := h.service.UpdateUrutanTujuan(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal memperbarui urutan tujuan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Sisa file handler.go tetap sama
 func (h *Handler) CreateMateri(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	var input UpsertMateriInput
@@ -79,8 +107,6 @@ func (h *Handler) DeleteMateri(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
-// --- Tujuan Pembelajaran Handlers ---
 
 func (h *Handler) CreateTujuan(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)

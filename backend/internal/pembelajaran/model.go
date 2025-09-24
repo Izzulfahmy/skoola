@@ -42,3 +42,8 @@ type UpsertTujuanInput struct {
 	DeskripsiTujuan      string `json:"deskripsi_tujuan" validate:"required,min=3"`
 	Urutan               int    `json:"urutan" validate:"omitempty,numeric"`
 }
+
+// --- DTO BARU UNTUK UPDATE URUTAN ---
+type UpdateUrutanInput struct {
+	OrderedIDs []int `json:"ordered_ids" validate:"required,dive,numeric"`
+}

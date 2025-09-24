@@ -18,11 +18,13 @@ type Service interface {
 	GetAllMateriByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasID string) ([]MateriPembelajaran, error)
 	UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error
 	DeleteMateri(ctx context.Context, schemaName string, id int) error
+	UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error // <-- TAMBAHKAN INI
 
 	// Tujuan Pembelajaran
 	CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error)
 	UpdateTujuan(ctx context.Context, schemaName string, id int, input UpsertTujuanInput) error
 	DeleteTujuan(ctx context.Context, schemaName string, id int) error
+	UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error // <-- TAMBAHKAN INI
 }
 
 type service struct {
@@ -35,7 +37,22 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
-// === Materi Service ===
+// --- FUNGSI SERVICE BARU ---
+func (s *service) UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateUrutanMateri(ctx, schemaName, input.OrderedIDs)
+}
+
+func (s *service) UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateUrutanTujuan(ctx, schemaName, input.OrderedIDs)
+}
+
+// Sisa file service.go tetap sama
 func (s *service) CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
@@ -58,7 +75,6 @@ func (s *service) DeleteMateri(ctx context.Context, schemaName string, id int) e
 	return s.repo.DeleteMateri(ctx, schemaName, id)
 }
 
-// === Tujuan Pembelajaran Service ===
 func (s *service) CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())

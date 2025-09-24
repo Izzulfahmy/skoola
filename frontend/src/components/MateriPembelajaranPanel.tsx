@@ -1,7 +1,7 @@
 // file: frontend/src/components/MateriPembelajaranPanel.tsx
 import { useState, useEffect } from 'react';
 import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space } from 'antd';
-import type { TreeDataNode } from 'antd';
+import type { TreeDataNode, TreeProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import {
   getAllMateriByPengajarKelas,
@@ -11,8 +11,11 @@ import {
   createTujuan,
   updateTujuan,
   deleteTujuan,
+  updateUrutanMateri,
+  updateUrutanTujuan,
 } from '../api/pembelajaran';
 import type { MateriPembelajaran, TujuanPembelajaran } from '../types';
+import type { Key } from 'react';
 
 const { TextArea } = Input;
 
@@ -23,6 +26,17 @@ interface MateriPembelajaranPanelProps {
 type EditableNode = {
     key: string;
     value: string;
+};
+
+// Fungsi bantuan untuk mem-parsing key
+const parseKey = (key: Key): { type: string; id: number; parentId?: number } => {
+    const keyStr = String(key);
+    const parts = keyStr.split('-');
+    return {
+        type: parts[0],
+        id: parseInt(parts[1], 10),
+        parentId: parts.length > 2 ? parseInt(parts[2], 10) : undefined,
+    };
 };
 
 const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelProps) => {
@@ -69,8 +83,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const handleSave = async () => {
     if (!editableNode) return;
     const { key, value } = editableNode;
-    const [type, idStr] = key.split('-');
-    const id = parseInt(idStr, 10);
+    const { type, id } = parseKey(key);
 
     try {
         if (type === 'materi') {
@@ -79,17 +92,10 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 await updateMateri(id, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id, deskripsi: materi.deskripsi || undefined, urutan: materi.urutan });
             }
         } else if (type === 'tp') {
-            let tp: TujuanPembelajaran | undefined;
-            let materiId: number | undefined;
-            for (const m of materiList) {
-                tp = m.tujuan_pembelajaran.find(t => t.id === id);
-                if (tp) {
-                    materiId = m.id;
-                    break;
-                }
-            }
-            if (tp && materiId) {
-                await updateTujuan(id, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: materiId, urutan: tp.urutan });
+            const { parentId } = parseKey(key);
+            const tp = materiList.flatMap(m => m.tujuan_pembelajaran).find(t => t.id === id);
+            if (tp && parentId) {
+                await updateTujuan(id, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: parentId });
             }
         }
         message.success("Perubahan berhasil disimpan.");
@@ -102,8 +108,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
 
 
   const handleDelete = async (key: string) => {
-    const [type, idStr] = key.split('-');
-    const id = parseInt(idStr, 10);
+    const { type, id } = parseKey(key);
     try {
       if (type === 'materi') {
         await deleteMateri(id);
@@ -116,6 +121,65 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       message.error("Gagal menghapus data.");
     }
   };
+
+  const onDrop: TreeProps['onDrop'] = (info) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const dropPos = info.node.pos.split('-');
+    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
+
+    const dragNodeData = parseKey(dragKey);
+    const dropNodeData = parseKey(dropKey);
+
+    if (dragNodeData.type !== dropNodeData.type) return;
+
+    if (dragNodeData.type === 'materi') {
+        const data = [...materiList];
+        let dragObj: MateriPembelajaran;
+        const fromIndex = data.findIndex(item => item.id === dragNodeData.id);
+        if (fromIndex === -1) return;
+        [dragObj] = data.splice(fromIndex, 1);
+
+        let toIndex = data.findIndex(item => item.id === dropNodeData.id);
+        if (info.dropToGap) {
+            if (dropPosition >= 0) toIndex++;
+        }
+        data.splice(toIndex, 0, dragObj!);
+        
+        setMateriList(data);
+        
+        const orderedIDs = data.map(item => item.id);
+        updateUrutanMateri({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan materi."));
+
+    } else if (dragNodeData.type === 'tp') {
+        if(dragNodeData.parentId !== dropNodeData.parentId) return;
+        const parentId = dragNodeData.parentId;
+        if (!parentId) return;
+
+        const data = [...materiList];
+        const materiIndex = data.findIndex(m => m.id === parentId);
+        if (materiIndex === -1) return;
+
+        let tpList = [...data[materiIndex].tujuan_pembelajaran];
+        let dragObj: TujuanPembelajaran;
+        const fromIndex = tpList.findIndex(item => item.id === dragNodeData.id);
+        if (fromIndex === -1) return;
+        [dragObj] = tpList.splice(fromIndex, 1);
+
+        let toIndex = tpList.findIndex(item => item.id === dropNodeData.id);
+        if (info.dropToGap) {
+            if (dropPosition >= 0) toIndex++;
+        }
+        tpList.splice(toIndex, 0, dragObj!);
+
+        data[materiIndex].tujuan_pembelajaran = tpList;
+        setMateriList(data);
+
+        const orderedIDs = tpList.map(item => item.id);
+        updateUrutanTujuan({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan tujuan."));
+    }
+};
+
 
   const generateTreeData = (): TreeDataNode[] => {
     return materiList.map(materi => {
@@ -146,7 +210,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                         <Space>
                             <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(materi.id)} size="small" type="text" />
                             <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key, value: materi.nama_materi })} size="small" type="text" />
-                            <Popconfirm title="Yakin ingin menghapus materi ini beserta semua tujuannya?" onConfirm={() => handleDelete(key)}>
+                            <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}>
                                 <Button icon={<DeleteOutlined />} size="small" type="text" danger />
                             </Popconfirm>
                         </Space>
@@ -154,7 +218,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 </div>
             ),
             children: materi.tujuan_pembelajaran.map(tp => {
-                const tpKey = `tp-${tp.id}`;
+                const tpKey = `tp-${tp.id}-${materi.id}`;
                 const isEditingTP = editableNode?.key === tpKey;
                 return {
                     key: tpKey,
@@ -181,7 +245,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                             ) : (
                                 <Space>
                                     <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
-                                    <Popconfirm title="Yakin ingin menghapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
+                                    <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
                                         <Button icon={<DeleteOutlined />} size="small" type="text" danger />
                                     </Popconfirm>
                                 </Space>
@@ -204,8 +268,11 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       </Button>
       {materiList.length > 0 ? (
         <Tree
-          treeData={generateTreeData()}
+          showLine // <-- PERUBAHAN DI SINI
+          draggable={{ icon: false }}
           blockNode
+          onDrop={onDrop}
+          treeData={generateTreeData()}
           defaultExpandAll
         />
       ) : (

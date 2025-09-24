@@ -199,6 +199,12 @@ export interface UpsertTujuanInput {
   urutan?: number;
 }
 
+// --- TIPE BARU UNTUK UPDATE URUTAN ---
+export interface UpdateUrutanInput {
+  ordered_ids: number[];
+}
+// ------------------------------------
+
 // --- TIPE BARU UNTUK PENILAIAN ---
 export interface PenilaianInput {
   anggota_kelas_id: string;
