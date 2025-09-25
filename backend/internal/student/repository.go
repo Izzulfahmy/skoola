@@ -14,7 +14,7 @@ type Repository interface {
 	GetByID(ctx context.Context, schemaName string, id string) (*Student, error)
 	Update(ctx context.Context, schemaName string, student *Student) error
 	Delete(ctx context.Context, schemaName string, id string) error
-	GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) // <-- TAMBAHKAN INI
+	GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error)
 }
 
 type postgresRepository struct {
@@ -30,10 +30,11 @@ func NewRepository(db *sql.DB) Repository {
 // Kolom yang akan di-select (untuk konsistensi)
 const studentColumns = `
 	s.id, s.created_at, s.updated_at,
-	s.nis, s.nisn, s.nomor_ujian_sekolah,
+	s.nis, s.nisn,
 	s.nama_lengkap, s.nama_panggilan, s.jenis_kelamin, s.tempat_lahir, s.tanggal_lahir, s.agama, s.kewarganegaraan,
 	s.alamat_lengkap, s.desa_kelurahan, s.kecamatan, s.kota_kabupaten, s.provinsi, s.kode_pos,
-	s.nama_ayah, s.nama_ibu, s.nama_wali, s.nomor_kontak_wali
+	s.nama_ayah, s.pekerjaan_ayah, s.alamat_ayah, s.nama_ibu, s.pekerjaan_ibu, s.alamat_ibu,
+	s.nama_wali, s.pekerjaan_wali, s.alamat_wali, s.nomor_kontak_wali
 `
 
 // Query untuk mengambil detail siswa beserta status dan info kelasnya
@@ -53,7 +54,7 @@ const studentDetailQuery = `
 		FROM anggota_kelas ak
 		JOIN kelas k ON ak.kelas_id = k.id
 		JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
-		WHERE ta.status = 'Aktif' -- Bisa disesuaikan jika perlu
+		WHERE ta.status = 'Aktif'
 	)
 	SELECT ` + studentColumns + `, 
 		ls.status AS status_saat_ini,
@@ -68,12 +69,13 @@ func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, e
 	var s Student
 	err := row.Scan(
 		&s.ID, &s.CreatedAt, &s.UpdatedAt,
-		&s.NIS, &s.NISN, &s.NomorUjianSekolah,
+		&s.NIS, &s.NISN,
 		&s.NamaLengkap, &s.NamaPanggilan, &s.JenisKelamin, &s.TempatLahir, &s.TanggalLahir, &s.Agama, &s.Kewarganegaraan,
 		&s.AlamatLengkap, &s.DesaKelurahan, &s.Kecamatan, &s.KotaKabupaten, &s.Provinsi, &s.KodePos,
-		&s.NamaAyah, &s.NamaIbu, &s.NamaWali, &s.NomorKontakWali,
+		&s.NamaAyah, &s.PekerjaanAyah, &s.AlamatAyah, &s.NamaIbu, &s.PekerjaanIbu, &s.AlamatIbu,
+		&s.NamaWali, &s.PekerjaanWali, &s.AlamatWali, &s.NomorKontakWali,
 		&s.StatusSaatIni,
-		&s.KelasID, &s.NamaKelas, // <-- TAMBAHKAN INI
+		&s.KelasID, &s.NamaKelas,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -84,7 +86,6 @@ func scanStudentDetail(row interface{ Scan(...interface{}) error }) (*Student, e
 	return &s, nil
 }
 
-// --- FUNGSI BARU ---
 func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) {
 	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName)); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
@@ -93,7 +94,6 @@ func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Conte
 	query := `
 		SELECT s.id, s.nama_lengkap, s.nis, s.nama_panggilan
 		FROM students s
-		-- Subquery untuk mendapatkan status terakhir siswa
 		JOIN (
 			SELECT student_id, status
 			FROM (
@@ -102,7 +102,6 @@ func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Conte
 			) ls
 			WHERE ls.rn = 1
 		) AS latest_status ON s.id = latest_status.student_id
-		-- Pastikan siswa tidak ada di rombel manapun pada TAHUN AJARAN YANG SEDANG DIPILIH
 		WHERE 
 			latest_status.status = 'Aktif' AND
 			s.id NOT IN (
@@ -122,7 +121,6 @@ func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Conte
 	var students []Student
 	for rows.Next() {
 		var s Student
-		// Hanya scan kolom yang dibutuhkan untuk Transfer list
 		if err := rows.Scan(&s.ID, &s.NamaLengkap, &s.NIS, &s.NamaPanggilan); err != nil {
 			return nil, fmt.Errorf("gagal memindai data available student: %w", err)
 		}
@@ -131,7 +129,6 @@ func (r *postgresRepository) GetAvailableStudentsByTahunAjaran(ctx context.Conte
 	return students, rows.Err()
 }
 
-// Create sekarang menerima Querier (bisa DB atau TX)
 func (r *postgresRepository) Create(ctx context.Context, tx *sql.Tx, schemaName string, student *Student) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := tx.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -140,19 +137,21 @@ func (r *postgresRepository) Create(ctx context.Context, tx *sql.Tx, schemaName 
 
 	query := `
         INSERT INTO students (
-			id, nis, nisn, nomor_ujian_sekolah, nama_lengkap, nama_panggilan,
+			id, nis, nisn, nama_lengkap, nama_panggilan,
 			jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan,
 			alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos,
-			nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali
+			nama_ayah, pekerjaan_ayah, alamat_ayah, nama_ibu, pekerjaan_ibu, alamat_ibu,
+			nama_wali, pekerjaan_wali, alamat_wali, nomor_kontak_wali
 		)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
     `
 
 	_, err := tx.ExecContext(ctx, query,
-		student.ID, student.NIS, student.NISN, student.NomorUjianSekolah, student.NamaLengkap, student.NamaPanggilan,
+		student.ID, student.NIS, student.NISN, student.NamaLengkap, student.NamaPanggilan,
 		student.JenisKelamin, student.TempatLahir, student.TanggalLahir, student.Agama, student.Kewarganegaraan,
 		student.AlamatLengkap, student.DesaKelurahan, student.Kecamatan, student.KotaKabupaten, student.Provinsi, student.KodePos,
-		student.NamaAyah, student.NamaIbu, student.NamaWali, student.NomorKontakWali,
+		student.NamaAyah, student.PekerjaanAyah, student.AlamatAyah, student.NamaIbu, student.PekerjaanIbu, student.AlamatIbu,
+		student.NamaWali, student.PekerjaanWali, student.AlamatWali, student.NomorKontakWali,
 	)
 	if err != nil {
 		return fmt.Errorf("gagal memasukkan data siswa: %w", err)
@@ -200,17 +199,21 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, stud
 	query := `
 		UPDATE students SET
 			updated_at = NOW(),
-			nis = $1, nisn = $2, nomor_ujian_sekolah = $3,
-			nama_lengkap = $4, nama_panggilan = $5, jenis_kelamin = $6, tempat_lahir = $7, tanggal_lahir = $8, agama = $9, kewarganegaraan = $10,
-			alamat_lengkap = $11, desa_kelurahan = $12, kecamatan = $13, kota_kabupaten = $14, provinsi = $15, kode_pos = $16,
-			nama_ayah = $17, nama_ibu = $18, nama_wali = $19, nomor_kontak_wali = $20
-		WHERE id = $21
+			nis = $1, nisn = $2,
+			nama_lengkap = $3, nama_panggilan = $4, jenis_kelamin = $5, tempat_lahir = $6, tanggal_lahir = $7, agama = $8, kewarganegaraan = $9,
+			alamat_lengkap = $10, desa_kelurahan = $11, kecamatan = $12, kota_kabupaten = $13, provinsi = $14, kode_pos = $15,
+			nama_ayah = $16, pekerjaan_ayah = $17, alamat_ayah = $18,
+			nama_ibu = $19, pekerjaan_ibu = $20, alamat_ibu = $21,
+			nama_wali = $22, pekerjaan_wali = $23, alamat_wali = $24, nomor_kontak_wali = $25
+		WHERE id = $26
 	`
 	result, err := r.db.ExecContext(ctx, query,
-		student.NIS, student.NISN, student.NomorUjianSekolah,
+		student.NIS, student.NISN,
 		student.NamaLengkap, student.NamaPanggilan, student.JenisKelamin, student.TempatLahir, student.TanggalLahir, student.Agama, student.Kewarganegaraan,
 		student.AlamatLengkap, student.DesaKelurahan, student.Kecamatan, student.KotaKabupaten, student.Provinsi, student.KodePos,
-		student.NamaAyah, student.NamaIbu, student.NamaWali, student.NomorKontakWali,
+		student.NamaAyah, student.PekerjaanAyah, student.AlamatAyah,
+		student.NamaIbu, student.PekerjaanIbu, student.AlamatIbu,
+		student.NamaWali, student.PekerjaanWali, student.AlamatWali, student.NomorKontakWali,
 		student.ID,
 	)
 	if err != nil {

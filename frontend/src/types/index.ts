@@ -106,7 +106,7 @@ export interface UpsertMataPelajaranInput {
 }
 
 export interface UpdateUrutanMapelInput {
-	ordered_ids: string[];
+  ordered_ids: string[];
 }
 
 export interface Kurikulum {
@@ -365,8 +365,14 @@ export interface Student {
   kode_pos?: string;
   
   nama_ayah?: string;
+  pekerjaan_ayah?: string;
+  alamat_ayah?: string;
   nama_ibu?: string;
+  pekerjaan_ibu?: string;
+  alamat_ibu?: string;
   nama_wali?: string;
+  pekerjaan_wali?: string;
+  alamat_wali?: string;
   nomor_kontak_wali?: string;
 
   status_saat_ini?: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
@@ -390,34 +396,25 @@ export interface CreateStudentInput {
   provinsi?: string;
   kode_pos?: string;
   nama_ayah?: string;
+  pekerjaan_ayah?: string;
+  alamat_ayah?: string;
   nama_ibu?: string;
+  pekerjaan_ibu?: string;
+  alamat_ibu?: string;
   nama_wali?: string;
+  pekerjaan_wali?: string;
+  alamat_wali?: string;
   nomor_kontak_wali?: string;
 }
 
 export type UpdateStudentInput = CreateStudentInput;
-
-export interface RiwayatAkademik {
-  id: string;
-  student_id: string;
-  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
-  tanggal_kejadian: string;
-  kelas_tingkat?: string;
-  keterangan?: string;
-}
-
-export interface UpsertAcademicHistoryInput {
-  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
-  tanggal_kejadian: string;
-  kelas_tingkat?: string;
-  keterangan?: string;
-}
 
 export interface ImportResult {
   success_count: number;
   error_count: number;
   errors: ImportError[];
 }
+
 export interface ImportError {
   row: number;
   message: string;

@@ -20,49 +20,59 @@ import (
 var ErrValidation = errors.New("validation failed")
 
 type CreateStudentInput struct {
-	NIS               string `json:"nis" validate:"omitempty,numeric"`
-	NISN              string `json:"nisn" validate:"omitempty,numeric"`
-	NomorUjianSekolah string `json:"nomor_ujian_sekolah" validate:"omitempty"`
-	NamaLengkap       string `json:"nama_lengkap" validate:"required,min=1"`
-	NamaPanggilan     string `json:"nama_panggilan" validate:"omitempty"`
-	JenisKelamin      string `json:"jenis_kelamin" validate:"omitempty,oneof=Laki-laki Perempuan"`
-	TempatLahir       string `json:"tempat_lahir" validate:"omitempty"`
-	TanggalLahir      string `json:"tanggal_lahir" validate:"omitempty,datetime=2006-01-02"`
-	Agama             string `json:"agama" validate:"omitempty,oneof=Islam 'Kristen Protestan' 'Kristen Katolik' Hindu Buddha Khonghucu Lainnya"`
-	Kewarganegaraan   string `json:"kewarganegaraan" validate:"omitempty"`
-	AlamatLengkap     string `json:"alamat_lengkap" validate:"omitempty"`
-	DesaKelurahan     string `json:"desa_kelurahan" validate:"omitempty"`
-	Kecamatan         string `json:"kecamatan" validate:"omitempty"`
-	KotaKabupaten     string `json:"kota_kabupaten" validate:"omitempty"`
-	Provinsi          string `json:"provinsi" validate:"omitempty"`
-	KodePos           string `json:"kode_pos" validate:"omitempty,numeric"`
-	NamaAyah          string `json:"nama_ayah" validate:"omitempty"`
-	NamaIbu           string `json:"nama_ibu" validate:"omitempty"`
-	NamaWali          string `json:"nama_wali" validate:"omitempty"`
-	NomorKontakWali   string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
+	NIS             string `json:"nis" validate:"omitempty,numeric"`
+	NISN            string `json:"nisn" validate:"omitempty,numeric"`
+	NamaLengkap     string `json:"nama_lengkap" validate:"required,min=1"`
+	NamaPanggilan   string `json:"nama_panggilan" validate:"omitempty"`
+	JenisKelamin    string `json:"jenis_kelamin" validate:"omitempty,oneof=Laki-laki Perempuan"`
+	TempatLahir     string `json:"tempat_lahir" validate:"omitempty"`
+	TanggalLahir    string `json:"tanggal_lahir" validate:"omitempty,datetime=2006-01-02"`
+	Agama           string `json:"agama" validate:"omitempty,oneof=Islam 'Kristen Protestan' 'Kristen Katolik' Hindu Buddha Khonghucu Lainnya"`
+	Kewarganegaraan string `json:"kewarganegaraan" validate:"omitempty"`
+	AlamatLengkap   string `json:"alamat_lengkap" validate:"omitempty"`
+	DesaKelurahan   string `json:"desa_kelurahan" validate:"omitempty"`
+	Kecamatan       string `json:"kecamatan" validate:"omitempty"`
+	KotaKabupaten   string `json:"kota_kabupaten" validate:"omitempty"`
+	Provinsi        string `json:"provinsi" validate:"omitempty"`
+	KodePos         string `json:"kode_pos" validate:"omitempty,numeric"`
+	NamaAyah        string `json:"nama_ayah" validate:"omitempty"`
+	PekerjaanAyah   string `json:"pekerjaan_ayah" validate:"omitempty"`
+	AlamatAyah      string `json:"alamat_ayah" validate:"omitempty"`
+	NamaIbu         string `json:"nama_ibu" validate:"omitempty"`
+	PekerjaanIbu    string `json:"pekerjaan_ibu" validate:"omitempty"`
+	AlamatIbu       string `json:"alamat_ibu" validate:"omitempty"`
+	NamaWali        string `json:"nama_wali" validate:"omitempty"`
+	PekerjaanWali   string `json:"pekerjaan_wali" validate:"omitempty"`
+	AlamatWali      string `json:"alamat_wali" validate:"omitempty"`
+	NomorKontakWali string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
 }
 
 type UpdateStudentInput struct {
-	NIS               string `json:"nis" validate:"omitempty,numeric"`
-	NISN              string `json:"nisn" validate:"omitempty,numeric"`
-	NomorUjianSekolah string `json:"nomor_ujian_sekolah" validate:"omitempty"`
-	NamaLengkap       string `json:"nama_lengkap" validate:"required,min=1"`
-	NamaPanggilan     string `json:"nama_panggilan" validate:"omitempty"`
-	JenisKelamin      string `json:"jenis_kelamin" validate:"omitempty,oneof=Laki-laki Perempuan"`
-	TempatLahir       string `json:"tempat_lahir" validate:"omitempty"`
-	TanggalLahir      string `json:"tanggal_lahir" validate:"omitempty,datetime=2006-01-02"`
-	Agama             string `json:"agama" validate:"omitempty,oneof=Islam 'Kristen Protestan' 'Kristen Katolik' Hindu Buddha Khonghucu Lainnya"`
-	Kewarganegaraan   string `json:"kewarganegaraan" validate:"omitempty"`
-	AlamatLengkap     string `json:"alamat_lengkap" validate:"omitempty"`
-	DesaKelurahan     string `json:"desa_kelurahan" validate:"omitempty"`
-	Kecamatan         string `json:"kecamatan" validate:"omitempty"`
-	KotaKabupaten     string `json:"kota_kabupaten" validate:"omitempty"`
-	Provinsi          string `json:"provinsi" validate:"omitempty"`
-	KodePos           string `json:"kode_pos" validate:"omitempty,numeric"`
-	NamaAyah          string `json:"nama_ayah" validate:"omitempty"`
-	NamaIbu           string `json:"nama_ibu" validate:"omitempty"`
-	NamaWali          string `json:"nama_wali" validate:"omitempty"`
-	NomorKontakWali   string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
+	NIS             string `json:"nis" validate:"omitempty,numeric"`
+	NISN            string `json:"nisn" validate:"omitempty,numeric"`
+	NamaLengkap     string `json:"nama_lengkap" validate:"required,min=1"`
+	NamaPanggilan   string `json:"nama_panggilan" validate:"omitempty"`
+	JenisKelamin    string `json:"jenis_kelamin" validate:"omitempty,oneof=Laki-laki Perempuan"`
+	TempatLahir     string `json:"tempat_lahir" validate:"omitempty"`
+	TanggalLahir    string `json:"tanggal_lahir" validate:"omitempty,datetime=2006-01-02"`
+	Agama           string `json:"agama" validate:"omitempty,oneof=Islam 'Kristen Protestan' 'Kristen Katolik' Hindu Buddha Khonghucu Lainnya"`
+	Kewarganegaraan string `json:"kewarganegaraan" validate:"omitempty"`
+	AlamatLengkap   string `json:"alamat_lengkap" validate:"omitempty"`
+	DesaKelurahan   string `json:"desa_kelurahan" validate:"omitempty"`
+	Kecamatan       string `json:"kecamatan" validate:"omitempty"`
+	KotaKabupaten   string `json:"kota_kabupaten" validate:"omitempty"`
+	Provinsi        string `json:"provinsi" validate:"omitempty"`
+	KodePos         string `json:"kode_pos" validate:"omitempty,numeric"`
+	NamaAyah        string `json:"nama_ayah" validate:"omitempty"`
+	PekerjaanAyah   string `json:"pekerjaan_ayah" validate:"omitempty"`
+	AlamatAyah      string `json:"alamat_ayah" validate:"omitempty"`
+	NamaIbu         string `json:"nama_ibu" validate:"omitempty"`
+	PekerjaanIbu    string `json:"pekerjaan_ibu" validate:"omitempty"`
+	AlamatIbu       string `json:"alamat_ibu" validate:"omitempty"`
+	NamaWali        string `json:"nama_wali" validate:"omitempty"`
+	PekerjaanWali   string `json:"pekerjaan_wali" validate:"omitempty"`
+	AlamatWali      string `json:"alamat_wali" validate:"omitempty"`
+	NomorKontakWali string `json:"nomor_kontak_wali" validate:"omitempty,numeric"`
 }
 
 type Service interface {
@@ -99,10 +109,10 @@ func (s *service) GenerateStudentImportTemplate(ctx context.Context, schemaName 
 	f.SetActiveSheet(index)
 
 	headers := []string{
-		"nis", "nisn", "nomor_ujian_sekolah", "nama_lengkap", "nama_panggilan",
-		"jenis_kelamin", "tempat_lahir", "tanggal_lahir", "agama", "kewarganegaraan",
-		"alamat_lengkap", "desa_kelurahan", "kecamatan", "kota_kabupaten", "provinsi",
-		"kode_pos", "nama_ayah", "nama_ibu", "nama_wali", "nomor_kontak_wali",
+		"nis", "nisn", "nama_lengkap", "nama_panggilan", "jenis_kelamin", "tempat_lahir", "tanggal_lahir",
+		"agama", "kewarganegaraan", "alamat_lengkap", "desa_kelurahan", "kecamatan", "kota_kabupaten", "provinsi",
+		"kode_pos", "nama_ayah", "pekerjaan_ayah", "alamat_ayah", "nama_ibu", "pekerjaan_ibu", "alamat_ibu",
+		"nama_wali", "pekerjaan_wali", "alamat_wali", "nomor_kontak_wali",
 	}
 
 	for i, header := range headers {
@@ -114,12 +124,13 @@ func (s *service) GenerateStudentImportTemplate(ctx context.Context, schemaName 
 		Font: &excelize.Font{Bold: true},
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"#FFFF00"}, Pattern: 1},
 	})
-	f.SetCellStyle(sheetName, "D1", "D1", style)
+	f.SetCellStyle(sheetName, "C1", "C1", style)
 
 	example := []interface{}{
-		"12345", "0012345678", "US-001", "Budi Santoso", "Budi", "Laki-laki", "Jakarta", "2010-05-15",
+		"12345", "0012345678", "Budi Santoso", "Budi", "Laki-laki", "Jakarta", "2010-05-15",
 		"Islam", "Indonesia", "Jl. Merdeka No. 10", "Cijantung", "Pasar Rebo", "Jakarta Timur",
-		"DKI Jakarta", "13770", "Ahmad Santoso", "Siti Aminah", "", "08123456789",
+		"DKI Jakarta", "13770", "Ahmad Santoso", "PNS", "Jl. Merdeka No. 10", "Siti Aminah", "Ibu Rumah Tangga", "Jl. Merdeka No. 10",
+		"", "", "", "08123456789",
 	}
 	for i, value := range example {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 2)
@@ -161,7 +172,7 @@ func (s *service) ImportStudents(ctx context.Context, schemaName string, file io
 	}
 
 	for i, row := range rows[1:] {
-		rowIndex := i + 2 // Baris di Excel dimulai dari 1, dan kita lewati 1 baris header
+		rowIndex := i + 2
 
 		tx, err := s.db.BeginTx(ctx, nil)
 		if err != nil {
@@ -171,8 +182,8 @@ func (s *service) ImportStudents(ctx context.Context, schemaName string, file io
 		}
 
 		namaLengkap := ""
-		if len(row) > 3 {
-			namaLengkap = strings.TrimSpace(row[3])
+		if len(row) > 2 {
+			namaLengkap = strings.TrimSpace(row[2])
 		}
 
 		if namaLengkap == "" {
@@ -183,53 +194,55 @@ func (s *service) ImportStudents(ctx context.Context, schemaName string, file io
 		}
 
 		tanggalLahir := ""
-		if len(row) > 7 && row[7] != "" {
-			// Mencoba parse tanggal dari format Excel (angka) atau string
-			if val, err := strconv.ParseFloat(row[7], 64); err == nil {
-				// Ini adalah format angka serial Excel
+		if len(row) > 6 && row[6] != "" {
+			if val, err := strconv.ParseFloat(row[6], 64); err == nil {
 				dt, err := excelize.ExcelDateToTime(val, false)
 				if err == nil {
 					tanggalLahir = dt.Format("2006-01-02")
 				} else {
 					tx.Rollback()
 					result.ErrorCount++
-					result.Errors = append(result.Errors, ImportError{Row: rowIndex, Message: fmt.Sprintf("Format tanggal lahir tidak valid (angka Excel): %s", row[7])})
+					result.Errors = append(result.Errors, ImportError{Row: rowIndex, Message: fmt.Sprintf("Format tanggal lahir tidak valid (angka Excel): %s", row[6])})
 					continue
 				}
 			} else {
-				// Ini adalah format string
-				_, err := time.Parse("2006-01-02", row[7])
+				_, err := time.Parse("2006-01-02", row[6])
 				if err != nil {
 					tx.Rollback()
 					result.ErrorCount++
-					result.Errors = append(result.Errors, ImportError{Row: rowIndex, Message: fmt.Sprintf("Format tanggal lahir tidak valid (harus YYYY-MM-DD): %s", row[7])})
+					result.Errors = append(result.Errors, ImportError{Row: rowIndex, Message: fmt.Sprintf("Format tanggal lahir tidak valid (harus YYYY-MM-DD): %s", row[6])})
 					continue
 				}
-				tanggalLahir = row[7]
+				tanggalLahir = row[6]
 			}
 		}
 
 		input := CreateStudentInput{
-			NIS:               safeGet(row, 0),
-			NISN:              safeGet(row, 1),
-			NomorUjianSekolah: safeGet(row, 2),
-			NamaLengkap:       namaLengkap,
-			NamaPanggilan:     safeGet(row, 4),
-			JenisKelamin:      safeGet(row, 5),
-			TempatLahir:       safeGet(row, 6),
-			TanggalLahir:      tanggalLahir,
-			Agama:             safeGet(row, 8),
-			Kewarganegaraan:   safeGet(row, 9),
-			AlamatLengkap:     safeGet(row, 10),
-			DesaKelurahan:     safeGet(row, 11),
-			Kecamatan:         safeGet(row, 12),
-			KotaKabupaten:     safeGet(row, 13),
-			Provinsi:          safeGet(row, 14),
-			KodePos:           safeGet(row, 15),
-			NamaAyah:          safeGet(row, 16),
-			NamaIbu:           safeGet(row, 17),
-			NamaWali:          safeGet(row, 18),
-			NomorKontakWali:   safeGet(row, 19),
+			NIS:             safeGet(row, 0),
+			NISN:            safeGet(row, 1),
+			NamaLengkap:     namaLengkap,
+			NamaPanggilan:   safeGet(row, 3),
+			JenisKelamin:    safeGet(row, 4),
+			TempatLahir:     safeGet(row, 5),
+			TanggalLahir:    tanggalLahir,
+			Agama:           safeGet(row, 7),
+			Kewarganegaraan: safeGet(row, 8),
+			AlamatLengkap:   safeGet(row, 9),
+			DesaKelurahan:   safeGet(row, 10),
+			Kecamatan:       safeGet(row, 11),
+			KotaKabupaten:   safeGet(row, 12),
+			Provinsi:        safeGet(row, 13),
+			KodePos:         safeGet(row, 14),
+			NamaAyah:        safeGet(row, 15),
+			PekerjaanAyah:   safeGet(row, 16),
+			AlamatAyah:      safeGet(row, 17),
+			NamaIbu:         safeGet(row, 18),
+			PekerjaanIbu:    safeGet(row, 19),
+			AlamatIbu:       safeGet(row, 20),
+			NamaWali:        safeGet(row, 21),
+			PekerjaanWali:   safeGet(row, 22),
+			AlamatWali:      safeGet(row, 23),
+			NomorKontakWali: safeGet(row, 24),
 		}
 
 		if err := s.validate.Struct(input); err != nil {
@@ -239,29 +252,33 @@ func (s *service) ImportStudents(ctx context.Context, schemaName string, file io
 			continue
 		}
 
-		// Create student logic within transaction
 		student := &Student{
-			ID:                uuid.New().String(),
-			NamaLengkap:       input.NamaLengkap,
-			NIS:               stringToPtr(input.NIS),
-			NISN:              stringToPtr(input.NISN),
-			NomorUjianSekolah: stringToPtr(input.NomorUjianSekolah),
-			NamaPanggilan:     stringToPtr(input.NamaPanggilan),
-			JenisKelamin:      stringToPtr(input.JenisKelamin),
-			TempatLahir:       stringToPtr(input.TempatLahir),
-			TanggalLahir:      dateToPtr(input.TanggalLahir),
-			Agama:             stringToPtr(input.Agama),
-			Kewarganegaraan:   stringToPtr(input.Kewarganegaraan),
-			AlamatLengkap:     stringToPtr(input.AlamatLengkap),
-			DesaKelurahan:     stringToPtr(input.DesaKelurahan),
-			Kecamatan:         stringToPtr(input.Kecamatan),
-			KotaKabupaten:     stringToPtr(input.KotaKabupaten),
-			Provinsi:          stringToPtr(input.Provinsi),
-			KodePos:           stringToPtr(input.KodePos),
-			NamaAyah:          stringToPtr(input.NamaAyah),
-			NamaIbu:           stringToPtr(input.NamaIbu),
-			NamaWali:          stringToPtr(input.NamaWali),
-			NomorKontakWali:   stringToPtr(input.NomorKontakWali),
+			ID:              uuid.New().String(),
+			NamaLengkap:     input.NamaLengkap,
+			NIS:             stringToPtr(input.NIS),
+			NISN:            stringToPtr(input.NISN),
+			NamaPanggilan:   stringToPtr(input.NamaPanggilan),
+			JenisKelamin:    stringToPtr(input.JenisKelamin),
+			TempatLahir:     stringToPtr(input.TempatLahir),
+			TanggalLahir:    dateToPtr(input.TanggalLahir),
+			Agama:           stringToPtr(input.Agama),
+			Kewarganegaraan: stringToPtr(input.Kewarganegaraan),
+			AlamatLengkap:   stringToPtr(input.AlamatLengkap),
+			DesaKelurahan:   stringToPtr(input.DesaKelurahan),
+			Kecamatan:       stringToPtr(input.Kecamatan),
+			KotaKabupaten:   stringToPtr(input.KotaKabupaten),
+			Provinsi:        stringToPtr(input.Provinsi),
+			KodePos:         stringToPtr(input.KodePos),
+			NamaAyah:        stringToPtr(input.NamaAyah),
+			PekerjaanAyah:   stringToPtr(input.PekerjaanAyah),
+			AlamatAyah:      stringToPtr(input.AlamatAyah),
+			NamaIbu:         stringToPtr(input.NamaIbu),
+			PekerjaanIbu:    stringToPtr(input.PekerjaanIbu),
+			AlamatIbu:       stringToPtr(input.AlamatIbu),
+			NamaWali:        stringToPtr(input.NamaWali),
+			PekerjaanWali:   stringToPtr(input.PekerjaanWali),
+			AlamatWali:      stringToPtr(input.AlamatWali),
+			NomorKontakWali: stringToPtr(input.NomorKontakWali),
 		}
 
 		if err := s.repo.Create(ctx, tx, schemaName, student); err != nil {
@@ -308,7 +325,6 @@ func (s *service) ImportStudents(ctx context.Context, schemaName string, file io
 	return result, nil
 }
 
-// safeGet mengambil nilai dari slice row dengan aman.
 func safeGet(row []string, index int) string {
 	if len(row) > index {
 		return strings.TrimSpace(row[index])
@@ -316,7 +332,6 @@ func safeGet(row []string, index int) string {
 	return ""
 }
 
-// --- FUNGSI BARU ---
 func (s *service) GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]Student, error) {
 	if tahunAjaranID == "" {
 		return nil, fmt.Errorf("tahun_ajaran_id is required")
@@ -324,7 +339,6 @@ func (s *service) GetAvailableStudentsByTahunAjaran(ctx context.Context, schemaN
 	return s.repo.GetAvailableStudentsByTahunAjaran(ctx, schemaName, tahunAjaranID)
 }
 
-// ... sisa file tetap sama ...
 func stringToPtr(s string) *string {
 	if s == "" {
 		return nil
@@ -353,27 +367,32 @@ func (s *service) Create(ctx context.Context, schemaName string, input CreateStu
 	defer tx.Rollback()
 
 	student := &Student{
-		ID:                uuid.New().String(),
-		NIS:               stringToPtr(input.NIS),
-		NISN:              stringToPtr(input.NISN),
-		NomorUjianSekolah: stringToPtr(input.NomorUjianSekolah),
-		NamaLengkap:       input.NamaLengkap,
-		NamaPanggilan:     stringToPtr(input.NamaPanggilan),
-		JenisKelamin:      stringToPtr(input.JenisKelamin),
-		TempatLahir:       stringToPtr(input.TempatLahir),
-		TanggalLahir:      dateToPtr(input.TanggalLahir),
-		Agama:             stringToPtr(input.Agama),
-		Kewarganegaraan:   stringToPtr(input.Kewarganegaraan),
-		AlamatLengkap:     stringToPtr(input.AlamatLengkap),
-		DesaKelurahan:     stringToPtr(input.DesaKelurahan),
-		Kecamatan:         stringToPtr(input.Kecamatan),
-		KotaKabupaten:     stringToPtr(input.KotaKabupaten),
-		Provinsi:          stringToPtr(input.Provinsi),
-		KodePos:           stringToPtr(input.KodePos),
-		NamaAyah:          stringToPtr(input.NamaAyah),
-		NamaIbu:           stringToPtr(input.NamaIbu),
-		NamaWali:          stringToPtr(input.NamaWali),
-		NomorKontakWali:   stringToPtr(input.NomorKontakWali),
+		ID:              uuid.New().String(),
+		NIS:             stringToPtr(input.NIS),
+		NISN:            stringToPtr(input.NISN),
+		NamaLengkap:     input.NamaLengkap,
+		NamaPanggilan:   stringToPtr(input.NamaPanggilan),
+		JenisKelamin:    stringToPtr(input.JenisKelamin),
+		TempatLahir:     stringToPtr(input.TempatLahir),
+		TanggalLahir:    dateToPtr(input.TanggalLahir),
+		Agama:           stringToPtr(input.Agama),
+		Kewarganegaraan: stringToPtr(input.Kewarganegaraan),
+		AlamatLengkap:   stringToPtr(input.AlamatLengkap),
+		DesaKelurahan:   stringToPtr(input.DesaKelurahan),
+		Kecamatan:       stringToPtr(input.Kecamatan),
+		KotaKabupaten:   stringToPtr(input.KotaKabupaten),
+		Provinsi:        stringToPtr(input.Provinsi),
+		KodePos:         stringToPtr(input.KodePos),
+		NamaAyah:        stringToPtr(input.NamaAyah),
+		PekerjaanAyah:   stringToPtr(input.PekerjaanAyah),
+		AlamatAyah:      stringToPtr(input.AlamatAyah),
+		NamaIbu:         stringToPtr(input.NamaIbu),
+		PekerjaanIbu:    stringToPtr(input.PekerjaanIbu),
+		AlamatIbu:       stringToPtr(input.AlamatIbu),
+		NamaWali:        stringToPtr(input.NamaWali),
+		PekerjaanWali:   stringToPtr(input.PekerjaanWali),
+		AlamatWali:      stringToPtr(input.AlamatWali),
+		NomorKontakWali: stringToPtr(input.NomorKontakWali),
 	}
 
 	if err := s.repo.Create(ctx, tx, schemaName, student); err != nil {
@@ -427,7 +446,6 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 
 	student.NIS = stringToPtr(input.NIS)
 	student.NISN = stringToPtr(input.NISN)
-	student.NomorUjianSekolah = stringToPtr(input.NomorUjianSekolah)
 	student.NamaLengkap = input.NamaLengkap
 	student.NamaPanggilan = stringToPtr(input.NamaPanggilan)
 	student.JenisKelamin = stringToPtr(input.JenisKelamin)
@@ -442,8 +460,14 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	student.Provinsi = stringToPtr(input.Provinsi)
 	student.KodePos = stringToPtr(input.KodePos)
 	student.NamaAyah = stringToPtr(input.NamaAyah)
+	student.PekerjaanAyah = stringToPtr(input.PekerjaanAyah)
+	student.AlamatAyah = stringToPtr(input.AlamatAyah)
 	student.NamaIbu = stringToPtr(input.NamaIbu)
+	student.PekerjaanIbu = stringToPtr(input.PekerjaanIbu)
+	student.AlamatIbu = stringToPtr(input.AlamatIbu)
 	student.NamaWali = stringToPtr(input.NamaWali)
+	student.PekerjaanWali = stringToPtr(input.PekerjaanWali)
+	student.AlamatWali = stringToPtr(input.AlamatWali)
 	student.NomorKontakWali = stringToPtr(input.NomorKontakWali)
 
 	if err := s.repo.Update(ctx, schemaName, student); err != nil {

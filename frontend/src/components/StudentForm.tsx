@@ -1,5 +1,5 @@
 // file: src/components/StudentForm.tsx
-import { Form, Input, Button, Row, Col, DatePicker, Select, Tabs } from 'antd';
+import { Form, Input, Button, Row, Col, DatePicker, Select, Tabs, Divider } from 'antd';
 import type { TabsProps } from 'antd';
 import type { CreateStudentInput, Student } from '../types';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ interface StudentFormProps {
 }
 
 const { Option } = Select;
+const { TextArea } = Input;
 
 const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpdate }: StudentFormProps) => {
   const [form] = Form.useForm();
@@ -67,11 +68,6 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
               </Select>
             </Form.Item>
           </Col>
-           <Col xs={24} sm={12}>
-             <Form.Item name="nomor_ujian_sekolah" label="Nomor Ujian Sekolah">
-              <Input />
-            </Form.Item>
-          </Col>
         </Row>
       )
     },
@@ -108,8 +104,6 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
               <Input />
             </Form.Item>
           </Col>
-
-          {/* --- PERUBAHAN URUTAN DI SINI --- */}
           <Col xs={24} sm={12}><Form.Item name="provinsi" label="Provinsi"><Input /></Form.Item></Col>
           <Col xs={24} sm={12}><Form.Item name="kota_kabupaten" label="Kota / Kabupaten"><Input /></Form.Item></Col>
           <Col xs={24} sm={12}><Form.Item name="kecamatan" label="Kecamatan"><Input /></Form.Item></Col>
@@ -117,10 +111,9 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
           <Col xs={24} sm={12}><Form.Item name="kode_pos" label="Kode Pos"><Input /></Form.Item></Col>
           <Col span={24}>
             <Form.Item name="alamat_lengkap" label="Alamat Lengkap (Sesuai KK)">
-              <Input.TextArea rows={2}/>
+              <TextArea rows={2}/>
             </Form.Item>
           </Col>
-          {/* --- AKHIR PERUBAHAN --- */}
         </Row>
       )
     },
@@ -129,9 +122,22 @@ const StudentForm = ({ onFinish, onCancel, initialValues, loading, onHistoryUpda
       label: 'Data Wali',
       children: (
          <Row gutter={16}>
+            <Col span={24}><Divider orientation="left">Data Ayah</Divider></Col>
             <Col xs={24} sm={12}><Form.Item name="nama_ayah" label="Nama Ayah"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="pekerjaan_ayah" label="Pekerjaan Ayah"><Input /></Form.Item></Col>
+            <Col span={24}><Form.Item name="alamat_ayah" label="Alamat Ayah"><TextArea rows={2} /></Form.Item></Col>
+            
+            <Col span={24}><Divider orientation="left">Data Ibu</Divider></Col>
             <Col xs={24} sm={12}><Form.Item name="nama_ibu" label="Nama Ibu"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="pekerjaan_ibu" label="Pekerjaan Ibu"><Input /></Form.Item></Col>
+            <Col span={24}><Form.Item name="alamat_ibu" label="Alamat Ibu"><TextArea rows={2} /></Form.Item></Col>
+
+            <Col span={24}><Divider orientation="left">Data Wali (Jika Berbeda)</Divider></Col>
             <Col xs={24} sm={12}><Form.Item name="nama_wali" label="Nama Wali (Opsional)"><Input /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="pekerjaan_wali" label="Pekerjaan Wali"><Input /></Form.Item></Col>
+            <Col span={24}><Form.Item name="alamat_wali" label="Alamat Wali"><TextArea rows={2} /></Form.Item></Col>
+            
+            <Col span={24}><Divider /></Col>
             <Col xs={24} sm={12}><Form.Item name="nomor_kontak_wali" label="Nomor Kontak Wali/Ortu"><Input /></Form.Item></Col>
          </Row>
       )

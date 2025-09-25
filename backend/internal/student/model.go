@@ -11,9 +11,8 @@ type Student struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// Kolom Akademik
-	NIS               *string `json:"nis"`
-	NISN              *string `json:"nisn"`
-	NomorUjianSekolah *string `json:"nomor_ujian_sekolah"`
+	NIS  *string `json:"nis"`
+	NISN *string `json:"nisn"`
 
 	// Kolom Biodata Pribadi
 	NamaLengkap     string     `json:"nama_lengkap"`
@@ -34,14 +33,20 @@ type Student struct {
 
 	// Kolom Data Orang Tua / Wali
 	NamaAyah        *string `json:"nama_ayah"`
+	PekerjaanAyah   *string `json:"pekerjaan_ayah"`
+	AlamatAyah      *string `json:"alamat_ayah"`
 	NamaIbu         *string `json:"nama_ibu"`
+	PekerjaanIbu    *string `json:"pekerjaan_ibu"`
+	AlamatIbu       *string `json:"alamat_ibu"`
 	NamaWali        *string `json:"nama_wali"`
+	PekerjaanWali   *string `json:"pekerjaan_wali"`
+	AlamatWali      *string `json:"alamat_wali"`
 	NomorKontakWali *string `json:"nomor_kontak_wali"`
 
 	// Kolom Tambahan (Hasil Query)
 	StatusSaatIni *string `json:"status_saat_ini"`
-	KelasID       *string `json:"kelas_id,omitempty"`   // <-- TAMBAHKAN INI
-	NamaKelas     *string `json:"nama_kelas,omitempty"` // <-- TAMBAHKAN INI
+	KelasID       *string `json:"kelas_id,omitempty"`
+	NamaKelas     *string `json:"nama_kelas,omitempty"`
 }
 
 // ImportResult merepresentasikan hasil dari proses impor Excel.
