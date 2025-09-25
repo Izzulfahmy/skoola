@@ -1,5 +1,26 @@
 // file: src/types/index.ts
 
+// --- TIPE BARU UNTUK PENILAIAN SUMATIF ---
+export interface PenilaianSumatif {
+	id: string;
+	tujuan_pembelajaran_id: number;
+	jenis_ujian_id: number;
+	nama_penilaian: string;
+	tanggal_pelaksanaan?: string;
+	keterangan?: string;
+	nama_jenis_ujian?: string;
+	kode_jenis_ujian?: string;
+}
+
+export interface UpsertPenilaianSumatifInput {
+	tujuan_pembelajaran_id: number;
+	jenis_ujian_id: number;
+	nama_penilaian: string;
+	tanggal_pelaksanaan?: string;
+	keterangan?: string;
+}
+// ------------------------------------
+
 export interface KelompokMataPelajaran {
   id: number;
   nama_kelompok: string;
@@ -199,6 +220,7 @@ export interface TujuanPembelajaran {
   materi_pembelajaran_id: number;
   deskripsi_tujuan: string;
   urutan: number;
+  penilaian_sumatif: PenilaianSumatif[];
 }
 
 export interface MateriPembelajaran {

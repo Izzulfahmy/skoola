@@ -1,16 +1,20 @@
 // file: backend/internal/pembelajaran/model.go
 package pembelajaran
 
-import "time"
+import (
+	"skoola/internal/penilaiansumatif"
+	"time"
+)
 
 // TujuanPembelajaran merepresentasikan data dari tabel 'tujuan_pembelajaran'.
 type TujuanPembelajaran struct {
-	ID                   int       `json:"id"`
-	MateriPembelajaranID int       `json:"materi_pembelajaran_id"`
-	DeskripsiTujuan      string    `json:"deskripsi_tujuan"`
-	Urutan               int       `json:"urutan"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   int                                 `json:"id"`
+	MateriPembelajaranID int                                 `json:"materi_pembelajaran_id"`
+	DeskripsiTujuan      string                              `json:"deskripsi_tujuan"`
+	Urutan               int                                 `json:"urutan"`
+	CreatedAt            time.Time                           `json:"created_at"`
+	UpdatedAt            time.Time                           `json:"updated_at"`
+	PenilaianSumatif     []penilaiansumatif.PenilaianSumatif `json:"penilaian_sumatif"`
 }
 
 // MateriPembelajaran merepresentasikan data dari tabel 'materi_pembelajaran'

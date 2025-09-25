@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"skoola/internal/penilaiansumatif"
 
 	"github.com/lib/pq" // <-- 1. PASTIKAN IMPOR INI ADA
 )
@@ -115,7 +116,7 @@ func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string
 
 	var maxUrutan sql.NullInt64
 	urutanQuery := `SELECT MAX(urutan) FROM materi_pembelajaran WHERE pengajar_kelas_id = $1`
-	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil {
+	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum materi: %w", err)
 	}
 
@@ -193,6 +194,9 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 
 	materiMap := make(map[int]*MateriPembelajaran)
 	var materiList []*MateriPembelajaran
+	var tpIDs []int
+	tpMap := make(map[int]*TujuanPembelajaran)
+
 	for materiRows.Next() {
 		var m MateriPembelajaran
 		if err := materiRows.Scan(&m.ID, &m.PengajarKelasID, &m.NamaMateri, &m.Deskripsi, &m.Urutan); err != nil {
@@ -223,6 +227,42 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 		}
 		if materi, ok := materiMap[tp.MateriPembelajaranID]; ok {
 			materi.TujuanPembelajaran = append(materi.TujuanPembelajaran, tp)
+			tpIDs = append(tpIDs, tp.ID)
+			// Add to tpMap for later lookup
+			tpMap[tp.ID] = &materi.TujuanPembelajaran[len(materi.TujuanPembelajaran)-1]
+		}
+	}
+
+	if len(tpIDs) > 0 {
+		penilaianQuery := `
+			SELECT 
+				ps.id, ps.tujuan_pembelajaran_id, ps.jenis_ujian_id, ps.nama_penilaian, 
+				ps.tanggal_pelaksanaan, ps.keterangan, ps.created_at, ps.updated_at,
+				ju.nama_ujian, ju.kode_ujian
+			FROM penilaian_sumatif ps
+			JOIN jenis_ujian ju ON ps.jenis_ujian_id = ju.id
+			WHERE ps.tujuan_pembelajaran_id = ANY($1)
+			ORDER BY ps.tanggal_pelaksanaan ASC, ps.created_at ASC
+		`
+		penilaianRows, err := r.db.QueryContext(ctx, penilaianQuery, pq.Array(tpIDs))
+		if err != nil {
+			return nil, fmt.Errorf("gagal query penilaian sumatif: %w", err)
+		}
+		defer penilaianRows.Close()
+
+		for penilaianRows.Next() {
+			var ps penilaiansumatif.PenilaianSumatif
+			if err := penilaianRows.Scan(
+				&ps.ID, &ps.TujuanPembelajaranID, &ps.JenisUjianID, &ps.NamaPenilaian,
+				&ps.TanggalPelaksanaan, &ps.Keterangan, &ps.CreatedAt, &ps.UpdatedAt,
+				&ps.NamaJenisUjian, &ps.KodeJenisUjian,
+			); err != nil {
+				return nil, err
+			}
+
+			if tp, ok := tpMap[ps.TujuanPembelajaranID]; ok {
+				tp.PenilaianSumatif = append(tp.PenilaianSumatif, ps)
+			}
 		}
 	}
 
@@ -301,7 +341,7 @@ func (r *postgresRepository) CreateTujuan(ctx context.Context, schemaName string
 
 	var maxUrutan sql.NullInt64
 	urutanQuery := `SELECT MAX(urutan) FROM tujuan_pembelajaran WHERE materi_pembelajaran_id = $1`
-	if err := tx.QueryRowContext(ctx, urutanQuery, input.MateriPembelajaranID).Scan(&maxUrutan); err != nil {
+	if err := tx.QueryRowContext(ctx, urutanQuery, input.MateriPembelajaranID).Scan(&maxUrutan); err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum tujuan: %w", err)
 	}
 

@@ -19,6 +19,7 @@ import (
 	"skoola/internal/matapelajaran"
 	"skoola/internal/pembelajaran"
 	"skoola/internal/penilaian"
+	"skoola/internal/penilaiansumatif"
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -108,6 +109,7 @@ func main() {
 	penilaianRepo := penilaian.NewRepository(db)
 	kelompokMapelRepo := kelompokmapel.NewRepository(db)
 	jenisUjianRepo := jenisujian.NewRepository(db)
+	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
@@ -127,6 +129,7 @@ func main() {
 	pembelajaranService := pembelajaran.NewService(pembelajaranRepo, validate)
 	penilaianService := penilaian.NewService(penilaianRepo, validate)
 	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
+	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
 
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
@@ -147,6 +150,7 @@ func main() {
 	pembelajaranHandler := pembelajaran.NewHandler(pembelajaranService)
 	penilaianHandler := penilaian.NewHandler(penilaianService)
 	jenisUjianHandler := jenisujian.NewHandler(jenisUjianService)
+	penilaianSumatifHandler := penilaiansumatif.NewHandler(penilaianSumatifService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -320,6 +324,14 @@ func main() {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianHandler.GetPenilaian)
 		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianHandler.UpsertNilai)
+	})
+
+	r.Route("/penilaian-sumatif", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianSumatifHandler.GetByTujuanPembelajaranID)
+		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianSumatifHandler.Create)
+		r.With(auth.Authorize("admin", "teacher")).Put("/{id}", penilaianSumatifHandler.Update)
+		r.With(auth.Authorize("admin", "teacher")).Delete("/{id}", penilaianSumatifHandler.Delete)
 	})
 
 	r.Route("/jenis-ujian", func(r chi.Router) {

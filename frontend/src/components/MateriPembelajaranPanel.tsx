@@ -1,8 +1,8 @@
 // file: frontend/src/components/MateriPembelajaranPanel.tsx
 import { useState, useEffect } from 'react';
-import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space } from 'antd';
+import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, List, Tag, Tooltip, Typography, Popover, Badge } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, AuditOutlined } from '@ant-design/icons';
 import {
   getAllMateriByPengajarKelas,
   createMateri,
@@ -14,10 +14,15 @@ import {
   updateUrutanMateri,
   updateUrutanTujuan,
 } from '../api/pembelajaran';
-import type { MateriPembelajaran, TujuanPembelajaran } from '../types';
+import { getAllJenisUjian } from '../api/jenisUjian';
+import { createPenilaian, updatePenilaian, deletePenilaian } from '../api/penilaianSumatif';
+import type { MateriPembelajaran, TujuanPembelajaran, JenisUjian, PenilaianSumatif, UpsertPenilaianSumatifInput } from '../types';
 import type { Key } from 'react';
+import dayjs from 'dayjs';
+import { format } from 'date-fns';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 interface MateriPembelajaranPanelProps {
   pengajarKelasId: string;
@@ -28,7 +33,6 @@ type EditableNode = {
     value: string;
 };
 
-// Fungsi bantuan untuk mem-parsing key
 const parseKey = (key: Key): { type: string; id: number; parentId?: number } => {
     const keyStr = String(key);
     const parts = keyStr.split('-');
@@ -41,14 +45,26 @@ const parseKey = (key: Key): { type: string; id: number; parentId?: number } => 
 
 const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelProps) => {
   const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
+  const [jenisUjianList, setJenisUjianList] = useState<JenisUjian[]>([]);
   const [loading, setLoading] = useState(true);
   const [editableNode, setEditableNode] = useState<EditableNode | null>(null);
+
+  // State for Penilaian Modal
+  const [penilaianModalVisible, setPenilaianModalVisible] = useState(false);
+  const [isEditingPenilaian, setIsEditingPenilaian] = useState(false);
+  const [currentTp, setCurrentTp] = useState<TujuanPembelajaran | null>(null);
+  const [editingPenilaian, setEditingPenilaian] = useState<PenilaianSumatif | null>(null);
+  const [penilaianForm] = Form.useForm();
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await getAllMateriByPengajarKelas(pengajarKelasId);
-      setMateriList(data || []);
+      const [materiData, jenisUjianData] = await Promise.all([
+        getAllMateriByPengajarKelas(pengajarKelasId),
+        getAllJenisUjian()
+      ]);
+      setMateriList(materiData || []);
+      setJenisUjianList(jenisUjianData || []);
     } catch (error) {
       message.error('Gagal memuat data materi pembelajaran.');
     } finally {
@@ -106,7 +122,6 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
 
-
   const handleDelete = async (key: string) => {
     const { type, id } = parseKey(key);
     try {
@@ -119,6 +134,52 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       fetchData();
     } catch (error) {
       message.error("Gagal menghapus data.");
+    }
+  };
+  
+  const handleOpenPenilaianModal = (tp: TujuanPembelajaran, penilaian: PenilaianSumatif | null) => {
+    setCurrentTp(tp);
+    setEditingPenilaian(penilaian);
+    setIsEditingPenilaian(!!penilaian);
+    penilaianForm.setFieldsValue(
+      penilaian
+        ? { ...penilaian, tanggal_pelaksanaan: penilaian.tanggal_pelaksanaan ? dayjs(penilaian.tanggal_pelaksanaan) : null }
+        : { jenis_ujian_id: undefined, nama_penilaian: '', tanggal_pelaksanaan: null, keterangan: '' }
+    );
+    setPenilaianModalVisible(true);
+  };
+
+  const handleFinishPenilaian = async (values: any) => {
+    if (!currentTp) return;
+
+    const payload: UpsertPenilaianSumatifInput = {
+      ...values,
+      tujuan_pembelajaran_id: currentTp.id,
+      tanggal_pelaksanaan: values.tanggal_pelaksanaan ? values.tanggal_pelaksanaan.format('YYYY-MM-DD') : undefined,
+    };
+
+    try {
+      if (isEditingPenilaian && editingPenilaian) {
+        await updatePenilaian(editingPenilaian.id, payload);
+        message.success("Rencana penilaian berhasil diperbarui.");
+      } else {
+        await createPenilaian(payload);
+        message.success("Rencana penilaian berhasil ditambahkan.");
+      }
+      setPenilaianModalVisible(false);
+      fetchData();
+    } catch (error) {
+      message.error("Gagal menyimpan rencana penilaian.");
+    }
+  };
+
+  const handleDeletePenilaian = async (id: string) => {
+    try {
+      await deletePenilaian(id);
+      message.success("Rencana penilaian berhasil dihapus.");
+      fetchData();
+    } catch (error) {
+      message.error("Gagal menghapus rencana penilaian.");
     }
   };
 
@@ -180,7 +241,6 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
 };
 
-
   const generateTreeData = (): TreeDataNode[] => {
     return materiList.map(materi => {
         const key = `materi-${materi.id}`;
@@ -223,34 +283,80 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 return {
                     key: tpKey,
                     title: (
-                        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                           <div style={{ flex: 1, marginRight: '8px' }}>
-                                {isEditingTP ? (
-                                    <TextArea 
-                                        defaultValue={editableNode.value}
-                                        onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
-                                        autoSize={{ minRows: 1, maxRows: 4 }}
-                                        onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
-                                        autoFocus
-                                    />
-                                ) : (
-                                    <span>{tp.deskripsi_tujuan}</span>
-                                )}
-                           </div>
-                           {isEditingTP ? (
-                                <Space>
-                                    <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
-                                    <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
-                                </Space>
-                            ) : (
-                                <Space>
-                                    <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
-                                    <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
-                                        <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                                    </Popconfirm>
-                                </Space>
-                            )}
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <div style={{ flex: 1, marginRight: '8px' }}>
+                          {isEditingTP ? (
+                            <TextArea
+                              defaultValue={editableNode.value}
+                              onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
+                              autoSize={{ minRows: 1, maxRows: 4 }}
+                              onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
+                              autoFocus
+                            />
+                          ) : (
+                            <Text>{tp.deskripsi_tujuan}</Text>
+                          )}
                         </div>
+                        <Space>
+                          <Popover
+                            placement="bottomRight"
+                            title="Rencana Penilaian"
+                            content={
+                              <div style={{ minWidth: 300 }}>
+                                <List
+                                  size="small"
+                                  dataSource={tp.penilaian_sumatif || []}
+                                  renderItem={(item) => (
+                                    <List.Item
+                                      actions={[
+                                        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenPenilaianModal(tp, item)} />,
+                                        <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDeletePenilaian(item.id)}>
+                                          <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                                        </Popconfirm>
+                                      ]}
+                                    >
+                                      <Space>
+                                        <Tag color="blue">{item.kode_jenis_ujian}</Tag>
+                                        <Text>{item.nama_penilaian}</Text>
+                                        {item.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(new Date(item.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                                      </Space>
+                                    </List.Item>
+                                  )}
+                                />
+                                <Button
+                                  type="primary"
+                                  icon={<PlusOutlined />}
+                                  size="small"
+                                  onClick={() => handleOpenPenilaianModal(tp, null)}
+                                  style={{ marginTop: '8px', width: '100%' }}
+                                >
+                                  Tambah
+                                </Button>
+                              </div>
+                            }
+                            trigger="click"
+                          >
+                            <Badge count={(tp.penilaian_sumatif || []).length} size="small">
+                              <Tooltip title="Kelola Penilaian">
+                                <Button icon={<AuditOutlined />} size="small" type="text" />
+                              </Tooltip>
+                            </Badge>
+                          </Popover>
+                          {isEditingTP ? (
+                            <>
+                              <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
+                              <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
+                            </>
+                          ) : (
+                            <>
+                              <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
+                              <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
+                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                              </Popconfirm>
+                            </>
+                          )}
+                        </Space>
+                      </div>
                     ),
                     isLeaf: true,
                 }
@@ -268,7 +374,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       </Button>
       {materiList.length > 0 ? (
         <Tree
-          showLine // <-- PERUBAHAN DI SINI
+          showLine
           draggable={{ icon: false }}
           blockNode
           onDrop={onDrop}
@@ -278,6 +384,38 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       ) : (
         <Empty description="Belum ada materi untuk mata pelajaran ini." />
       )}
+      <Modal
+        title={isEditingPenilaian ? "Edit Rencana Penilaian" : "Tambah Rencana Penilaian"}
+        open={penilaianModalVisible}
+        onCancel={() => setPenilaianModalVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={penilaianForm} layout="vertical" onFinish={handleFinishPenilaian} style={{ marginTop: 24 }}>
+          <Form.Item name="jenis_ujian_id" label="Jenis Ujian" rules={[{ required: true }]}>
+            <Select
+              placeholder="Pilih jenis ujian"
+              options={jenisUjianList.map(ju => ({
+                value: ju.id,
+                label: `${ju.nama_ujian} (${ju.kode_ujian})`
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="nama_penilaian" label="Nama Penilaian" rules={[{ required: true }]}>
+            <Input placeholder="Contoh: Ulangan Harian Bab 1" />
+          </Form.Item>
+          <Form.Item name="tanggal_pelaksanaan" label="Tanggal Pelaksanaan (Opsional)">
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          </Form.Item>
+          <Form.Item name="keterangan" label="Keterangan (Opsional)">
+            <TextArea rows={3} />
+          </Form.Item>
+          <Form.Item style={{ textAlign: 'right', marginTop: 24, marginBottom: 0 }}>
+            <Button onClick={() => setPenilaianModalVisible(false)} style={{ marginRight: 8 }}>Batal</Button>
+            <Button type="primary" htmlType="submit">Simpan</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
