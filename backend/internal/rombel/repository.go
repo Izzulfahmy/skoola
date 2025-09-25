@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // Repository mendefinisikan interface untuk interaksi database rombel.
@@ -22,6 +23,7 @@ type Repository interface {
 	AddAnggotaKelas(ctx context.Context, schemaName string, kelasID string, studentIDs []string) error
 	RemoveAnggotaKelas(ctx context.Context, schemaName string, anggotaID string) error
 	GetAllAnggotaByKelas(ctx context.Context, schemaName string, kelasID string) ([]AnggotaKelas, error)
+	UpdateAnggotaKelasUrutan(ctx context.Context, schemaName string, orderedIDs []string) error
 
 	// --- Pengajar Kelas (Guru) ---
 	CreatePengajarKelas(ctx context.Context, schemaName string, pengajar *PengajarKelas) (*PengajarKelas, error)
@@ -191,14 +193,26 @@ func (r *postgresRepository) AddAnggotaKelas(ctx context.Context, schemaName str
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO anggota_kelas (id, kelas_id, student_id) VALUES ($1, $2, $3)")
+	var maxUrutan sql.NullInt64
+	err = tx.QueryRowContext(ctx, "SELECT MAX(urutan) FROM anggota_kelas WHERE kelas_id = $1", kelasID).Scan(&maxUrutan)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("gagal mendapatkan urutan maksimal: %w", err)
+	}
+
+	currentUrutan := 0
+	if maxUrutan.Valid {
+		currentUrutan = int(maxUrutan.Int64)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO anggota_kelas (id, kelas_id, student_id, urutan) VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, studentID := range studentIDs {
-		_, err := stmt.ExecContext(ctx, uuid.New().String(), kelasID, studentID)
+		currentUrutan++
+		_, err := stmt.ExecContext(ctx, uuid.New().String(), kelasID, studentID, currentUrutan)
 		if err != nil {
 			return fmt.Errorf("gagal menambahkan siswa dengan ID %s: %w", studentID, err)
 		}
@@ -220,11 +234,11 @@ func (r *postgresRepository) GetAllAnggotaByKelas(ctx context.Context, schemaNam
 		return nil, err
 	}
 	query := `
-		SELECT ak.id, ak.student_id, s.nis, s.nisn, s.nama_lengkap, s.jenis_kelamin
+		SELECT ak.id, ak.student_id, ak.urutan, s.nis, s.nisn, s.nama_lengkap, s.jenis_kelamin
 		FROM anggota_kelas ak
 		JOIN students s ON ak.student_id = s.id
 		WHERE ak.kelas_id = $1
-		ORDER BY s.nama_lengkap ASC
+		ORDER BY ak.urutan ASC, s.nama_lengkap ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query, kelasID)
 	if err != nil {
@@ -235,13 +249,41 @@ func (r *postgresRepository) GetAllAnggotaByKelas(ctx context.Context, schemaNam
 	var list []AnggotaKelas
 	for rows.Next() {
 		var a AnggotaKelas
-		err := rows.Scan(&a.ID, &a.StudentID, &a.NIS, &a.NISN, &a.NamaLengkap, &a.JenisKelamin)
+		err := rows.Scan(&a.ID, &a.StudentID, &a.Urutan, &a.NIS, &a.NISN, &a.NamaLengkap, &a.JenisKelamin)
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, a)
 	}
 	return list, nil
+}
+
+func (r *postgresRepository) UpdateAnggotaKelasUrutan(ctx context.Context, schemaName string, orderedIDs []string) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		UPDATE anggota_kelas AS ak
+		SET urutan = new_order.new_urutan
+		FROM (
+			SELECT id, ordinality AS new_urutan
+			FROM unnest($1::uuid[]) WITH ORDINALITY AS t(id, ordinality)
+		) AS new_order
+		WHERE ak.id = new_order.id;
+	`
+	_, err = tx.ExecContext(ctx, query, pq.Array(orderedIDs))
+	if err != nil {
+		return fmt.Errorf("gagal update urutan anggota kelas: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // --- Implementasi Pengajar Kelas ---
@@ -274,7 +316,6 @@ func (r *postgresRepository) GetAllPengajarByKelas(ctx context.Context, schemaNa
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// --- PERBAIKAN DI SINI: Tambahkan mp.kode_mapel ---
 	query := `
 		SELECT pk.id, pk.teacher_id, pk.mata_pelajaran_id, t.nama_lengkap, mp.nama_mapel, mp.kode_mapel
 		FROM pengajar_kelas pk
@@ -292,7 +333,6 @@ func (r *postgresRepository) GetAllPengajarByKelas(ctx context.Context, schemaNa
 	var list []PengajarKelas
 	for rows.Next() {
 		var p PengajarKelas
-		// --- PERBAIKAN DI SINI: Tambahkan &p.KodeMapel di Scan ---
 		err := rows.Scan(&p.ID, &p.TeacherID, &p.MataPelajaranID, &p.NamaGuru, &p.NamaMapel, &p.KodeMapel)
 		if err != nil {
 			return nil, err

@@ -143,6 +143,21 @@ func (h *Handler) RemoveAnggotaKelas(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) UpdateAnggotaKelasUrutan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpdateAnggotaUrutanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdateAnggotaKelasUrutan(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal memperbarui urutan anggota: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Handler untuk Pengajar Kelas (Guru) ---
 
 func (h *Handler) GetAllPengajarByKelas(w http.ResponseWriter, r *http.Request) {

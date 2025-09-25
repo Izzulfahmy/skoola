@@ -162,6 +162,7 @@ export interface Kelas {
 export interface AnggotaKelas {
   id: string;
   student_id: string;
+  urutan: number;
   nis?: string;
   nisn?: string;
   nama_lengkap: string;

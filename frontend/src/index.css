@@ -45,22 +45,11 @@ body {
   border: none !important;
 }
 
-.draggable-row .ant-table-cell {
-  transition: background-color 0.2s;
-}
-.drop-indicator-top td {
-  border-top: 2px dashed #1677ff;
-}
-.drop-indicator-bottom td {
-  border-bottom: 2px dashed #1677ff;
-}
-
 /* Mengatur padding untuk tabel anak agar lebih rapat */
 .ant-table-expanded-row .ant-table-cell {
 	padding: 8px 8px !important;
 }
 
-/* --- TAMBAHKAN KODE DI BAWAH INI --- */
 /* Mengatur padding untuk semua sel tabel agar lebih rapat */
 .ant-table-small .ant-table-cell {
     padding: 8px 8px !important;
@@ -69,4 +58,20 @@ body {
 /* Mengatur padding untuk header kelompok agar lebih rapat */
 .ant-collapse-header {
     padding: 8px 16px !important;
+}
+
+/* --- PERBAIKAN CSS UNTUK INDIKATOR DRAG-AND-DROP (GABUNGAN) --- */
+.draggable-row {
+  cursor: move;
+}
+
+/* Aturan untuk Rombel Detail (siswa) & Mata Pelajaran */
+tr.drop-over-downward > td,
+.drop-indicator-bottom td {
+  box-shadow: inset 0px -2px 0px #1677ff;
+}
+
+tr.drop-over-upward > td,
+.drop-indicator-top td {
+  box-shadow: inset 0px 2px 0px #1677ff;
 }

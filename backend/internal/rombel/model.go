@@ -25,6 +25,7 @@ type AnggotaKelas struct {
 	ID           string    `json:"id"`
 	KelasID      string    `json:"kelas_id"`
 	StudentID    string    `json:"student_id"`
+	Urutan       int       `json:"urutan"`
 	CreatedAt    time.Time `json:"created_at"`
 	NIS          *string   `json:"nis,omitempty"`           // Untuk join
 	NISN         *string   `json:"nisn,omitempty"`          // Untuk join
@@ -64,4 +65,9 @@ type AddAnggotaKelasInput struct {
 type UpsertPengajarKelasInput struct {
 	TeacherID       string `json:"teacher_id" validate:"required,uuid"`
 	MataPelajaranID string `json:"mata_pelajaran_id" validate:"required,uuid"`
+}
+
+// UpdateAnggotaUrutanInput adalah DTO untuk mengubah urutan siswa.
+type UpdateAnggotaUrutanInput struct {
+	OrderedIDs []string `json:"ordered_ids" validate:"required,dive,uuid"`
 }

@@ -292,6 +292,7 @@ func main() {
 		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/anggota", rombelHandler.GetAllAnggotaByKelas)
 		r.With(auth.Authorize("admin")).Post("/{kelasID}/anggota", rombelHandler.AddAnggotaKelas)
 		r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaID}", rombelHandler.RemoveAnggotaKelas)
+		r.With(auth.Authorize("admin")).Put("/anggota/reorder", rombelHandler.UpdateAnggotaKelasUrutan)
 		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/pengajar", rombelHandler.GetAllPengajarByKelas)
 		r.With(auth.Authorize("admin")).Post("/{kelasID}/pengajar", rombelHandler.CreatePengajarKelas)
 		r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)

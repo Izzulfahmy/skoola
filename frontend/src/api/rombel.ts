@@ -79,11 +79,18 @@ export const addAnggotaKelas = async (kelasId: string, data: AddAnggotaKelasInpu
 
 export const removeAnggotaKelas = async (anggotaId: string): Promise<void> => {
   try {
-    // Perhatikan endpoint ini menggunakan ID dari tabel anggota_kelas, bukan student_id
     await apiClient.delete(`/rombel/anggota/${anggotaId}`);
   } catch (error) {
     throw error;
   }
+};
+
+export const updateUrutanAnggota = async (orderedIds: string[]): Promise<void> => {
+	try {
+	  await apiClient.put('/rombel/anggota/reorder', { ordered_ids: orderedIds });
+	} catch (error) {
+	  throw error;
+	}
 };
 
 

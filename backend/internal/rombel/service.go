@@ -22,6 +22,7 @@ type Service interface {
 	AddAnggotaKelas(ctx context.Context, schemaName string, kelasID string, input AddAnggotaKelasInput) error
 	RemoveAnggotaKelas(ctx context.Context, schemaName string, anggotaID string) error
 	GetAllAnggotaByKelas(ctx context.Context, schemaName string, kelasID string) ([]AnggotaKelas, error)
+	UpdateAnggotaKelasUrutan(ctx context.Context, schemaName string, input UpdateAnggotaUrutanInput) error
 	CreatePengajarKelas(ctx context.Context, schemaName string, kelasID string, input UpsertPengajarKelasInput) (*PengajarKelas, error)
 	RemovePengajarKelas(ctx context.Context, schemaName string, pengajarID string) error
 	GetAllPengajarByKelas(ctx context.Context, schemaName string, kelasID string) ([]PengajarKelas, error)
@@ -107,6 +108,13 @@ func (s *service) GetAllAnggotaByKelas(ctx context.Context, schemaName string, k
 	return s.repo.GetAllAnggotaByKelas(ctx, schemaName, kelasID)
 }
 
+func (s *service) UpdateAnggotaKelasUrutan(ctx context.Context, schemaName string, input UpdateAnggotaUrutanInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateAnggotaKelasUrutan(ctx, schemaName, input.OrderedIDs)
+}
+
 func (s *service) CreatePengajarKelas(ctx context.Context, schemaName string, kelasID string, input UpsertPengajarKelasInput) (*PengajarKelas, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
@@ -123,7 +131,6 @@ func (s *service) CreatePengajarKelas(ctx context.Context, schemaName string, ke
 		return nil, err
 	}
 
-	// Fetch with joined data to return to client
 	list, err := s.repo.GetAllPengajarByKelas(ctx, schemaName, kelasID)
 	if err != nil {
 		return nil, err

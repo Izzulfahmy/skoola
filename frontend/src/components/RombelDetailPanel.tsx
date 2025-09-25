@@ -1,5 +1,5 @@
 // file: frontend/src/components/RombelDetailPanel.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Tabs,
   Typography,
@@ -18,8 +18,9 @@ import {
   Empty,
 } from 'antd';
 import type { TableColumnsType, TransferProps } from 'antd';
-// --- PERBAIKAN DI SINI: Hapus `EditOutlined` yang tidak terpakai ---
 import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import type {
   Kelas,
   AnggotaKelas,
@@ -36,6 +37,7 @@ import {
   getAllPengajarByKelas,
   createPengajarKelas,
   removePengajarKelas,
+  updateUrutanAnggota,
 } from '../api/rombel';
 import { getAvailableStudents } from '../api/students';
 import { getTaughtMataPelajaran } from '../api/mataPelajaran';
@@ -51,6 +53,51 @@ interface RombelDetailPanelProps {
   onUpdate: () => void;
   onBack?: () => void;
 }
+
+const type = 'DraggableBodyRow';
+
+interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  index: number;
+  moveRow: (dragIndex: number, hoverIndex: number) => void;
+}
+
+const DraggableRow: React.FC<DraggableRowProps> = ({ index, moveRow, className, style, ...restProps }) => {
+  const ref = useRef<HTMLTableRowElement>(null);
+  const [{ isOver, dropClassName }, drop] = useDrop({
+    accept: type,
+    collect: (monitor) => {
+      const { index: dragIndex } = monitor.getItem() || {};
+      if (dragIndex === index) {
+        return {};
+      }
+      return {
+        isOver: monitor.isOver(),
+        dropClassName: dragIndex < index ? ' drop-over-downward' : ' drop-over-upward',
+      };
+    },
+    drop: (item: { index: number }) => {
+      moveRow(item.index, index);
+    },
+  });
+  const [, drag] = useDrag({
+    type,
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+  drop(drag(ref));
+
+  return (
+    <tr
+      ref={ref}
+      className={`${className}${isOver ? dropClassName : ''}`}
+      style={{ cursor: 'move', ...style }}
+      {...restProps}
+    />
+  );
+};
+
 
 const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailPanelProps) => {
   const [anggota, setAnggota] = useState<AnggotaKelas[]>([]);
@@ -121,7 +168,30 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
       message.error('Gagal menghapus siswa.');
     }
   };
+  
+  const moveRow = useCallback(
+    async (dragIndex: number, hoverIndex: number) => {
+      const dragRow = anggota[dragIndex];
+      const newAnggota = [...anggota];
+      newAnggota.splice(dragIndex, 1);
+      newAnggota.splice(hoverIndex, 0, dragRow);
+      setAnggota(newAnggota);
+
+      const orderedIds = newAnggota.map(a => a.id);
+      try {
+        await updateUrutanAnggota(orderedIds);
+        message.success('Urutan absen berhasil disimpan!');
+        fetchData(); // Refresh to ensure sync with backend
+      } catch (error) {
+        message.error('Gagal menyimpan urutan absen.');
+        setAnggota(anggota); // Revert on error
+      }
+    },
+    [anggota, fetchData],
+  );
+
   const anggotaColumns: TableColumnsType<AnggotaKelas> = [
+    { title: 'No', key: 'urutan', align: 'center', width: 80, render: (_, __, index) => index + 1 },
     { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
     { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap' },
     { title: 'L/P', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text?.charAt(0) || '-' },
@@ -230,14 +300,25 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
           <Button icon={<UsergroupAddOutlined />} onClick={handleShowSiswaModal} style={{ marginBottom: 16 }}>
             Tambah Siswa
           </Button>
-          <Table
-            columns={anggotaColumns}
-            dataSource={anggota}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            size="small"
-          />
+          <DndProvider backend={HTML5Backend}>
+            <Table
+                columns={anggotaColumns}
+                dataSource={anggota}
+                rowKey="id"
+                loading={loading}
+                pagination={false}
+                size="small"
+                components={{
+                    body: {
+                        row: DraggableRow,
+                    },
+                }}
+                onRow={(_, index) => ({
+                    index: index!,
+                    moveRow,
+                } as any)}
+            />
+          </DndProvider>
         </>
       ),
     },
