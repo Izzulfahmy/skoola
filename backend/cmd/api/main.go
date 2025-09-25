@@ -13,6 +13,7 @@ import (
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
 	"skoola/internal/jenjang"
+	"skoola/internal/kelompokmapel"
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
 	"skoola/internal/pembelajaran"
@@ -104,10 +105,10 @@ func main() {
 	rombelRepo := rombel.NewRepository(db)
 	pembelajaranRepo := pembelajaran.NewRepository(db)
 	penilaianRepo := penilaian.NewRepository(db)
+	kelompokMapelRepo := kelompokmapel.NewRepository(db)
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
-	// --- MODIFIKASI DI SINI ---
 	teacherService := teacher.NewService(teacherRepo, tahunAjaranRepo, validate, db)
 	studentService := student.NewService(studentRepo, studentHistoryRepo, validate, db)
 	studentHistoryService := student.NewHistoryService(studentHistoryRepo, validate)
@@ -118,6 +119,7 @@ func main() {
 	tingkatanService := tingkatan.NewService(tingkatanRepo, validate)
 	tahunAjaranService := tahunajaran.NewService(tahunAjaranRepo, validate, db)
 	mataPelajaranService := matapelajaran.NewService(mataPelajaranRepo, validate)
+	kelompokMapelService := kelompokmapel.NewService(kelompokMapelRepo, mataPelajaranRepo, validate)
 	kurikulumService := kurikulum.NewService(kurikulumRepo, validate)
 	rombelService := rombel.NewService(rombelRepo, validate)
 	pembelajaranService := pembelajaran.NewService(pembelajaranRepo, validate)
@@ -136,6 +138,7 @@ func main() {
 	tingkatanHandler := tingkatan.NewHandler(tingkatanService)
 	tahunAjaranHandler := tahunajaran.NewHandler(tahunAjaranService)
 	mataPelajaranHandler := matapelajaran.NewHandler(mataPelajaranService)
+	kelompokMapelHandler := kelompokmapel.NewHandler(kelompokMapelService)
 	kurikulumHandler := kurikulum.NewHandler(kurikulumService)
 	rombelHandler := rombel.NewHandler(rombelService)
 	pembelajaranHandler := pembelajaran.NewHandler(pembelajaranService)
@@ -175,7 +178,6 @@ func main() {
 	r.Route("/teachers", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("teacher")).Get("/me/details", teacherHandler.GetMyDetails)
-		// --- RUTE BARU DITAMBAHKAN DI SINI ---
 		r.With(auth.Authorize("teacher")).Get("/me/classes", teacherHandler.GetMyKelas)
 		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
 		r.Route("/history", func(r chi.Router) {
@@ -246,12 +248,23 @@ func main() {
 	})
 	r.Route("/mata-pelajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", mataPelajaranHandler.GetAll)
+		r.With(auth.Authorize("admin")).Put("/reorder", mataPelajaranHandler.UpdateUrutan)
+		r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
+		r.With(auth.Authorize("admin")).Get("/taught", mataPelajaranHandler.GetAllTaught)
 		r.With(auth.Authorize("admin")).Post("/", mataPelajaranHandler.Create)
 		r.With(auth.Authorize("admin")).Get("/{id}", mataPelajaranHandler.GetByID)
 		r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
 		r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
 	})
+
+	r.Route("/kelompok-mapel", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
+		r.With(auth.Authorize("admin")).Post("/", kelompokMapelHandler.Create)
+		r.With(auth.Authorize("admin")).Put("/{id}", kelompokMapelHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{id}", kelompokMapelHandler.Delete)
+	})
+
 	r.Route("/kurikulum", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)

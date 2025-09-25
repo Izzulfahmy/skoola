@@ -19,6 +19,20 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+func (h *Handler) UpdateUrutan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpdateUrutanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+	if err := h.service.UpdateUrutan(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal memperbarui urutan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	var input UpsertMataPelajaranInput
@@ -35,17 +49,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(result)
-}
-
-func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	list, err := h.service.GetAll(r.Context(), schemaName)
-	if err != nil {
-		http.Error(w, "Gagal mengambil data: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(list)
 }
 
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -97,4 +100,15 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetAllTaught(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	list, err := h.service.GetAllTaught(r.Context(), schemaName)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
 }

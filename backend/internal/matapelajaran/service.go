@@ -14,10 +14,11 @@ var ErrValidation = errors.New("validation failed")
 // Service mendefinisikan interface untuk logika bisnis.
 type Service interface {
 	Create(ctx context.Context, schemaName string, input UpsertMataPelajaranInput) (*MataPelajaran, error)
-	GetAll(ctx context.Context, schemaName string) ([]MataPelajaran, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*MataPelajaran, error)
 	Update(ctx context.Context, schemaName string, id string, input UpsertMataPelajaranInput) error
 	Delete(ctx context.Context, schemaName string, id string) error
+	GetAllTaught(ctx context.Context, schemaName string) ([]MataPelajaran, error)
+	UpdateUrutan(ctx context.Context, schemaName string, input UpdateUrutanInput) error
 }
 
 type service struct {
@@ -37,10 +38,6 @@ func (s *service) Create(ctx context.Context, schemaName string, input UpsertMat
 	return s.repo.Create(ctx, schemaName, input)
 }
 
-func (s *service) GetAll(ctx context.Context, schemaName string) ([]MataPelajaran, error) {
-	return s.repo.GetAll(ctx, schemaName)
-}
-
 func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*MataPelajaran, error) {
 	return s.repo.GetByID(ctx, schemaName, id)
 }
@@ -54,4 +51,15 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 
 func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
 	return s.repo.Delete(ctx, schemaName, id)
+}
+
+func (s *service) GetAllTaught(ctx context.Context, schemaName string) ([]MataPelajaran, error) {
+	return s.repo.GetAllTaught(ctx, schemaName)
+}
+
+func (s *service) UpdateUrutan(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateUrutan(ctx, schemaName, input.OrderedIDs)
 }

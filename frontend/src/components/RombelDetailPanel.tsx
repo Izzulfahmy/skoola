@@ -38,7 +38,7 @@ import {
   removePengajarKelas,
 } from '../api/rombel';
 import { getAvailableStudents } from '../api/students';
-import { getAllMataPelajaran } from '../api/mataPelajaran';
+import { getTaughtMataPelajaran } from '../api/mataPelajaran';
 import MateriPembelajaranPanel from './MateriPembelajaranPanel';
 import PenilaianPanel from './PenilaianPanel';
 
@@ -143,7 +143,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   };
   const handleShowGuruModal = async () => {
     try {
-        const mapelData = await getAllMataPelajaran();
+        const mapelData = await getTaughtMataPelajaran();
         setAllMapel(mapelData || []);
         setIsGuruModalOpen(true);
     } catch {

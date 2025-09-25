@@ -1,6 +1,14 @@
 // file: frontend/src/api/mataPelajaran.ts
 import apiClient from './axiosInstance';
-import type { MataPelajaran, UpsertMataPelajaranInput } from '../types';
+import type { MataPelajaran, UpsertMataPelajaranInput, UpdateUrutanMapelInput } from '../types';
+
+export const updateUrutanMataPelajaran = async (data: UpdateUrutanMapelInput): Promise<void> => {
+	try {
+	  await apiClient.put('/mata-pelajaran/reorder', data);
+	} catch (error) {
+	  throw error;
+	}
+};
 
 export const getAllMataPelajaran = async (): Promise<MataPelajaran[]> => {
   try {
@@ -10,6 +18,15 @@ export const getAllMataPelajaran = async (): Promise<MataPelajaran[]> => {
     throw error;
   }
 };
+
+export const getTaughtMataPelajaran = async (): Promise<MataPelajaran[]> => {
+	try {
+	  const response = await apiClient.get('/mata-pelajaran/taught');
+	  return response.data;
+	} catch (error) {
+	  throw error;
+	}
+  };
 
 export const createMataPelajaran = async (data: UpsertMataPelajaranInput): Promise<MataPelajaran> => {
   try {

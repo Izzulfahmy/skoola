@@ -1,5 +1,17 @@
 // file: src/types/index.ts
 
+export interface KelompokMataPelajaran {
+  id: number;
+  nama_kelompok: string;
+  urutan: number;
+  mata_pelajaran: MataPelajaran[];
+}
+
+export interface UpsertKelompokMataPelajaranInput {
+  nama_kelompok: string;
+  urutan?: number;
+}
+
 export interface Naungan {
   id: string;
   nama_naungan: string;
@@ -79,11 +91,22 @@ export interface MataPelajaran {
   nama_mapel: string;
   created_at: string;
   updated_at: string;
+  parent_id?: string;
+  urutan?: number;
+  kelompok_id?: number;
+  nama_kelompok?: string;
+  children?: MataPelajaran[];
 }
 
 export interface UpsertMataPelajaranInput {
   kode_mapel: string;
   nama_mapel: string;
+  parent_id?: string;
+  kelompok_id?: number;
+}
+
+export interface UpdateUrutanMapelInput {
+	ordered_ids: string[];
 }
 
 export interface Kurikulum {
