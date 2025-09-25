@@ -40,8 +40,18 @@ body {
   background-color: #fafafa;
 }
 
-/* --- TAMBAHKAN KODE DI BAWAH INI UNTUK MENGHILANGKAN BAYANGAN --- */
 .jexcel_content {
   box-shadow: none !important;
   border: none !important;
+}
+
+/* --- TAMBAHKAN KODE DI BAWAH INI --- */
+.draggable-row .ant-table-cell {
+  transition: background-color 0.2s;
+}
+.drop-indicator-top td {
+  border-top: 2px dashed #1677ff;
+}
+.drop-indicator-bottom td {
+  border-bottom: 2px dashed #1677ff;
 }

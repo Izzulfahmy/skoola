@@ -9,9 +9,14 @@ import type { MataPelajaran, UpsertMataPelajaranInput, KelompokMataPelajaran, Up
 
 const { Title } = Typography;
 
-const DraggableRow = (props: any) => {
-	return <tr {...props} style={{ cursor: 'move' }} />;
+interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+	'data-row-key': string;
+}
+
+const DraggableRow = ({ className, ...props }: DraggableRowProps) => {
+	return <tr {...props} className={`${className} draggable-row`} style={{ cursor: 'move' }} />;
 };
+
 
 const MataPelajaranPage = () => {
   const [mapelForm] = Form.useForm();
@@ -20,6 +25,7 @@ const MataPelajaranPage = () => {
   const [kelompokList, setKelompokList] = useState<KelompokMataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ id: string; position: 'top' | 'bottom' } | null>(null);
 
   // State untuk Modal Mata Pelajaran
   const [isMapelModalOpen, setIsMapelModalOpen] = useState(false);
@@ -64,14 +70,23 @@ const MataPelajaranPage = () => {
 
   const onRow = (record: MataPelajaran): React.HTMLAttributes<HTMLElement> => ({
     draggable: true,
+	className: dropIndicator?.id === record.id ? `drop-indicator-${dropIndicator.position}` : '',
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.setData('text/plain', record.id);
     },
+	onDragLeave: () => {
+		setDropIndicator(null);
+	},
     onDragOver: (e: React.DragEvent) => {
       e.preventDefault();
+	  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const position = e.clientY < midY ? 'top' : 'bottom';
+      setDropIndicator({ id: record.id, position });
     },
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
+	  setDropIndicator(null);
       const dragId = e.dataTransfer.getData('text/plain');
       const dropId = record.id;
   
@@ -99,11 +114,21 @@ const MataPelajaranPage = () => {
       }
 
       const reorder = (list: MataPelajaran[]): MataPelajaran[] => {
-        const dragIndex = list.findIndex(item => item.id === dragId);
-        const dropIndex = list.findIndex(item => item.id === dropId);
-        const newList = [...list];
-        const [reorderedItem] = newList.splice(dragIndex, 1);
-        newList.splice(dropIndex, 0, reorderedItem);
+		let dragIndex = list.findIndex(item => item.id === dragId);
+		let dropIndex = list.findIndex(item => item.id === dropId);
+		
+		const newList = [...list];
+		const [reorderedItem] = newList.splice(dragIndex, 1);
+		
+		// Recalculate drop index after splice
+		dropIndex = newList.findIndex(item => item.id === dropId);
+
+		if (dropIndicator?.position === 'top') {
+			newList.splice(dropIndex, 0, reorderedItem);
+		} else {
+			newList.splice(dropIndex + 1, 0, reorderedItem);
+		}
+        
         handleDragEnd(newList);
         return newList;
       }
