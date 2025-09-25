@@ -12,6 +12,7 @@ import (
 	"skoola/internal/auth"
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
+	"skoola/internal/jenisujian"
 	"skoola/internal/jenjang"
 	"skoola/internal/kelompokmapel"
 	"skoola/internal/kurikulum"
@@ -106,6 +107,7 @@ func main() {
 	pembelajaranRepo := pembelajaran.NewRepository(db)
 	penilaianRepo := penilaian.NewRepository(db)
 	kelompokMapelRepo := kelompokmapel.NewRepository(db)
+	jenisUjianRepo := jenisujian.NewRepository(db)
 
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
@@ -124,6 +126,7 @@ func main() {
 	rombelService := rombel.NewService(rombelRepo, validate)
 	pembelajaranService := pembelajaran.NewService(pembelajaranRepo, validate)
 	penilaianService := penilaian.NewService(penilaianRepo, validate)
+	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
 
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
@@ -143,6 +146,7 @@ func main() {
 	rombelHandler := rombel.NewHandler(rombelService)
 	pembelajaranHandler := pembelajaran.NewHandler(pembelajaranService)
 	penilaianHandler := penilaian.NewHandler(penilaianService)
+	jenisUjianHandler := jenisujian.NewHandler(jenisUjianService)
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -316,6 +320,15 @@ func main() {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianHandler.GetPenilaian)
 		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianHandler.UpsertNilai)
+	})
+
+	r.Route("/jenis-ujian", func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.With(auth.Authorize("admin")).Get("/", jenisUjianHandler.GetAll)
+		r.With(auth.Authorize("admin")).Post("/", jenisUjianHandler.Create)
+		r.With(auth.Authorize("admin")).Get("/{id}", jenisUjianHandler.GetByID)
+		r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
+		r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 	})
 
 	port := os.Getenv("SERVER_PORT")

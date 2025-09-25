@@ -4,17 +4,21 @@ import type { TabsProps } from 'antd';
 import AdminSettingsTab from '../components/AdminSettingsTab';
 import JenjangPendidikanTab from '../components/JenjangPendidikanTab';
 import JabatanTab from '../components/JabatanTab';
-import TingkatanTab from '../components/TingkatanTab'; // <-- 1. IMPOR KOMPONEN BARU
+import TingkatanTab from '../components/TingkatanTab';
+import JenisUjianTab from '../components/JenisUjianTab'; // <-- Impor komponen baru
 
 const { Title } = Typography;
 
-// --- Komponen Placeholder sudah tidak diperlukan lagi ---
-
 const items: TabsProps['items'] = [
+  {
+    key: '0',
+    label: 'Jenis Ujian',
+    children: <JenisUjianTab />,
+  },
   {
     key: '1',
     label: 'Tingkatan Kelas',
-    children: <TingkatanTab />, // <-- 2. GUNAKAN KOMPONEN BARU DI SINI
+    children: <TingkatanTab />,
   },
   {
     key: '2',
@@ -39,7 +43,7 @@ const SettingsPage = () => {
       <Title level={2} style={{ marginBottom: '24px' }}>
         Pengaturan Sekolah
       </Title>
-      <Tabs defaultActiveKey="1" items={items} />
+      <Tabs defaultActiveKey="0" items={items} />
     </Card>
   );
 };

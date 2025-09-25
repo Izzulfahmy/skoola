@@ -436,3 +436,27 @@ export interface UpsertAcademicHistoryInput {
   kelas_tingkat?: string;
   keterangan?: string;
 }
+
+// file: src/types/index.ts
+
+// ... (semua tipe yang sudah ada) ...
+
+export interface UpsertAcademicHistoryInput {
+  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  tanggal_kejadian: string;
+  kelas_tingkat?: string;
+  keterangan?: string;
+}
+
+export interface JenisUjian {
+  id: number;
+  kode_ujian: string;
+  nama_ujian: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertJenisUjianInput {
+  kode_ujian: string;
+  nama_ujian: string;
+}
