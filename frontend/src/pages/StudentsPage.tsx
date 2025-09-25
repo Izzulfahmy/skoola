@@ -1,22 +1,33 @@
 // file: src/pages/StudentsPage.tsx
 import { useEffect, useState } from 'react';
-import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag } from 'antd';
-import type { TableColumnsType } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getStudents, createStudent, updateStudent, deleteStudent } from '../api/students';
-import type { Student, CreateStudentInput, UpdateStudentInput } from '../types';
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag, Dropdown, Upload, Spin, List, Divider } from 'antd';
+import type { TableColumnsType, MenuProps } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined, FileExcelOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import { getStudents, createStudent, updateStudent, deleteStudent, downloadStudentTemplate, uploadStudentsFile } from '../api/students';
+import type { Student, CreateStudentInput, UpdateStudentInput, ImportResult } from '../types';
 import StudentForm from '../components/StudentForm';
 import dayjs from 'dayjs';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+const { Dragger } = Upload;
 
 const StudentsPage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // State untuk modal form
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  // State untuk modal import
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<ImportResult | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -35,13 +46,13 @@ const StudentsPage = () => {
     fetchStudents();
   }, []);
 
-  const showModal = (student: Student | null) => {
+  const showFormModal = (student: Student | null) => {
     setEditingStudent(student);
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
-  const handleCancel = () => {
-    setIsModalOpen(false);
+  const handleFormCancel = () => {
+    setIsFormModalOpen(false);
     setEditingStudent(null);
   };
 
@@ -61,7 +72,7 @@ const StudentsPage = () => {
         await createStudent(payload as CreateStudentInput);
         message.success('Siswa baru berhasil ditambahkan!');
       }
-      handleCancel();
+      handleFormCancel();
       fetchStudents();
     } catch (err: any) {
       const errorMessage = err.response?.data || 'Terjadi kesalahan saat menyimpan data.';
@@ -82,14 +93,74 @@ const StudentsPage = () => {
     }
   };
 
-  // --- PERBAIKAN: Hapus 'fixed' dari kolom ---
+  const handleDownloadTemplate = async () => {
+    message.loading('Menyiapkan template...');
+    try {
+      await downloadStudentTemplate();
+    } catch (error) {
+      message.error('Gagal mengunduh template.');
+    }
+  };
+
+  const handleImportCancel = () => {
+    setIsImportModalOpen(false);
+    setUploadResult(null);
+    setFileList([]);
+    if (uploadResult) { // Jika ada hasil, refresh tabel
+        fetchStudents();
+    }
+  };
+
+  const uploadProps: UploadProps = {
+    name: 'file',
+    multiple: false,
+    fileList: fileList,
+    accept: '.xlsx, .xls',
+    beforeUpload: (file) => {
+      const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel';
+      if (!isExcel) {
+        message.error(`${file.name} bukan file Excel yang valid.`);
+      }
+      return isExcel || Upload.LIST_IGNORE;
+    },
+    customRequest: async ({ file, onSuccess, onError }) => {
+      setIsUploading(true);
+      setUploadResult(null);
+      try {
+        const result = await uploadStudentsFile(file as File);
+        setUploadResult(result);
+        if (onSuccess) {
+          onSuccess(result);
+        }
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Gagal mengunggah file.';
+        message.error(errorMessage);
+        if (onError) {
+          onError(new Error(errorMessage));
+        }
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    onRemove: () => {
+        setFileList([]);
+    },
+    onChange: (info) => {
+        setFileList(info.fileList.slice(-1));
+    }
+  };
+  
+  const menuItems: MenuProps['items'] = [
+    { key: '1', label: 'Unduh Template Excel', icon: <DownloadOutlined />, onClick: handleDownloadTemplate },
+    { key: '2', label: 'Unggah File Excel', icon: <UploadOutlined />, onClick: () => setIsImportModalOpen(true) },
+  ];
+
   const columns: TableColumnsType<Student> = [
     { 
       title: 'Nama Lengkap', 
       dataIndex: 'nama_lengkap', 
       key: 'nama_lengkap', 
       sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap),
-      // fixed: 'left' <-- DIHAPUS
     },
     { 
       title: 'Status', 
@@ -136,10 +207,9 @@ const StudentsPage = () => {
       title: 'Aksi',
       key: 'action',
       align: 'center',
-      // fixed: 'right' <-- DIHAPUS
       render: (_, record) => (
         <Space size="middle">
-          <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
+          <Button icon={<EditOutlined />} onClick={() => showFormModal(record)} />
           <Popconfirm
             title="Hapus Siswa"
             description="Apakah Anda yakin?"
@@ -165,9 +235,14 @@ const StudentsPage = () => {
           <Title level={2} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
         </Col>
         <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(null)}>
-            Tambah Siswa
-          </Button>
+            <Space>
+                <Dropdown.Button menu={{ items: menuItems }} >
+                    Impor Siswa
+                </Dropdown.Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => showFormModal(null)}>
+                    Tambah Siswa
+                </Button>
+            </Space>
         </Col>
       </Row>
       <Table 
@@ -178,24 +253,90 @@ const StudentsPage = () => {
         scroll={{ x: 'max-content' }}
         pagination={false} 
       />
-      {isModalOpen && (
+      {isFormModalOpen && (
         <Modal
           title={editingStudent ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}
-          open={isModalOpen}
-          onCancel={handleCancel}
+          open={isFormModalOpen}
+          onCancel={handleFormCancel}
           destroyOnClose
           footer={null}
           width={800}
         >
           <StudentForm
             onFinish={handleFormSubmit}
-            onCancel={handleCancel}
+            onCancel={handleFormCancel}
             loading={isSubmitting}
             initialValues={editingStudent || undefined}
             onHistoryUpdate={fetchStudents}
           />
         </Modal>
       )}
+
+    <Modal
+        title="Impor Data Siswa"
+        open={isImportModalOpen}
+        onCancel={handleImportCancel}
+        footer={[
+            <Button key="back" onClick={handleImportCancel}>
+                {uploadResult ? 'Tutup' : 'Batal'}
+            </Button>,
+        ]}
+        width={600}
+        destroyOnClose
+      >
+        {isUploading ? (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <Spin size="large" tip="Mengunggah dan memproses file..." />
+            </div>
+        ) : uploadResult ? (
+            <div>
+                <Title level={4}>Hasil Impor</Title>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <Alert
+                        message={<Text strong>{`Berhasil mengimpor ${uploadResult.success_count} siswa.`}</Text>}
+                        type="success"
+                        showIcon
+                        icon={<CheckCircleOutlined />}
+                    />
+                    {uploadResult.error_count > 0 && (
+                        <Alert
+                            message={<Text strong>{`Gagal mengimpor ${uploadResult.error_count} siswa.`}</Text>}
+                            type="error"
+                            showIcon
+                            icon={<CloseCircleOutlined />}
+                        />
+                    )}
+                </Space>
+                {uploadResult.errors && uploadResult.errors.length > 0 && (
+                    <>
+                        <Divider>Detail Kesalahan</Divider>
+                        <List
+                            size="small"
+                            bordered
+                            dataSource={uploadResult.errors}
+                            renderItem={item => (
+                                <List.Item>
+                                    <Text strong>Baris {item.row}:</Text> {item.message}
+                                </List.Item>
+                            )}
+                            style={{ maxHeight: 200, overflowY: 'auto' }}
+                        />
+                    </>
+                )}
+            </div>
+        ) : (
+          <Dragger {...uploadProps}>
+            <p className="ant-upload-drag-icon">
+              <FileExcelOutlined />
+            </p>
+            <p className="ant-upload-text">Klik atau seret file Excel ke area ini</p>
+            <p className="ant-upload-hint">
+              Pastikan file sesuai dengan template yang disediakan. Hanya file .xlsx atau .xls yang diterima.
+            </p>
+          </Dragger>
+        )}
+      </Modal>
+
     </div>
   );
 };

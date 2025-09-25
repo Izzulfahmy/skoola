@@ -196,6 +196,8 @@ func main() {
 	r.Route("/students", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 		r.With(auth.Authorize("admin")).Get("/available", studentHandler.GetAvailableStudents)
+		r.With(auth.Authorize("admin")).Get("/import/template", studentHandler.GenerateTemplate)
+		r.With(auth.Authorize("admin")).Post("/import", studentHandler.ImportStudents)
 
 		r.Route("/history", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/{studentID}", studentHistoryHandler.GetByStudentID)

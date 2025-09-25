@@ -1,6 +1,40 @@
 // file: src/api/students.ts
 import apiClient from './axiosInstance';
-import type { Student, CreateStudentInput, UpdateStudentInput, RiwayatAkademik, UpsertAcademicHistoryInput } from '../types';
+import type { Student, CreateStudentInput, UpdateStudentInput, RiwayatAkademik, UpsertAcademicHistoryInput, ImportResult } from '../types';
+
+export const downloadStudentTemplate = async (): Promise<void> => {
+	try {
+	  const response = await apiClient.get('/students/import/template', {
+		responseType: 'blob', // Penting untuk menangani file
+	  });
+	  const url = window.URL.createObjectURL(new Blob([response.data]));
+	  const link = document.createElement('a');
+	  link.href = url;
+	  link.setAttribute('download', 'template_import_siswa.xlsx');
+	  document.body.appendChild(link);
+	  link.click();
+	  link.remove();
+	  window.URL.revokeObjectURL(url);
+	} catch (error) {
+	  throw error;
+	}
+};
+  
+export const uploadStudentsFile = async (file: File): Promise<ImportResult> => {
+	const formData = new FormData();
+	formData.append('file', file);
+  
+	try {
+	  const response = await apiClient.post('/students/import', formData, {
+		headers: {
+		  'Content-Type': 'multipart/form-data',
+		},
+	  });
+	  return response.data;
+	} catch (error) {
+	  throw error;
+	}
+};
 
 // --- FUNGSI BARU ---
 export const getAvailableStudents = async (tahunAjaranId: string): Promise<Student[]> => {

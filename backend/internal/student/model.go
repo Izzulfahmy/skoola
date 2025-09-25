@@ -43,3 +43,16 @@ type Student struct {
 	KelasID       *string `json:"kelas_id,omitempty"`   // <-- TAMBAHKAN INI
 	NamaKelas     *string `json:"nama_kelas,omitempty"` // <-- TAMBAHKAN INI
 }
+
+// ImportResult merepresentasikan hasil dari proses impor Excel.
+type ImportResult struct {
+	SuccessCount int           `json:"success_count"`
+	ErrorCount   int           `json:"error_count"`
+	Errors       []ImportError `json:"errors"`
+}
+
+// ImportError merepresentasikan detail error pada baris tertentu di file Excel.
+type ImportError struct {
+	Row     int    `json:"row"`
+	Message string `json:"message"`
+}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"skoola/internal/middleware"
 
@@ -19,6 +20,49 @@ func NewHandler(s Service) *Handler {
 	return &Handler{
 		service: s,
 	}
+}
+
+func (h *Handler) GenerateTemplate(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+
+	buffer, err := h.service.GenerateStudentImportTemplate(r.Context(), schemaName)
+	if err != nil {
+		http.Error(w, "Gagal membuat template: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=template_import_siswa.xlsx")
+
+	if _, err := w.Write(buffer.Bytes()); err != nil {
+		http.Error(w, "Gagal mengirim file", http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB max
+		http.Error(w, "File terlalu besar", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Gagal mendapatkan file dari request: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	result, err := h.service.ImportStudents(r.Context(), schemaName, file)
+	if err != nil {
+		http.Error(w, "Gagal memproses file impor: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
 }
 
 // --- HANDLER BARU ---

@@ -412,3 +412,29 @@ export interface UpsertAcademicHistoryInput {
   kelas_tingkat?: string;
   keterangan?: string;
 }
+
+export interface ImportResult {
+  success_count: number;
+  error_count: number;
+  errors: ImportError[];
+}
+export interface ImportError {
+  row: number;
+  message: string;
+}
+
+export interface RiwayatAkademik {
+  id: string;
+  student_id: string;
+  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  tanggal_kejadian: string;
+  kelas_tingkat?: string;
+  keterangan?: string;
+}
+
+export interface UpsertAcademicHistoryInput {
+  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
+  tanggal_kejadian: string;
+  kelas_tingkat?: string;
+  keterangan?: string;
+}
