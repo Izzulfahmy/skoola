@@ -11,7 +11,6 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// Service mendefinisikan interface untuk logika bisnis.
 type Service interface {
 	Create(ctx context.Context, schemaName string, input UpsertMataPelajaranInput) (*MataPelajaran, error)
 	GetByID(ctx context.Context, schemaName string, id string) (*MataPelajaran, error)
@@ -26,7 +25,6 @@ type service struct {
 	validate *validator.Validate
 }
 
-// NewService membuat instance baru dari service.
 func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
@@ -35,9 +33,30 @@ func (s *service) Create(ctx context.Context, schemaName string, input UpsertMat
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
+
+	// Logika baru untuk menentukan urutan otomatis
+	var maxUrutan int
+	var err error
+
+	if input.ParentID != nil && *input.ParentID != "" {
+		// Ini adalah sub-pelajaran, cari urutan maksimal di antara saudaranya
+		maxUrutan, err = s.repo.GetMaxUrutanByParentID(ctx, schemaName, *input.ParentID)
+	} else {
+		// Ini adalah pelajaran induk, cari urutan maksimal di level root
+		maxUrutan, err = s.repo.GetMaxUrutan(ctx, schemaName)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan urutan: %w", err)
+	}
+
+	nextUrutan := maxUrutan + 1
+	input.Urutan = &nextUrutan
+
 	return s.repo.Create(ctx, schemaName, input)
 }
 
+// ... sisa file tetap sama ...
 func (s *service) GetByID(ctx context.Context, schemaName string, id string) (*MataPelajaran, error) {
 	return s.repo.GetByID(ctx, schemaName, id)
 }

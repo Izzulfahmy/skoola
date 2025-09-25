@@ -23,9 +23,10 @@ type UpsertMataPelajaranInput struct {
 	NamaMapel  string  `json:"nama_mapel" validate:"required,min=3,max=100"`
 	ParentID   *string `json:"parent_id,omitempty"`
 	KelompokID *int    `json:"kelompok_id,omitempty"`
+	Urutan     *int    `json:"urutan,omitempty"`
 }
 
-// DTO baru untuk menerima daftar ID yang sudah diurutkan
+// UpdateUrutanInput DTO untuk menerima daftar ID yang sudah diurutkan
 type UpdateUrutanInput struct {
 	OrderedIDs []string `json:"ordered_ids" validate:"required,dive,uuid"`
 }

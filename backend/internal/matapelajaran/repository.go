@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// Repository mendefinisikan interface untuk interaksi database.
 type Repository interface {
 	Create(ctx context.Context, schemaName string, input UpsertMataPelajaranInput) (*MataPelajaran, error)
 	GetAll(ctx context.Context, schemaName string) ([]MataPelajaran, error)
@@ -18,17 +17,83 @@ type Repository interface {
 	Delete(ctx context.Context, schemaName string, id string) error
 	GetAllTaught(ctx context.Context, schemaName string) ([]MataPelajaran, error)
 	UpdateUrutan(ctx context.Context, schemaName string, orderedIDs []string) error
+	GetMaxUrutan(ctx context.Context, schemaName string) (int, error)
+	GetMaxUrutanByParentID(ctx context.Context, schemaName string, parentID string) (int, error)
 }
 
 type postgresRepository struct {
 	db *sql.DB
 }
 
-// NewRepository membuat instance baru dari postgresRepository.
 func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
+func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) error {
+	_, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName))
+	if err != nil {
+		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	}
+	return nil
+}
+
+func (r *postgresRepository) GetMaxUrutan(ctx context.Context, schemaName string) (int, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return 0, err
+	}
+	var maxUrutan sql.NullInt64
+	query := `SELECT MAX(urutan) FROM mata_pelajaran WHERE parent_id IS NULL`
+	err := r.db.QueryRowContext(ctx, query).Scan(&maxUrutan)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	if maxUrutan.Valid {
+		return int(maxUrutan.Int64), nil
+	}
+	return 0, nil
+}
+
+func (r *postgresRepository) GetMaxUrutanByParentID(ctx context.Context, schemaName string, parentID string) (int, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return 0, err
+	}
+	var maxUrutan sql.NullInt64
+	query := `SELECT MAX(urutan) FROM mata_pelajaran WHERE parent_id = $1`
+	err := r.db.QueryRowContext(ctx, query, parentID).Scan(&maxUrutan)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	if maxUrutan.Valid {
+		return int(maxUrutan.Int64), nil
+	}
+	return 0, nil
+}
+
+func (r *postgresRepository) Create(ctx context.Context, schemaName string, input UpsertMataPelajaranInput) (*MataPelajaran, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	query := `INSERT INTO mata_pelajaran (kode_mapel, nama_mapel, parent_id, kelompok_id, urutan) VALUES ($1, $2, $3, $4, $5) RETURNING id, kode_mapel, nama_mapel, parent_id, kelompok_id, created_at, updated_at, urutan`
+	row := r.db.QueryRowContext(ctx, query, input.KodeMapel, input.NamaMapel, input.ParentID, input.KelompokID, input.Urutan)
+
+	var mp MataPelajaran
+	var parentID sql.NullString
+	var kelompokID sql.NullInt32
+	if err := row.Scan(&mp.ID, &mp.KodeMapel, &mp.NamaMapel, &parentID, &kelompokID, &mp.CreatedAt, &mp.UpdatedAt, &mp.Urutan); err != nil {
+		return nil, fmt.Errorf("gagal memindai data mata pelajaran setelah dibuat: %w", err)
+	}
+	if parentID.Valid {
+		mp.ParentID = &parentID.String
+	}
+	if kelompokID.Valid {
+		id := int(kelompokID.Int32)
+		mp.KelompokID = &id
+	}
+	return &mp, nil
+}
+
+// ... sisa file tetap sama ...
+// GetAll, GetByID, Update, Delete, dll tidak perlu diubah
 func (r *postgresRepository) UpdateUrutan(ctx context.Context, schemaName string, orderedIDs []string) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -57,33 +122,6 @@ func (r *postgresRepository) UpdateUrutan(ctx context.Context, schemaName string
 
 	return tx.Commit()
 }
-
-func (r *postgresRepository) Create(ctx context.Context, schemaName string, input UpsertMataPelajaranInput) (*MataPelajaran, error) {
-	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
-	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
-		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
-	}
-
-	query := `INSERT INTO mata_pelajaran (kode_mapel, nama_mapel, parent_id, kelompok_id) VALUES ($1, $2, $3, $4) RETURNING id, kode_mapel, nama_mapel, parent_id, kelompok_id, created_at, updated_at, urutan`
-	row := r.db.QueryRowContext(ctx, query, input.KodeMapel, input.NamaMapel, input.ParentID, input.KelompokID)
-
-	var mp MataPelajaran
-	var parentID sql.NullString
-	var kelompokID sql.NullInt32
-	if err := row.Scan(&mp.ID, &mp.KodeMapel, &mp.NamaMapel, &parentID, &kelompokID, &mp.CreatedAt, &mp.UpdatedAt, &mp.Urutan); err != nil {
-		return nil, fmt.Errorf("gagal memindai data mata pelajaran setelah dibuat: %w", err)
-	}
-	if parentID.Valid {
-		mp.ParentID = &parentID.String
-	}
-	if kelompokID.Valid {
-		id := int(kelompokID.Int32)
-		mp.KelompokID = &id
-	}
-
-	return &mp, nil
-}
-
 func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]MataPelajaran, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {

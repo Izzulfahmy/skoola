@@ -5,7 +5,7 @@ import type { TableProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { createMataPelajaran, updateMataPelajaran, deleteMataPelajaran, updateUrutanMataPelajaran } from '../api/mataPelajaran';
 import { getAllKelompokMapel, createKelompokMapel, updateKelompokMapel, deleteKelompokMapel } from '../api/kelompokMapel';
-import type { MataPelajaran, UpsertMataPelajaranInput, KelompokMataPelajaran, UpsertKelompokMataPelajaranInput } from '../types';
+import type { MataPelajaran, KelompokMataPelajaran, UpsertKelompokMataPelajaranInput } from '../types';
 
 const { Title } = Typography;
 
@@ -120,7 +120,6 @@ const MataPelajaranPage = () => {
 		const newList = [...list];
 		const [reorderedItem] = newList.splice(dragIndex, 1);
 		
-		// Recalculate drop index after splice
 		dropIndex = newList.findIndex(item => item.id === dropId);
 
 		if (dropIndicator?.position === 'top') {
@@ -155,8 +154,6 @@ const MataPelajaranPage = () => {
     
     mapelForm.setFieldsValue({
       ...mapel,
-      parent_id: parent?.id,
-      kelompok_id: kelompok?.id,
     });
     setIsMapelModalOpen(true);
   };
@@ -169,9 +166,13 @@ const MataPelajaranPage = () => {
     mapelForm.resetFields();
   };
 
-  const handleMapelFinish = async (values: UpsertMataPelajaranInput) => {
+  const handleMapelFinish = async (values: { kode_mapel: string; nama_mapel: string; }) => {
     setIsMapelSubmitting(true);
-    const payload = { ...values, parent_id: parentMapel?.id, kelompok_id: currentKelompok?.id !== 0 ? currentKelompok?.id : undefined };
+    
+    const parent_id = editingMapel ? editingMapel.parent_id : parentMapel?.id;
+    const kelompok_id = currentKelompok?.id !== 0 ? currentKelompok?.id : undefined;
+
+    const payload = { ...values, parent_id, kelompok_id };
 
     try {
       if (editingMapel) {
@@ -298,11 +299,14 @@ const MataPelajaranPage = () => {
 			dataSource={mapelData}
 			rowKey="id"
 			pagination={false}
+			size="small"
 			expandable={{
 				childrenColumnName: 'children',
 				expandRowByClick: true,
+				defaultExpandAllRows: true,
 			}}
             onRow={onRow}
+			showHeader={false}
 		/>
 	)
   }

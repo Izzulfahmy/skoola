@@ -45,7 +45,6 @@ body {
   border: none !important;
 }
 
-/* --- TAMBAHKAN KODE DI BAWAH INI --- */
 .draggable-row .ant-table-cell {
   transition: background-color 0.2s;
 }
@@ -54,4 +53,20 @@ body {
 }
 .drop-indicator-bottom td {
   border-bottom: 2px dashed #1677ff;
+}
+
+/* Mengatur padding untuk tabel anak agar lebih rapat */
+.ant-table-expanded-row .ant-table-cell {
+	padding: 8px 8px !important;
+}
+
+/* --- TAMBAHKAN KODE DI BAWAH INI --- */
+/* Mengatur padding untuk semua sel tabel agar lebih rapat */
+.ant-table-small .ant-table-cell {
+    padding: 8px 8px !important;
+}
+
+/* Mengatur padding untuk header kelompok agar lebih rapat */
+.ant-collapse-header {
+    padding: 8px 16px !important;
 }
