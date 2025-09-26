@@ -1,7 +1,6 @@
 // file: frontend/src/components/PenilaianPanel.tsx
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { message, Spin, Empty, Tooltip } from 'antd';
-import { createRoot } from 'react-dom/client';
+import { message, Spin, Empty } from 'antd';
 import jspreadsheet from 'jspreadsheet-ce';
 import 'jspreadsheet-ce/dist/jspreadsheet.css';
 import { getPenilaianLengkap, upsertNilaiBulk } from '../api/penilaian';
@@ -17,17 +16,10 @@ interface PenilaianPanelProps {
 const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pengajarKelasId, kelasId, viewMode }, ref) => {
   const spreadsheetRef = useRef<HTMLDivElement>(null);
   const spreadsheetInstance = useRef<any | null>(null);
-  const tooltipRoots = useRef<Map<string, any>>(new Map());
 
   const [loading, setLoading] = useState(true);
   const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
   const [penilaianData, setPenilaianData] = useState<PenilaianSiswaData[]>([]);
-
-  useEffect(() => {
-    return () => {
-      tooltipRoots.current.forEach(root => root.unmount());
-    };
-  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -46,48 +38,60 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
     fetchData();
   }, [pengajarKelasId, kelasId]);
 
-  const { columns, nestedHeaders, data, allColumnsMeta } = useMemo(() => {
+  const { columns, data, allColumnsMeta } = useMemo(() => {
     const allColumnsMeta: { key: string, type: 'tp' | 'sumatif', tpId: number, sumatifId?: string }[] = [];
-    const dynamicColumns: jspreadsheet.Column[] = [];
-
-    const headerRow1: any[] = [{ title: 'Siswa', colspan: 2, align: 'center' }];
-    const headerRow2: any[] = [{ title: 'NIS' }, { title: 'Nama Lengkap' }];
     
-    materiList.forEach(materi => {
-      let colspan = 0;
-      materi.tujuan_pembelajaran.forEach(tp => {
+    const baseColumns: jspreadsheet.Column[] = [
+      { type: 'text', title: 'NIS', width: 120, readOnly: true, align: 'left' },
+      { type: 'text', title: 'Nama Lengkap', width: 250, readOnly: true, align: 'left' },
+    ];
+
+    const dynamicColumns: jspreadsheet.Column[] = [];
+    
+    materiList.forEach((materi) => {
+      materi.tujuan_pembelajaran.forEach((tp, tpIndex) => {
         const hasSubPenilaian = tp.penilaian_sumatif && tp.penilaian_sumatif.length > 0;
-        
+        const isFirstColumnInGroup = tpIndex === 0;
+
         if (viewMode === 'detail' && hasSubPenilaian) {
-          colspan += tp.penilaian_sumatif.length;
-          tp.penilaian_sumatif.forEach(ps => {
-            headerRow2.push({ title: `${ps.kode_jenis_ujian}`, tooltip: ps.nama_penilaian });
-            dynamicColumns.push({ type: 'numeric', width: 80, mask: '0' });
+          tp.penilaian_sumatif.forEach((ps, psIndex) => {
+            const isFirstSubColumn = psIndex === 0;
+            const columnOptions: any = {
+              type: 'numeric',
+              width: 90,
+              mask: '0',
+              title: `${materi.nama_materi}\n(${ps.kode_jenis_ujian})`,
+              tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
+            };
+            if (isFirstColumnInGroup && isFirstSubColumn) {
+              columnOptions.className = 'jss-header-group-start';
+            }
+            dynamicColumns.push(columnOptions);
             allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
           });
         } else {
-          colspan += 1;
           const isReadOnly = viewMode === 'rata-rata' && hasSubPenilaian;
-          headerRow2.push({ title: `TP ${tp.urutan}`, tooltip: tp.deskripsi_tujuan });
-          const columnOptions: any = { type: 'numeric', width: 80, mask: '0', readOnly: isReadOnly };
+          const columnOptions: any = {
+            type: 'numeric',
+            width: 100,
+            mask: '0',
+            readOnly: isReadOnly,
+            title: `${materi.nama_materi}\n(TP ${tp.urutan})`,
+            tooltip: tp.deskripsi_tujuan
+          };
           if (isReadOnly) {
             columnOptions.className = 'jss-readonly';
+          }
+          if (isFirstColumnInGroup) {
+            columnOptions.className = `${columnOptions.className || ''} jss-header-group-start`.trim();
           }
           dynamicColumns.push(columnOptions);
           allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
         }
       });
-      if (colspan > 0) {
-        headerRow1.push({ title: materi.nama_materi, colspan, align: 'center' });
-      }
     });
 
-    const finalNestedHeaders = [headerRow1, headerRow2];
-    const finalColumns: jspreadsheet.Column[] = [
-      { type: 'text', width: 120, readOnly: true, align: 'left' },
-      { type: 'text', width: 250, readOnly: true, align: 'left' },
-      ...dynamicColumns,
-    ];
+    const finalColumns = [...baseColumns, ...dynamicColumns];
 
     const finalData = penilaianData.map(siswa => {
       const rowData: (string | number | null)[] = [ siswa.nis || '-', siswa.nama_siswa ];
@@ -110,20 +114,17 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
       return rowData;
     });
 
-    return { columns: finalColumns, nestedHeaders: finalNestedHeaders, data: finalData, allColumnsMeta };
+    return { columns: finalColumns, data: finalData, allColumnsMeta };
   }, [materiList, penilaianData, viewMode]);
 
   useEffect(() => {
     if (!loading && spreadsheetRef.current && data.length > 0 && columns.length > 2) {
         if (spreadsheetInstance.current) {
             spreadsheetInstance.current.destroy();
-            tooltipRoots.current.forEach(root => root.unmount());
-            tooltipRoots.current.clear();
         }
 
         spreadsheetInstance.current = jspreadsheet(spreadsheetRef.current, {
             data: data as jspreadsheet.CellValue[][],
-            nestedHeaders,
             columns,
             allowInsertRow: false,
             allowDeleteRow: false,
@@ -135,26 +136,24 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
             tableWidth: '100%',
             tableHeight: '60vh',
             defaultColAlign: 'center',
-            onload: function(instance: HTMLElement) {
-                nestedHeaders[1].forEach((header, index) => {
-                    const headerCell = instance.querySelector(`thead tr:last-child td[data-x="${index}"]`);
-                    if (headerCell && header.tooltip) {
-                        const root = createRoot(headerCell);
-                        tooltipRoots.current.set(header.title, root);
-                        root.render(
-                            <Tooltip title={header.tooltip} mouseEnterDelay={0.2}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    {header.title}
-                                </div>
-                            </Tooltip>
-                        );
+            onload: function(instance: any) {
+                setTimeout(() => {
+                    if (instance.el) {
+                        columns.forEach((col: any, index) => {
+                           const headerCell = instance.el.querySelector(`thead tr:last-child td[data-x="${index}"]`);
+                           if(headerCell) {
+                               if(col.tooltip) {
+                                   headerCell.setAttribute('title', col.tooltip);
+                               }
+                               headerCell.innerHTML = `<div class="jss-header-title">${col.title}</div>`;
+                           }
+                        });
                     }
-                });
+                }, 0);
             },
         });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, data, columns, nestedHeaders]);
+  }, [loading, data, columns]);
 
   useImperativeHandle(ref, () => ({
     handleSave: async () => {
@@ -174,8 +173,6 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           allColumnsMeta.forEach((meta, colIndex) => {
             const nilaiCell = row[colIndex + 2];
             const nilai = (nilaiCell === '' || nilaiCell === null || nilaiCell === undefined) ? null : parseFloat(nilaiCell as string);
-
-            // Periksa apakah kolom readonly sebelum menambahkan ke payload
             const isReadOnly = columns[colIndex + 2]?.readOnly;
 
             if (meta.type === 'tp' && !isReadOnly) {
@@ -215,7 +212,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
   }));
 
   if (loading) {
-    return <Spin tip="Memuat data penilaian..." style={{ display: 'block', marginTop: '20px' }} />;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}><Spin tip="Memuat data penilaian..." /></div>;
   }
   
   return (

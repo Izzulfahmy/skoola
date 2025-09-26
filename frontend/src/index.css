@@ -75,3 +75,24 @@ tr.drop-over-upward > td,
 .drop-indicator-top td {
   box-shadow: inset 0px 2px 0px #1677ff;
 }
+
+.jspreadsheet thead .jss-header-group-start {
+  border-top: 2px solid #1677ff; /* Garis biru tebal di atas */
+  border-left: 1px solid #ccc;
+}
+
+.jspreadsheet thead .jss-header-group-start {
+  border-left: 2px solid #1677ff; /* Garis biru tebal di kiri */
+}
+
+/* Memberi sedikit padding agar garis tidak terlalu mepet */
+.jspreadsheet thead .jss-header-group-start > div {
+  padding-left: 4px;
+}
+
+/* Mengatur agar header bisa multi-line */
+.jspreadsheet thead td .jss-header-title {
+  white-space: pre-wrap;
+  line-height: 1.2em;
+  padding: 4px;
+}

@@ -19,7 +19,7 @@ import { createPenilaian, updatePenilaian, deletePenilaian } from '../api/penila
 import type { MateriPembelajaran, TujuanPembelajaran, JenisUjian, PenilaianSumatif, UpsertPenilaianSumatifInput } from '../types';
 import type { Key } from 'react';
 import dayjs from 'dayjs';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -50,7 +50,6 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const [loading, setLoading] = useState(true);
   const [editableNode, setEditableNode] = useState<EditableNode | null>(null);
 
-  // State for Penilaian Modal
   const [penilaianModalVisible, setPenilaianModalVisible] = useState(false);
   const [isEditingPenilaian, setIsEditingPenilaian] = useState(false);
   const [currentTp, setCurrentTp] = useState<TujuanPembelajaran | null>(null);
@@ -245,7 +244,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                     <div style={{ flex: 1, marginRight: '8px' }}>
                         {isEditing ? (
                             <Input
-                                defaultValue={editableNode.value}
+                                value={editableNode.value}
                                 onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
                                 onPressEnter={handleSave}
                                 autoFocus
@@ -270,74 +269,74 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                     )}
                 </div>
             ),
-            children: [
-                ...materi.tujuan_pembelajaran.map(tp => {
-                    const tpKey = `tp-${tp.id}-${materi.id}`;
-                    const isEditingTP = editableNode?.key === tpKey;
-                    return {
-                        key: tpKey,
+            children: materi.tujuan_pembelajaran.map(tp => {
+                const tpKey = `tp-${tp.id}-${materi.id}`;
+                const isEditingTP = editableNode?.key === tpKey;
+                
+                // --- PERBAIKAN LOGIKA RENDER DI SINI ---
+                return {
+                    key: tpKey,
+                    title: (
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <div style={{ flex: 1, marginRight: '8px' }}>
+                          {isEditingTP ? (
+                            <TextArea
+                              value={editableNode.value}
+                              onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
+                              autoSize={{ minRows: 1, maxRows: 4 }}
+                              onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
+                              autoFocus
+                            />
+                          ) : (
+                            <Text>{tp.deskripsi_tujuan}</Text>
+                          )}
+                        </div>
+                        <Space>
+                          <Tooltip title="Tambah Penilaian">
+                            <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/>
+                          </Tooltip>
+                          {isEditingTP ? (
+                            <>
+                              <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
+                              <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
+                            </>
+                          ) : (
+                            <>
+                              <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
+                              <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
+                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                              </Popconfirm>
+                            </>
+                          )}
+                        </Space>
+                      </div>
+                    ),
+                    children: (tp.penilaian_sumatif || []).map(penilaian => {
+                      const penilaianKey = `penilaian-${penilaian.id}-${tp.id}`;
+                      return {
+                        key: penilaianKey,
                         title: (
                           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                             <div style={{ flex: 1, marginRight: '8px' }}>
-                              {isEditingTP ? (
-                                <TextArea
-                                  defaultValue={editableNode.value}
-                                  onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
-                                  autoSize={{ minRows: 1, maxRows: 4 }}
-                                  onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
-                                  autoFocus
-                                />
-                              ) : (
-                                <Text>{tp.deskripsi_tujuan}</Text>
-                              )}
+                              <Space>
+                                  <Tag color="blue">{penilaian.kode_jenis_ujian}</Tag>
+                                  <Text>{penilaian.nama_penilaian}</Text>
+                                  {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                              </Space>
                             </div>
                             <Space>
-                              <Tooltip title="Tambah Penilaian">
-                                <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/>
-                              </Tooltip>
-                              {isEditingTP ? (
-                                <>
-                                  <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
-                                  <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
-                                </>
-                              ) : (
-                                <>
-                                  <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
-                                  <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
-                                    <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                                  </Popconfirm>
-                                </>
-                              )}
+                              <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, penilaian)} />
+                              <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDelete(penilaianKey)}>
+                                  <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                              </Popconfirm>
                             </Space>
                           </div>
                         ),
-                        children: (tp.penilaian_sumatif || []).map(penilaian => {
-                          const penilaianKey = `penilaian-${penilaian.id}-${tp.id}`;
-                          return {
-                            key: penilaianKey,
-                            title: (
-                              <div style={{ display: 'flex', alignItems: 'center', width: '100%', paddingLeft: '24px' }}>
-                                <div style={{ flex: 1, marginRight: '8px' }}>
-                                  <Space>
-                                      <Tag color="blue">{penilaian.kode_jenis_ujian}</Tag>
-                                      <Text>{penilaian.nama_penilaian}</Text>
-                                      {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(new Date(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
-                                  </Space>
-                                </div>
-                                <Space>
-                                  <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, penilaian)} />
-                                  <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDelete(penilaianKey)}>
-                                      <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                                  </Popconfirm>
-                                </Space>
-                              </div>
-                            ),
-                            isLeaf: true
-                          }
-                        })
-                    }
-                })
-            ]
+                        isLeaf: true
+                      }
+                    })
+                }
+            })
         };
     });
 };
