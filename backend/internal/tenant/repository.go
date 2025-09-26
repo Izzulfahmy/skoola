@@ -104,6 +104,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/021_add_order_to_anggota_kelas.sql",
 		"./db/migrations/022_add_jenis_ujian.sql",
 		"./db/migrations/023_add_penilaian_sumatif.sql",
+		"./db/migrations/024_add_nilai_sumatif.sql",
 	}
 
 	for _, path := range migrationPaths {

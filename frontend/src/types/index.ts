@@ -2,22 +2,22 @@
 
 // --- TIPE BARU UNTUK PENILAIAN SUMATIF ---
 export interface PenilaianSumatif {
-	id: string;
-	tujuan_pembelajaran_id: number;
-	jenis_ujian_id: number;
-	nama_penilaian: string;
-	tanggal_pelaksanaan?: string;
-	keterangan?: string;
-	nama_jenis_ujian?: string;
-	kode_jenis_ujian?: string;
+  id: string;
+  tujuan_pembelajaran_id: number;
+  jenis_ujian_id: number;
+  nama_penilaian: string;
+  tanggal_pelaksanaan?: string;
+  keterangan?: string;
+  nama_jenis_ujian?: string;
+  kode_jenis_ujian?: string;
 }
 
 export interface UpsertPenilaianSumatifInput {
-	tujuan_pembelajaran_id: number;
-	jenis_ujian_id: number;
-	nama_penilaian: string;
-	tanggal_pelaksanaan?: string;
-	keterangan?: string;
+  tujuan_pembelajaran_id: number;
+  jenis_ujian_id: number;
+  nama_penilaian: string;
+  tanggal_pelaksanaan?: string;
+  keterangan?: string;
 }
 // ------------------------------------
 
@@ -251,23 +251,46 @@ export interface UpdateUrutanInput {
 }
 // ------------------------------------
 
-// --- TIPE BARU UNTUK PENILAIAN ---
-export interface PenilaianInput {
+// --- TIPE BARU UNTUK PENILAIAN LENGKAP ---
+export interface NilaiSiswa {
+  nilai: number | null;
+  updated_at?: string;
+}
+
+export interface NilaiSumatifSiswa {
+	nilai: number | null;
+	updated_at?: string;
+}
+
+export interface PenilaianSiswaData {
+  anggota_kelas_id: string;
+  nama_siswa: string;
+  nis?: string;
+  nilai_formatif: Record<number, NilaiSiswa>; // map[tp_id]
+  nilai_sumatif: Record<string, NilaiSumatifSiswa>; // map[penilaian_sumatif_id]
+}
+
+export interface FullPenilaianData {
+  siswa: PenilaianSiswaData[];
+  last_updated?: string;
+}
+
+// DTO untuk mengirim data ke backend
+export interface UpsertNilaiInput {
   anggota_kelas_id: string;
   tujuan_pembelajaran_id: number;
   nilai: number | null;
 }
 
-export interface PenilaianData {
+export interface UpsertNilaiSumatifSiswaInput {
   anggota_kelas_id: string;
-  nama_siswa: string;
-  nis?: string;
-  nilai: Record<number, number | null>; // { [tp_id]: nilai }
+  penilaian_sumatif_id: string;
+  nilai: number | null;
 }
 
-export interface FullPenilaianData {
-    siswa: PenilaianData[];
-    last_updated?: string;
+export interface BulkUpsertNilaiInput {
+  nilai_formatif: UpsertNilaiInput[];
+  nilai_sumatif: UpsertNilaiSumatifSiswaInput[];
 }
 // ------------------------------------
 
@@ -451,17 +474,6 @@ export interface RiwayatAkademik {
   kelas_tingkat?: string;
   keterangan?: string;
 }
-
-export interface UpsertAcademicHistoryInput {
-  status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';
-  tanggal_kejadian: string;
-  kelas_tingkat?: string;
-  keterangan?: string;
-}
-
-// file: src/types/index.ts
-
-// ... (semua tipe yang sudah ada) ...
 
 export interface UpsertAcademicHistoryInput {
   status: 'Aktif' | 'Lulus' | 'Pindah' | 'Keluar';

@@ -16,9 +16,10 @@ import {
   Space,
   Badge,
   Empty,
+  Radio, // <-- Impor Radio
 } from 'antd';
 import type { TableColumnsType, TransferProps } from 'antd';
-import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import type {
@@ -43,6 +44,7 @@ import { getAvailableStudents } from '../api/students';
 import { getTaughtMataPelajaran } from '../api/mataPelajaran';
 import MateriPembelajaranPanel from './MateriPembelajaranPanel';
 import PenilaianPanel from './PenilaianPanel';
+import type { PenilaianPanelRef, ViewMode } from '../pages/teacher/PenilaianPage'; // <-- Impor tipe baru
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -111,6 +113,13 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   const [isGuruModalOpen, setIsGuruModalOpen] = useState(false);
   const [allMapel, setAllMapel] = useState<MataPelajaran[]>([]);
   const [form] = Form.useForm();
+  
+  // --- STATE BARU UNTUK KONTROL PENILAIAN ---
+  const [activePenilaianTab, setActivePenilaianTab] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('rata-rata');
+  const [isSaving, setIsSaving] = useState(false);
+  const penilaianPanelRef = useRef<PenilaianPanelRef>(null);
+  // ------------------------------------------
 
   const fetchData = async () => {
     setLoading(true);
@@ -120,7 +129,16 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
         getAllPengajarByKelas(rombel.id),
       ]);
       setAnggota(anggotaData || []);
-      setPengajar(pengajarData || []);
+      const pengajarList = pengajarData || [];
+      setPengajar(pengajarList);
+      
+      // Set tab penilaian aktif pertama jika belum ada
+      if(pengajarList.length > 0 && !activePenilaianTab) {
+        setActivePenilaianTab(pengajarList[0].id);
+      } else if (pengajarList.length === 0) {
+        setActivePenilaianTab(null);
+      }
+
     } catch (error) {
       message.error('Gagal memuat detail rombel.');
     } finally {
@@ -131,6 +149,16 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   useEffect(() => {
     fetchData();
   }, [rombel]);
+
+  // --- FUNGSI BARU UNTUK MENYIMPAN NILAI ---
+  const triggerSave = async () => {
+    if (penilaianPanelRef.current) {
+      setIsSaving(true);
+      await penilaianPanelRef.current.handleSave();
+      setIsSaving(false);
+    }
+  };
+  // ----------------------------------------
 
   const handleShowSiswaModal = async () => {
     try {
@@ -181,17 +209,17 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
       try {
         await updateUrutanAnggota(orderedIds);
         message.success('Urutan absen berhasil disimpan!');
-        fetchData(); // Refresh to ensure sync with backend
+        fetchData(); 
       } catch (error) {
         message.error('Gagal menyimpan urutan absen.');
-        setAnggota(anggota); // Revert on error
+        setAnggota(anggota); 
       }
     },
     [anggota, fetchData],
   );
 
   const anggotaColumns: TableColumnsType<AnggotaKelas> = [
-    { title: 'No', key: 'urutan', align: 'center', width: 80, render: (_, __, index) => index + 1 },
+    { title: 'No', dataIndex: 'urutan', key: 'urutan', align: 'center', width: 80, render: (text) => text || '-' },
     { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
     { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap' },
     { title: 'L/P', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text?.charAt(0) || '-' },
@@ -264,12 +292,37 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     children: <MateriPembelajaranPanel pengajarKelasId={p.id} />,
   }));
 
+  // --- KONTEN TAB PENILAIAN YANG DIPERBARUI ---
+  const penilaianContent = (
+    <div>
+        <Space style={{ marginBottom: 16 }} wrap>
+            <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)} buttonStyle="solid">
+                <Radio.Button value="rata-rata">Rata-rata TP</Radio.Button>
+                <Radio.Button value="detail">Semua Penilaian</Radio.Button>
+            </Radio.Group>
+            <Button type="primary" icon={<SaveOutlined />} onClick={triggerSave} loading={isSaving}>
+                Simpan Nilai
+            </Button>
+        </Space>
+
+        {activePenilaianTab ? (
+            <PenilaianPanel
+                ref={penilaianPanelRef}
+                key={`${activePenilaianTab}-${viewMode}`}
+                pengajarKelasId={activePenilaianTab}
+                kelasId={rombel.id}
+                viewMode={viewMode}
+            />
+        ) : <Empty />}
+    </div>
+  );
+  
   const penilaianTabs = pengajar.map(p => ({
     key: p.id,
     label: p.kode_mapel,
-    children: <PenilaianPanel pengajarKelasId={p.id} kelasId={rombel.id}/>
+    children: penilaianContent, // Kontennya sekarang sama untuk semua
   }));
-
+  // ------------------------------------------
 
   const mainTabItems = [
     {
@@ -365,6 +418,8 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
             <Tabs 
                 tabPosition="top"
                 items={penilaianTabs}
+                activeKey={activePenilaianTab ?? undefined}
+                onChange={setActivePenilaianTab}
             />
         ) : (
             <Empty description="Tugaskan guru pengajar terlebih dahulu untuk memulai penilaian." style={{marginTop: 32}}/>

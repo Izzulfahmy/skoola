@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"skoola/internal/middleware"
-	"strconv"
-	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -17,24 +17,14 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-func (h *Handler) GetPenilaian(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetPenilaianLengkap(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	kelasID := r.URL.Query().Get("kelas_id")
-	tpIDsStr := r.URL.Query().Get("tp_ids")
+	kelasID := chi.URLParam(r, "kelasID")
+	pengajarKelasID := chi.URLParam(r, "pengajarKelasID")
 
-	var tpIDs []int
-	if tpIDsStr != "" {
-		for _, idStr := range strings.Split(tpIDsStr, ",") {
-			id, err := strconv.Atoi(idStr)
-			if err == nil {
-				tpIDs = append(tpIDs, id)
-			}
-		}
-	}
-
-	result, err := h.service.GetPenilaianByTP(r.Context(), schemaName, kelasID, tpIDs)
+	result, err := h.service.GetPenilaianLengkap(r.Context(), schemaName, kelasID, pengajarKelasID)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data penilaian: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal mengambil data penilaian lengkap: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -42,15 +32,15 @@ func (h *Handler) GetPenilaian(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func (h *Handler) UpsertNilai(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpsertNilaiBulk(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	var input BulkPenilaianInput
+	var input BulkUpsertNilaiInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.UpsertNilai(r.Context(), schemaName, input)
+	err := h.service.UpsertNilaiBulk(r.Context(), schemaName, input)
 	if err != nil {
 		http.Error(w, "Gagal menyimpan nilai: "+err.Error(), http.StatusInternalServerError)
 		return

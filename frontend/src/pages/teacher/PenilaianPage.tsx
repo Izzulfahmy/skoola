@@ -1,6 +1,6 @@
 // file: src/pages/teacher/PenilaianPage.tsx
 import { useEffect, useState, useRef } from 'react';
-import { Card, Typography, Select, Empty, Alert, Space, Button } from 'antd';
+import { Card, Typography, Select, Empty, Alert, Space, Button, Radio } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getMyClasses } from '../../api/teachers';
 import { getAllPengajarByKelas } from '../../api/rombel';
@@ -10,7 +10,8 @@ import PenilaianPanel from '../../components/PenilaianPanel';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-// Definisikan tipe untuk ref agar bisa memanggil fungsi handleSave dari child
+export type ViewMode = 'rata-rata' | 'detail';
+
 export interface PenilaianPanelRef {
   handleSave: () => void;
 }
@@ -23,6 +24,7 @@ const PenilaianPage = () => {
   const [pengajarList, setPengajarList] = useState<PengajarKelas[]>([]);
   const [selectedPengajarId, setSelectedPengajarId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('rata-rata');
 
   const penilaianPanelRef = useRef<PenilaianPanelRef>(null);
 
@@ -107,15 +109,26 @@ const PenilaianPage = () => {
             </Select>
           </Space>
           
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={triggerSave}
-            loading={isSaving}
-            disabled={!selectedPengajarId}
-          >
-            Simpan Perubahan
-          </Button>
+          <Space>
+            <Radio.Group
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+              buttonStyle="solid"
+              disabled={!selectedPengajarId}
+            >
+              <Radio.Button value="rata-rata">Rata-rata TP</Radio.Button>
+              <Radio.Button value="detail">Semua Penilaian</Radio.Button>
+            </Radio.Group>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={triggerSave}
+              loading={isSaving}
+              disabled={!selectedPengajarId}
+            >
+              Simpan Perubahan
+            </Button>
+          </Space>
         </div>
       </Card>
 
@@ -123,9 +136,10 @@ const PenilaianPage = () => {
         {selectedPengajarId && selectedKelasId ? (
           <PenilaianPanel
             ref={penilaianPanelRef}
-            key={selectedPengajarId}
+            key={`${selectedPengajarId}-${viewMode}`}
             pengajarKelasId={selectedPengajarId}
             kelasId={selectedKelasId}
+            viewMode={viewMode}
           />
         ) : (
           <Empty description="Pilih kelas dan mata pelajaran untuk memulai." style={{ paddingTop: 60, paddingBottom: 60 }} />

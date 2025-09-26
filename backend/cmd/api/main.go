@@ -322,8 +322,9 @@ func main() {
 
 	r.Route("/penilaian", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianHandler.GetPenilaian)
-		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianHandler.UpsertNilai)
+		// --- PERUBAHAN RUTE DI SINI ---
+		r.With(auth.Authorize("admin", "teacher")).Get("/kelas/{kelasID}/pengajar/{pengajarKelasID}", penilaianHandler.GetPenilaianLengkap)
+		r.With(auth.Authorize("admin", "teacher")).Post("/batch-upsert", penilaianHandler.UpsertNilaiBulk)
 	})
 
 	r.Route("/penilaian-sumatif", func(r chi.Router) {

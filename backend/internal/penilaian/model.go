@@ -3,36 +3,53 @@ package penilaian
 
 import "time"
 
-// NilaiSiswa merepresentasikan data nilai yang sudah ada di database.
-type NilaiSiswa struct {
-	AnggotaKelasID       string  `json:"anggota_kelas_id"`
-	TujuanPembelajaranID int     `json:"tujuan_pembelajaran_id"`
-	Nilai                float64 `json:"nilai"`
-}
+// --- DTO UNTUK INPUT DARI FRONTEND ---
 
-// PenilaianInput adalah DTO untuk menerima data nilai dari frontend.
-type PenilaianInput struct {
+// UpsertNilaiInput merepresentasikan satu nilai formatif (nilai akhir TP).
+type UpsertNilaiInput struct {
 	AnggotaKelasID       string   `json:"anggota_kelas_id" validate:"required,uuid"`
 	TujuanPembelajaranID int      `json:"tujuan_pembelajaran_id" validate:"required,numeric"`
-	Nilai                *float64 `json:"nilai" validate:"omitempty,numeric,min=0,max=100"` // Pointer agar bisa menerima null (untuk menghapus nilai)
+	Nilai                *float64 `json:"nilai" validate:"omitempty,numeric,min=0,max=100"`
 }
 
-// BulkPenilaianInput adalah DTO untuk menerima sekumpulan data nilai.
-type BulkPenilaianInput struct {
-	Penilaian []PenilaianInput `json:"penilaian" validate:"required,dive"`
+// UpsertNilaiSumatifSiswaInput merepresentasikan satu nilai sumatif (komponen nilai seperti PR, Tugas).
+type UpsertNilaiSumatifSiswaInput struct {
+	AnggotaKelasID     string   `json:"anggota_kelas_id" validate:"required,uuid"`
+	PenilaianSumatifID string   `json:"penilaian_sumatif_id" validate:"required,uuid"`
+	Nilai              *float64 `json:"nilai" validate:"omitempty,numeric,min=0,max=100"`
 }
 
-// PenilaianData merepresentasikan data lengkap untuk ditampilkan di frontend,
-// menggabungkan data siswa dengan nilai mereka.
-type PenilaianData struct {
-	AnggotaKelasID string           `json:"anggota_kelas_id"`
-	NamaSiswa      string           `json:"nama_siswa"`
-	NIS            *string          `json:"nis"`
-	Nilai          map[int]*float64 `json:"nilai"` // map[tujuan_pembelajaran_id]nilai
+// BulkUpsertNilaiInput adalah DTO untuk menerima semua jenis nilai dari frontend dalam satu request.
+type BulkUpsertNilaiInput struct {
+	NilaiFormatif []UpsertNilaiInput             `json:"nilai_formatif" validate:"dive"`
+	NilaiSumatif  []UpsertNilaiSumatifSiswaInput `json:"nilai_sumatif" validate:"dive"`
+}
+
+// --- STRUCT UNTUK MENGIRIM DATA KE FRONTEND ---
+
+// NilaiSiswa merepresentasikan nilai akhir formatif untuk satu TP.
+type NilaiSiswa struct {
+	Nilai     *float64   `json:"nilai"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+// NilaiSumatifSiswa merepresentasikan nilai untuk satu komponen penilaian (PR, Tugas, dll).
+type NilaiSumatifSiswa struct {
+	Nilai     *float64   `json:"nilai"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+// PenilaianSiswaData adalah data lengkap seorang siswa, berisi semua nilainya.
+type PenilaianSiswaData struct {
+	AnggotaKelasID string                       `json:"anggota_kelas_id"`
+	NamaSiswa      string                       `json:"nama_siswa"`
+	NIS            *string                      `json:"nis"`
+	NilaiFormatif  map[int]NilaiSiswa           `json:"nilai_formatif"` // map[tp_id]NilaiSiswa
+	NilaiSumatif   map[string]NilaiSumatifSiswa `json:"nilai_sumatif"`  // map[penilaian_sumatif_id]NilaiSumatifSiswa
 }
 
 // FullPenilaianData adalah struktur data lengkap yang dikirim ke frontend.
 type FullPenilaianData struct {
-	Siswa       []PenilaianData `json:"siswa"`
-	LastUpdated *time.Time      `json:"last_updated,omitempty"`
+	Siswa       []PenilaianSiswaData `json:"siswa"`
+	LastUpdated *time.Time           `json:"last_updated,omitempty"`
 }

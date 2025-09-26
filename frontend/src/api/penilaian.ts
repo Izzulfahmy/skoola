@@ -1,24 +1,24 @@
 // file: frontend/src/api/penilaian.ts
 import apiClient from './axiosInstance';
-import type { FullPenilaianData, PenilaianInput } from '../types';
+import type { FullPenilaianData, MateriPembelajaran, BulkUpsertNilaiInput } from '../types';
 
-export const getPenilaian = async (kelasId: string, tpIds: number[]): Promise<FullPenilaianData> => {
+interface PenilaianLengkapResponse {
+  penilaian: FullPenilaianData;
+  materi: MateriPembelajaran[];
+}
+
+export const getPenilaianLengkap = async (kelasId: string, pengajarKelasId: string): Promise<PenilaianLengkapResponse> => {
   try {
-    const response = await apiClient.get('/penilaian', {
-      params: {
-        kelas_id: kelasId,
-        tp_ids: tpIds.join(','),
-      },
-    });
+    const response = await apiClient.get(`/penilaian/kelas/${kelasId}/pengajar/${pengajarKelasId}`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-export const upsertNilai = async (penilaian: PenilaianInput[]): Promise<void> => {
+export const upsertNilaiBulk = async (data: BulkUpsertNilaiInput): Promise<void> => {
   try {
-    await apiClient.post('/penilaian', { penilaian });
+    await apiClient.post('/penilaian/batch-upsert', data);
   } catch (error) {
     throw error;
   }
