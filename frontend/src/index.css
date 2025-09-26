@@ -35,9 +35,10 @@ body {
   background: #a8a8a8;
 }
 
-.jspreadsheet .jss-readonly {
-  color: rgba(0, 0, 0, 0.88) !important;
-  background-color: #fafafa;
+/* --- PERBAIKAN FINAL UNTUK WARNA FONT READ-ONLY --- */
+.jspreadsheet > tbody > tr > td.jss-readonly {
+  color: rgba(0, 0, 0, 0.88) !important; /* Warna font hitam normal */
+  background-color: #fafafa !important; /* Latar belakang abu-abu terang */
 }
 
 .jexcel_content {
@@ -57,4 +58,11 @@ tr.drop-over-downward > td,
 tr.drop-over-upward > td,
 .drop-indicator-top td {
   box-shadow: inset 0px 2px 0px #1677ff;
+}
+
+/* Mengatur agar header bisa multi-line */
+.jspreadsheet thead td .jss-header-title {
+  white-space: pre-wrap;
+  line-height: 1.2em;
+  padding: 4px;
 }

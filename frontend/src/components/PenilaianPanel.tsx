@@ -1,4 +1,4 @@
- // file: frontend/src/components/PenilaianPanel.tsx
+// file: frontend/src/components/PenilaianPanel.tsx
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { message, Spin, Empty } from 'antd';
 import jspreadsheet from 'jspreadsheet-ce';
@@ -69,7 +69,8 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
 
             tp.penilaian_sumatif.forEach((ps) => {
               finalColumns.push({
-                type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
+                type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, 
+                tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
               } as any);
               allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
             });
@@ -77,16 +78,20 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
             materiColspan += 1;
             nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: 1 });
             finalColumns.push({
-              // PERBAIKAN: Gunakan non-breaking space agar sel dianggap tidak kosong
-              type: 'numeric', width: 100, mask: '0', title: '\u00A0', tooltip: tp.deskripsi_tujuan,
+              type: 'numeric', width: 100, mask: '0', title: '\u00A0', 
+              tooltip: tp.deskripsi_tujuan,
             } as any);
             allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
           }
         } else { // Rata-rata mode
           materiColspan += 1;
           const isReadOnly = hasSubPenilaian;
+          const titleText = `TP ${tp.urutan}${isReadOnly ? '*' : ''}`;
+
           finalColumns.push({
-            type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: `TP ${tp.urutan}`, tooltip: tp.deskripsi_tujuan, className: isReadOnly ? 'jss-readonly' : '',
+            type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: titleText, 
+            tooltip: tp.deskripsi_tujuan,
+            className: isReadOnly ? 'jss-readonly' : '',
           } as any);
           allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
         }
@@ -142,6 +147,20 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
             tableWidth: '100%',
             tableHeight: '60vh',
             defaultColAlign: 'center',
+            onload: function(instance: any) {
+                setTimeout(() => {
+                    if (instance.el) {
+                        columns.forEach((col: any, index) => {
+                           const headerCell = instance.el.querySelector(`thead tr:last-child td[data-x="${index}"]`);
+                           if(headerCell) {
+                               if(col.tooltip) {
+                                   headerCell.setAttribute('title', col.tooltip);
+                               }
+                           }
+                        });
+                    }
+                }, 0);
+            },
         });
     } else if (spreadsheetInstance.current) {
         spreadsheetInstance.current.destroy();

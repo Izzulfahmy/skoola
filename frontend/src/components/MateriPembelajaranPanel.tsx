@@ -1,5 +1,5 @@
 // file: frontend/src/components/MateriPembelajaranPanel.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, Tag, Tooltip, Typography } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, AuditOutlined } from '@ant-design/icons';
@@ -24,16 +24,62 @@ import { format, parseISO } from 'date-fns';
 const { TextArea } = Input;
 const { Text } = Typography;
 
+// --- PERBAIKAN BUG KURSOR: Komponen terpisah untuk input editing ---
+interface EditableTitleProps {
+  initialValue: string;
+  isTextArea?: boolean;
+  onSave: (newValue: string) => void;
+  onCancel: () => void;
+}
+
+const EditableTitle: React.FC<EditableTitleProps> = ({ initialValue, isTextArea = false, onSave, onCancel }) => {
+  const [text, setText] = useState(initialValue);
+
+  const handleSave = () => {
+    if (text.trim()) {
+      onSave(text);
+    } else {
+      message.error("Nama tidak boleh kosong.");
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+      <div style={{ flex: 1, marginRight: '8px' }}>
+        {isTextArea ? (
+          <TextArea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            onPressEnter={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            autoFocus
+          />
+        ) : (
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onPressEnter={handleSave}
+            autoFocus
+          />
+        )}
+      </div>
+      <Space>
+        <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
+        <Button icon={<CloseOutlined />} onClick={onCancel} size="small" />
+      </Space>
+    </div>
+  );
+};
+
+// --- Komponen Utama ---
+
 interface MateriPembelajaranPanelProps {
   pengajarKelasId: string;
 }
 
-type EditableNode = {
-    key: string;
-    value: string;
-};
-
-// --- PERBAIKAN DI SINI: Menggunakan '_' sebagai separator ---
 const parseKey = (key: Key): { type: string; id: number | string; parentId?: number } => {
     const keyStr = String(key);
     const parts = keyStr.split('_');
@@ -49,7 +95,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
   const [jenisUjianList, setJenisUjianList] = useState<JenisUjian[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editableNode, setEditableNode] = useState<EditableNode | null>(null);
+  const [editingKey, setEditingKey] = useState<Key | null>(null);
 
   const [penilaianModalVisible, setPenilaianModalVisible] = useState(false);
   const [isEditingPenilaian, setIsEditingPenilaian] = useState(false);
@@ -97,25 +143,24 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
   
-  const handleSave = async () => {
-    if (!editableNode) return;
-    const { key, value } = editableNode;
-    const { type, id, parentId } = parseKey(key);
+  const handleSave = async (newValue: string) => {
+    if (!editingKey) return;
+    const { type, id, parentId } = parseKey(editingKey);
 
     try {
         if (type === 'materi') {
             const materi = materiList.find(m => m.id === id);
             if (materi) {
-                await updateMateri(id as number, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id });
+                await updateMateri(id as number, { ...materi, nama_materi: newValue, pengajar_kelas_id: materi.pengajar_kelas_id });
             }
         } else if (type === 'tp') {
             const tp = materiList.flatMap(m => m.tujuan_pembelajaran).find(t => t.id === id);
             if (tp && parentId) {
-                await updateTujuan(id as number, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: parentId });
+                await updateTujuan(id as number, { ...tp, deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
             }
         }
         message.success("Perubahan berhasil disimpan.");
-        setEditableNode(null);
+        setEditingKey(null);
         fetchData();
     } catch (error) {
         message.error("Gagal menyimpan perubahan.");
@@ -188,22 +233,19 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
 
     if (dragNodeData.type === 'materi') {
         const data = [...materiList];
-        let dragObj: MateriPembelajaran;
         const fromIndex = data.findIndex(item => item.id === dragNodeData.id);
         if (fromIndex === -1) return;
-        [dragObj] = data.splice(fromIndex, 1);
+        const [dragObj] = data.splice(fromIndex, 1);
 
         let toIndex = data.findIndex(item => item.id === dropNodeData.id);
         if (info.dropToGap) {
-            if (dropPosition >= 0) toIndex++;
+            toIndex = dropPosition === -1 ? toIndex : toIndex + 1;
         }
-        data.splice(toIndex, 0, dragObj!);
+        data.splice(toIndex, 0, dragObj);
         
         setMateriList(data);
-        
         const orderedIDs = data.map(item => item.id);
         updateUrutanMateri({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan materi."));
-
     } else if (dragNodeData.type === 'tp') {
         if(dragNodeData.parentId !== dropNodeData.parentId) return;
         const parentId = dragNodeData.parentId;
@@ -214,106 +256,72 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
         if (materiIndex === -1) return;
 
         let tpList = [...data[materiIndex].tujuan_pembelajaran];
-        let dragObj: TujuanPembelajaran;
         const fromIndex = tpList.findIndex(item => item.id === dragNodeData.id);
         if (fromIndex === -1) return;
-        [dragObj] = tpList.splice(fromIndex, 1);
+        const [dragObj] = tpList.splice(fromIndex, 1);
 
         let toIndex = tpList.findIndex(item => item.id === dropNodeData.id);
-        if (info.dropToGap) {
-            if (dropPosition >= 0) toIndex++;
+         if (info.dropToGap) {
+            toIndex = dropPosition === -1 ? toIndex : toIndex + 1;
         }
-        tpList.splice(toIndex, 0, dragObj!);
+        tpList.splice(toIndex, 0, dragObj);
 
         data[materiIndex].tujuan_pembelajaran = tpList;
         setMateriList(data);
-
         const orderedIDs = tpList.map(item => item.id);
         updateUrutanTujuan({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan tujuan."));
     }
 };
 
-  const generateTreeData = (): TreeDataNode[] => {
+  const generateTreeData = useCallback((): TreeDataNode[] => {
     return materiList.map(materi => {
-        // --- PERBAIKAN: Gunakan '_' sebagai separator ---
         const key = `materi_${materi.id}`;
-        const isEditing = editableNode?.key === key;
         return {
             key: key,
-            title: (
+            title: editingKey === key ? (
+              <EditableTitle 
+                initialValue={materi.nama_materi} 
+                onSave={handleSave} 
+                onCancel={() => setEditingKey(null)}
+              />
+            ) : (
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                        {isEditing ? (
-                            <Input
-                                value={editableNode.value}
-                                onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
-                                onPressEnter={handleSave}
-                                autoFocus
-                            />
-                        ) : (
-                            <span style={{ fontWeight: 'bold' }}>{materi.nama_materi}</span>
-                        )}
-                    </div>
-                    {isEditing ? (
-                        <Space>
-                            <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
-                            <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
-                        </Space>
-                    ) : (
-                        <Space>
-                            <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(materi.id)} size="small" type="text" />
-                            <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key, value: materi.nama_materi })} size="small" type="text" />
-                            <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}>
-                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                            </Popconfirm>
-                        </Space>
-                    )}
+                    <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{materi.nama_materi}</span>
+                    <Space>
+                        <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(materi.id)} size="small" type="text" />
+                        <Button icon={<EditOutlined />} onClick={() => setEditingKey(key)} size="small" type="text" />
+                        <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}>
+                            <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                        </Popconfirm>
+                    </Space>
                 </div>
             ),
             children: materi.tujuan_pembelajaran.map(tp => {
-                // --- PERBAIKAN: Gunakan '_' sebagai separator ---
                 const tpKey = `tp_${tp.id}_${materi.id}`;
-                const isEditingTP = editableNode?.key === tpKey;
-                
                 return {
                     key: tpKey,
-                    title: (
+                    title: editingKey === tpKey ? (
+                        <EditableTitle 
+                            initialValue={tp.deskripsi_tujuan}
+                            isTextArea
+                            onSave={handleSave}
+                            onCancel={() => setEditingKey(null)}
+                        />
+                    ) : (
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <div style={{ flex: 1, marginRight: '8px' }}>
-                          {isEditingTP ? (
-                            <TextArea
-                              value={editableNode.value}
-                              onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
-                              autoSize={{ minRows: 1, maxRows: 4 }}
-                              onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
-                              autoFocus
-                            />
-                          ) : (
-                            <Text>{tp.deskripsi_tujuan}</Text>
-                          )}
-                        </div>
+                        <Text style={{ flex: 1, marginRight: '8px' }}>{tp.deskripsi_tujuan}</Text>
                         <Space>
                           <Tooltip title="Tambah Penilaian">
                             <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/>
                           </Tooltip>
-                          {isEditingTP ? (
-                            <>
-                              <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
-                              <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
-                            </>
-                          ) : (
-                            <>
-                              <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
-                              <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
-                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                              </Popconfirm>
-                            </>
-                          )}
+                          <Button icon={<EditOutlined />} onClick={() => setEditingKey(tpKey)} size="small" type="text" />
+                          <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
+                            <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                          </Popconfirm>
                         </Space>
                       </div>
                     ),
                     children: (tp.penilaian_sumatif || []).map(penilaian => {
-                      // --- PERBAIKAN: Gunakan '_' sebagai separator ---
                       const penilaianKey = `penilaian_${penilaian.id}_${tp.id}`;
                       return {
                         key: penilaianKey,
@@ -341,7 +349,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
             })
         };
     });
-};
+  }, [materiList, editingKey]);
   
   if (loading) return <Spin />;
 
