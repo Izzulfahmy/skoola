@@ -33,9 +33,10 @@ type EditableNode = {
     value: string;
 };
 
+// --- PERBAIKAN DI SINI: Menggunakan '_' sebagai separator ---
 const parseKey = (key: Key): { type: string; id: number | string; parentId?: number } => {
     const keyStr = String(key);
-    const parts = keyStr.split('-');
+    const parts = keyStr.split('_');
     const id = parts[0] === 'penilaian' ? parts[1] : parseInt(parts[1], 10);
     return {
         type: parts[0],
@@ -99,16 +100,15 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const handleSave = async () => {
     if (!editableNode) return;
     const { key, value } = editableNode;
-    const { type, id } = parseKey(key);
+    const { type, id, parentId } = parseKey(key);
 
     try {
         if (type === 'materi') {
             const materi = materiList.find(m => m.id === id);
             if (materi) {
-                await updateMateri(id as number, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id, deskripsi: materi.deskripsi || undefined, urutan: materi.urutan });
+                await updateMateri(id as number, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id });
             }
         } else if (type === 'tp') {
-            const { parentId } = parseKey(key);
             const tp = materiList.flatMap(m => m.tujuan_pembelajaran).find(t => t.id === id);
             if (tp && parentId) {
                 await updateTujuan(id as number, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: parentId });
@@ -235,7 +235,8 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
 
   const generateTreeData = (): TreeDataNode[] => {
     return materiList.map(materi => {
-        const key = `materi-${materi.id}`;
+        // --- PERBAIKAN: Gunakan '_' sebagai separator ---
+        const key = `materi_${materi.id}`;
         const isEditing = editableNode?.key === key;
         return {
             key: key,
@@ -270,10 +271,10 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 </div>
             ),
             children: materi.tujuan_pembelajaran.map(tp => {
-                const tpKey = `tp-${tp.id}-${materi.id}`;
+                // --- PERBAIKAN: Gunakan '_' sebagai separator ---
+                const tpKey = `tp_${tp.id}_${materi.id}`;
                 const isEditingTP = editableNode?.key === tpKey;
                 
-                // --- PERBAIKAN LOGIKA RENDER DI SINI ---
                 return {
                     key: tpKey,
                     title: (
@@ -312,7 +313,8 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                       </div>
                     ),
                     children: (tp.penilaian_sumatif || []).map(penilaian => {
-                      const penilaianKey = `penilaian-${penilaian.id}-${tp.id}`;
+                      // --- PERBAIKAN: Gunakan '_' sebagai separator ---
+                      const penilaianKey = `penilaian_${penilaian.id}_${tp.id}`;
                       return {
                         key: penilaianKey,
                         title: (
