@@ -1,4 +1,4 @@
-// file: frontend/src/components/PenilaianPanel.tsx
+ // file: frontend/src/components/PenilaianPanel.tsx
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { message, Spin, Empty } from 'antd';
 import jspreadsheet from 'jspreadsheet-ce';
@@ -43,17 +43,13 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
       return { columns: [], data: [], nestedHeaders: [], allColumnsMeta: [] };
     }
 
-    // Header Level 2 (Paling Bawah) & Konfigurasi Kolom Utama
     const finalColumns: jspreadsheet.Column[] = [
       { type: 'text', title: 'NIS', width: 120, readOnly: true, align: 'left' },
       { type: 'text', title: 'Nama Lengkap', width: 250, readOnly: true, align: 'left' },
     ];
 
-    // Header Level 1 (Paling Atas)
-    const nestedHeadersLvl1: any[] = [
-      { title: '', colspan: 1 }, // Placeholder untuk kolom NIS
-      { title: '', colspan: 1 }, // Placeholder untuk kolom Nama Lengkap
-    ];
+    const nestedHeadersLvl1: any[] = [{ title: '', colspan: 2 }];
+    const nestedHeadersLvl2: any[] = viewMode === 'detail' ? [{ title: '', colspan: 2 }] : [];
     
     const allColumnsMeta: { key: string, type: 'tp' | 'sumatif', tpId: number, sumatifId?: string }[] = [];
 
@@ -65,29 +61,32 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
       materi.tujuan_pembelajaran.forEach((tp) => {
         const hasSubPenilaian = tp.penilaian_sumatif && tp.penilaian_sumatif.length > 0;
 
-        if (viewMode === 'detail' && hasSubPenilaian) {
-           materiColspan += tp.penilaian_sumatif.length;
-           tp.penilaian_sumatif.forEach((ps) => {
+        if (viewMode === 'detail') {
+          if (hasSubPenilaian) {
+            const tpColspan = tp.penilaian_sumatif.length;
+            materiColspan += tpColspan;
+            nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: tpColspan });
+
+            tp.penilaian_sumatif.forEach((ps) => {
+              finalColumns.push({
+                type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
+              } as any);
+              allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
+            });
+          } else {
+            materiColspan += 1;
+            nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: 1 });
             finalColumns.push({
-              type: 'numeric',
-              width: 90,
-              mask: '0',
-              title: ps.kode_jenis_ujian, // Header baris bawah
-              tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
+              // PERBAIKAN: Gunakan non-breaking space agar sel dianggap tidak kosong
+              type: 'numeric', width: 100, mask: '0', title: '\u00A0', tooltip: tp.deskripsi_tujuan,
             } as any);
-            allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
-          });
-        } else {
+            allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
+          }
+        } else { // Rata-rata mode
           materiColspan += 1;
-          const isReadOnly = viewMode === 'rata-rata' && hasSubPenilaian;
+          const isReadOnly = hasSubPenilaian;
           finalColumns.push({
-            type: 'numeric',
-            width: 100,
-            mask: '0',
-            readOnly: isReadOnly,
-            title: `TP ${tp.urutan}`, // Header baris bawah
-            tooltip: tp.deskripsi_tujuan,
-            className: isReadOnly ? 'jss-readonly' : ''
+            type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: `TP ${tp.urutan}`, tooltip: tp.deskripsi_tujuan, className: isReadOnly ? 'jss-readonly' : '',
           } as any);
           allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
         }
@@ -98,7 +97,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
       }
     });
     
-    const finalNestedHeaders = [nestedHeadersLvl1];
+    const finalNestedHeaders = viewMode === 'detail' ? [nestedHeadersLvl1, nestedHeadersLvl2] : [nestedHeadersLvl1];
 
     const finalData = penilaianData.map(siswa => {
       const rowData: (string | number | null)[] = [ siswa.nis || '-', siswa.nama_siswa ];
