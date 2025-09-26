@@ -45,27 +45,10 @@ body {
   border: none !important;
 }
 
-/* Mengatur padding untuk tabel anak agar lebih rapat */
-.ant-table-expanded-row .ant-table-cell {
-	padding: 8px 8px !important;
-}
-
-/* Mengatur padding untuk semua sel tabel agar lebih rapat */
-.ant-table-small .ant-table-cell {
-    padding: 8px 8px !important;
-}
-
-/* Mengatur padding untuk header kelompok agar lebih rapat */
-.ant-collapse-header {
-    padding: 8px 16px !important;
-}
-
-/* --- PERBAIKAN CSS UNTUK INDIKATOR DRAG-AND-DROP (GABUNGAN) --- */
 .draggable-row {
   cursor: move;
 }
 
-/* Aturan untuk Rombel Detail (siswa) & Mata Pelajaran */
 tr.drop-over-downward > td,
 .drop-indicator-bottom td {
   box-shadow: inset 0px -2px 0px #1677ff;
@@ -74,25 +57,4 @@ tr.drop-over-downward > td,
 tr.drop-over-upward > td,
 .drop-indicator-top td {
   box-shadow: inset 0px 2px 0px #1677ff;
-}
-
-.jspreadsheet thead .jss-header-group-start {
-  border-top: 2px solid #1677ff; /* Garis biru tebal di atas */
-  border-left: 1px solid #ccc;
-}
-
-.jspreadsheet thead .jss-header-group-start {
-  border-left: 2px solid #1677ff; /* Garis biru tebal di kiri */
-}
-
-/* Memberi sedikit padding agar garis tidak terlalu mepet */
-.jspreadsheet thead .jss-header-group-start > div {
-  padding-left: 4px;
-}
-
-/* Mengatur agar header bisa multi-line */
-.jspreadsheet thead td .jss-header-title {
-  white-space: pre-wrap;
-  line-height: 1.2em;
-  padding: 4px;
 }

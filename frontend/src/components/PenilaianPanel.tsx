@@ -38,60 +38,67 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
     fetchData();
   }, [pengajarKelasId, kelasId]);
 
-  const { columns, data, allColumnsMeta } = useMemo(() => {
-    const allColumnsMeta: { key: string, type: 'tp' | 'sumatif', tpId: number, sumatifId?: string }[] = [];
-    
-    const baseColumns: jspreadsheet.Column[] = [
+  const { columns, data, nestedHeaders, allColumnsMeta } = useMemo(() => {
+    if (materiList.length === 0) {
+      return { columns: [], data: [], nestedHeaders: [], allColumnsMeta: [] };
+    }
+
+    // Header Level 2 (Paling Bawah) & Konfigurasi Kolom Utama
+    const finalColumns: jspreadsheet.Column[] = [
       { type: 'text', title: 'NIS', width: 120, readOnly: true, align: 'left' },
       { type: 'text', title: 'Nama Lengkap', width: 250, readOnly: true, align: 'left' },
     ];
 
-    const dynamicColumns: jspreadsheet.Column[] = [];
+    // Header Level 1 (Paling Atas)
+    const nestedHeadersLvl1: any[] = [
+      { title: '', colspan: 1 }, // Placeholder untuk kolom NIS
+      { title: '', colspan: 1 }, // Placeholder untuk kolom Nama Lengkap
+    ];
     
+    const allColumnsMeta: { key: string, type: 'tp' | 'sumatif', tpId: number, sumatifId?: string }[] = [];
+
     materiList.forEach((materi) => {
-      materi.tujuan_pembelajaran.forEach((tp, tpIndex) => {
+      if (!materi.tujuan_pembelajaran || materi.tujuan_pembelajaran.length === 0) return;
+
+      let materiColspan = 0;
+      
+      materi.tujuan_pembelajaran.forEach((tp) => {
         const hasSubPenilaian = tp.penilaian_sumatif && tp.penilaian_sumatif.length > 0;
-        const isFirstColumnInGroup = tpIndex === 0;
 
         if (viewMode === 'detail' && hasSubPenilaian) {
-          tp.penilaian_sumatif.forEach((ps, psIndex) => {
-            const isFirstSubColumn = psIndex === 0;
-            const columnOptions: any = {
+           materiColspan += tp.penilaian_sumatif.length;
+           tp.penilaian_sumatif.forEach((ps) => {
+            finalColumns.push({
               type: 'numeric',
               width: 90,
               mask: '0',
-              title: `${materi.nama_materi}\n(${ps.kode_jenis_ujian})`,
+              title: ps.kode_jenis_ujian, // Header baris bawah
               tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}`,
-            };
-            if (isFirstColumnInGroup && isFirstSubColumn) {
-              columnOptions.className = 'jss-header-group-start';
-            }
-            dynamicColumns.push(columnOptions);
+            } as any);
             allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
           });
         } else {
+          materiColspan += 1;
           const isReadOnly = viewMode === 'rata-rata' && hasSubPenilaian;
-          const columnOptions: any = {
+          finalColumns.push({
             type: 'numeric',
             width: 100,
             mask: '0',
             readOnly: isReadOnly,
-            title: `${materi.nama_materi}\n(TP ${tp.urutan})`,
-            tooltip: tp.deskripsi_tujuan
-          };
-          if (isReadOnly) {
-            columnOptions.className = 'jss-readonly';
-          }
-          if (isFirstColumnInGroup) {
-            columnOptions.className = `${columnOptions.className || ''} jss-header-group-start`.trim();
-          }
-          dynamicColumns.push(columnOptions);
+            title: `TP ${tp.urutan}`, // Header baris bawah
+            tooltip: tp.deskripsi_tujuan,
+            className: isReadOnly ? 'jss-readonly' : ''
+          } as any);
           allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
         }
       });
-    });
 
-    const finalColumns = [...baseColumns, ...dynamicColumns];
+      if (materiColspan > 0) {
+        nestedHeadersLvl1.push({ title: materi.nama_materi, colspan: materiColspan });
+      }
+    });
+    
+    const finalNestedHeaders = [nestedHeadersLvl1];
 
     const finalData = penilaianData.map(siswa => {
       const rowData: (string | number | null)[] = [ siswa.nis || '-', siswa.nama_siswa ];
@@ -114,7 +121,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
       return rowData;
     });
 
-    return { columns: finalColumns, data: finalData, allColumnsMeta };
+    return { columns: finalColumns, data: finalData, nestedHeaders: finalNestedHeaders, allColumnsMeta };
   }, [materiList, penilaianData, viewMode]);
 
   useEffect(() => {
@@ -122,10 +129,10 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
         if (spreadsheetInstance.current) {
             spreadsheetInstance.current.destroy();
         }
-
         spreadsheetInstance.current = jspreadsheet(spreadsheetRef.current, {
             data: data as jspreadsheet.CellValue[][],
             columns,
+            nestedHeaders,
             allowInsertRow: false,
             allowDeleteRow: false,
             allowInsertColumn: false,
@@ -136,28 +143,19 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
             tableWidth: '100%',
             tableHeight: '60vh',
             defaultColAlign: 'center',
-            onload: function(instance: any) {
-                setTimeout(() => {
-                    if (instance.el) {
-                        columns.forEach((col: any, index) => {
-                           const headerCell = instance.el.querySelector(`thead tr:last-child td[data-x="${index}"]`);
-                           if(headerCell) {
-                               if(col.tooltip) {
-                                   headerCell.setAttribute('title', col.tooltip);
-                               }
-                               headerCell.innerHTML = `<div class="jss-header-title">${col.title}</div>`;
-                           }
-                        });
-                    }
-                }, 0);
-            },
         });
+    } else if (spreadsheetInstance.current) {
+        spreadsheetInstance.current.destroy();
+        spreadsheetInstance.current = null;
     }
-  }, [loading, data, columns]);
-
+  }, [loading, data, columns, nestedHeaders]);
+  
   useImperativeHandle(ref, () => ({
     handleSave: async () => {
-      if (!spreadsheetInstance.current) return;
+      if (!spreadsheetInstance.current) {
+        message.info('Tidak ada data untuk disimpan.');
+        return;
+      };
       
       try {
         const dataFromSheet = spreadsheetInstance.current.getData();
@@ -173,7 +171,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           allColumnsMeta.forEach((meta, colIndex) => {
             const nilaiCell = row[colIndex + 2];
             const nilai = (nilaiCell === '' || nilaiCell === null || nilaiCell === undefined) ? null : parseFloat(nilaiCell as string);
-            const isReadOnly = columns[colIndex + 2]?.readOnly;
+            const isReadOnly = (columns[colIndex + 2] as any)?.readOnly;
 
             if (meta.type === 'tp' && !isReadOnly) {
               const originalNilai = siswa.nilai_formatif[meta.tpId]?.nilai ?? null;
@@ -222,7 +220,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           <div ref={spreadsheetRef} />
         </div>
       ) : (
-        <Empty description="Belum ada Tujuan Pembelajaran yang bisa dinilai untuk mata pelajaran ini." style={{ marginTop: 32 }} />
+        <Empty description="Belum ada data siswa atau tujuan pembelajaran yang bisa dinilai untuk mata pelajaran ini." style={{ marginTop: 32 }} />
       )}
     </div>
   );

@@ -494,3 +494,4 @@ export interface UpsertJenisUjianInput {
   kode_ujian: string;
   nama_ujian: string;
 }
+
