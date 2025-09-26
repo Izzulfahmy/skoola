@@ -93,7 +93,7 @@ const AdminLayout = () => {
         height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
-        {isMobile || !collapsed ? 'SKOOLA' : 'S'}
+        {isMobile || !collapsed ? 'Admin Panel' : ''}
       </div>
       
       <Menu

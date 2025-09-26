@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2hJknLukEZP81ryHO2Ck0zLaWCFEahsZR1nP48QfK7JEfHRU1DJyUrkmuuppPUh
+\restrict X21AXcnEb1Wq13rngTDM6wC3DalsYcUs7ZNZo2joJJ5Zf5QJEo7d2yZLfgBTY56
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -933,6 +933,8 @@ ALTER TABLE ONLY "20554021".tujuan_pembelajaran ALTER COLUMN id SET DEFAULT next
 
 COPY "20554021".anggota_kelas (id, kelas_id, student_id, created_at, urutan) FROM stdin;
 16f87115-3c8f-4879-bf67-462612395199	7bc306b6-5533-4080-9753-93a915db5b81	0a407143-1f0f-4610-9f79-362df5253ff5	2025-09-26 08:47:42.678574+07	1
+9a1cd2c4-25cc-4c2a-8776-54db3e9ae4c0	7bc306b6-5533-4080-9753-93a915db5b81	5507ed6b-1496-409d-805c-abd20d1990e2	2025-09-26 14:55:58.907258+07	2
+3de4a3ca-5332-47f7-b1a1-e3e41c2c10a4	7bc306b6-5533-4080-9753-93a915db5b81	66363c67-5d7e-4a70-bd14-6e7aeb5f290d	2025-09-26 14:55:58.907258+07	3
 \.
 
 
@@ -1015,7 +1017,11 @@ COPY "20554021".kurikulum (id, nama_kurikulum, deskripsi) FROM stdin;
 --
 
 COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_at, parent_id, urutan, kelompok_id) FROM stdin;
-837d1f23-9e0c-49a0-bda9-5b023c31c582	MTK	Matematika	2025-09-26 08:47:07.929208+07	2025-09-26 08:47:07.929208+07	\N	1	1
+74235d6d-c805-4a9a-a0ca-ac40e8583ac5	Fiqih	Fiqih	2025-09-26 14:53:19.115953+07	2025-09-26 14:53:19.115953+07	4d805eb3-6e5e-4b1f-b48e-28faa2864bc3	1	1
+44f62e86-73ed-4854-a13a-4691fb379e01	Aqidah 	Aqidah Akhlaq	2025-09-26 14:53:28.173235+07	2025-09-26 14:53:28.173235+07	4d805eb3-6e5e-4b1f-b48e-28faa2864bc3	2	1
+837d1f23-9e0c-49a0-bda9-5b023c31c582	MTK	Matematika	2025-09-26 08:47:07.929208+07	2025-09-26 08:47:07.929208+07	\N	2	1
+b66ed2f0-c632-4ce4-b8f0-3341c49f7f35	IPAS	Ilmu Pengetahuan Alam dan Sosial	2025-09-26 14:53:01.528433+07	2025-09-26 14:53:01.528433+07	\N	3	1
+4d805eb3-6e5e-4b1f-b48e-28faa2864bc3	PAI	Pendidikan Agama Islam	2025-09-26 14:53:10.432647+07	2025-09-26 14:53:10.432647+07	\N	1	1
 \.
 
 
@@ -1024,8 +1030,8 @@ COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
-1	ed0c07ec-036a-4a0c-ae8f-8329711b62d0	Bangun Datar	\N	1	2025-09-26 08:47:52.065724+07	2025-09-26 08:48:01.834797+07
 2	ed0c07ec-036a-4a0c-ae8f-8329711b62d0	Pytagoras	\N	2	2025-09-26 12:41:57.740359+07	2025-09-26 12:42:08.933966+07
+1	ed0c07ec-036a-4a0c-ae8f-8329711b62d0	Bangun Datar	\N	1	2025-09-26 08:47:52.065724+07	2025-09-26 14:20:28.755699+07
 \.
 
 
@@ -1034,8 +1040,11 @@ COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskrip
 --
 
 COPY "20554021".nilai_sumatif_siswa (id, penilaian_sumatif_id, anggota_kelas_id, nilai, created_at, updated_at) FROM stdin;
-1	bfffcf43-248b-446c-990d-dbc41eda58bf	16f87115-3c8f-4879-bf67-462612395199	80.00	2025-09-26 08:54:23.793405+07	2025-09-26 08:54:23.793405+07
-2	2484a271-382e-486c-86de-fd86ec1c2194	16f87115-3c8f-4879-bf67-462612395199	76.00	2025-09-26 09:16:38.899152+07	2025-09-26 09:16:45.184419+07
+4	c64a0f80-2d31-4e83-bd8c-03ab066afb10	16f87115-3c8f-4879-bf67-462612395199	90.00	2025-09-26 14:21:30.07662+07	2025-09-26 14:21:30.07662+07
+2	2484a271-382e-486c-86de-fd86ec1c2194	16f87115-3c8f-4879-bf67-462612395199	99.00	2025-09-26 09:16:38.899152+07	2025-09-26 14:21:53.48158+07
+1	bfffcf43-248b-446c-990d-dbc41eda58bf	16f87115-3c8f-4879-bf67-462612395199	86.00	2025-09-26 08:54:23.793405+07	2025-09-26 17:15:39.021491+07
+8	bfffcf43-248b-446c-990d-dbc41eda58bf	9a1cd2c4-25cc-4c2a-8776-54db3e9ae4c0	78.00	2025-09-26 17:15:39.021491+07	2025-09-26 17:15:39.021491+07
+9	bfffcf43-248b-446c-990d-dbc41eda58bf	3de4a3ca-5332-47f7-b1a1-e3e41c2c10a4	90.00	2025-09-26 17:15:39.021491+07	2025-09-26 17:15:39.021491+07
 \.
 
 
@@ -1053,6 +1062,7 @@ COPY "20554021".pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id,
 
 COPY "20554021".pengajar_kelas (id, kelas_id, teacher_id, mata_pelajaran_id, created_at) FROM stdin;
 ed0c07ec-036a-4a0c-ae8f-8329711b62d0	7bc306b6-5533-4080-9753-93a915db5b81	b97a652a-9081-47d3-a28e-bd8dbe275384	837d1f23-9e0c-49a0-bda9-5b023c31c582	2025-09-26 08:47:49.854709+07
+a3339d39-4380-443c-8c14-4229b82e1bc2	7bc306b6-5533-4080-9753-93a915db5b81	faa30c1c-503b-426e-b70d-7dedf3f545ab	44f62e86-73ed-4854-a13a-4691fb379e01	2025-09-26 14:57:48.930362+07
 \.
 
 
@@ -1061,7 +1071,7 @@ ed0c07ec-036a-4a0c-ae8f-8329711b62d0	7bc306b6-5533-4080-9753-93a915db5b81	b97a65
 --
 
 COPY "20554021".penilaian (id, anggota_kelas_id, tujuan_pembelajaran_id, nilai, created_at, updated_at) FROM stdin;
-1	16f87115-3c8f-4879-bf67-462612395199	2	70.00	2025-09-26 08:54:23.793405+07	2025-09-26 08:54:43.289373+07
+4	16f87115-3c8f-4879-bf67-462612395199	3	99.00	2025-09-26 14:24:16.895688+07	2025-09-26 14:24:21.412677+07
 \.
 
 
@@ -1070,8 +1080,9 @@ COPY "20554021".penilaian (id, anggota_kelas_id, tujuan_pembelajaran_id, nilai, 
 --
 
 COPY "20554021".penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, nama_penilaian, tanggal_pelaksanaan, keterangan, created_at, updated_at) FROM stdin;
-bfffcf43-248b-446c-990d-dbc41eda58bf	1	2	Halaman 3	2025-09-26	\N	2025-09-26 08:48:23.832253+07	2025-09-26 08:48:23.832253+07
 2484a271-382e-486c-86de-fd86ec1c2194	1	3	Buku Tulis	2025-09-30	\N	2025-09-26 09:14:13.97477+07	2025-09-26 09:14:13.97477+07
+c64a0f80-2d31-4e83-bd8c-03ab066afb10	4	2	Buku Tulis	2025-09-24	\N	2025-09-26 13:16:23.274734+07	2025-09-26 13:16:23.274734+07
+bfffcf43-248b-446c-990d-dbc41eda58bf	1	2	Halaman 3	2025-09-26	\N	2025-09-26 08:48:23.832253+07	2025-09-26 14:15:56.342852+07
 \.
 
 
@@ -1090,6 +1101,9 @@ COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurah
 
 COPY "20554021".riwayat_akademik (id, student_id, status, tanggal_kejadian, kelas_tingkat, keterangan, created_at, updated_at) FROM stdin;
 3b3182df-c48f-4314-9fbd-2b644bf9df31	0a407143-1f0f-4610-9f79-362df5253ff5	Aktif	2025-09-26	\N	Siswa baru	2025-09-26 08:47:27.768191+07	2025-09-26 08:47:27.768191+07
+829dd8fc-abc0-4cfe-9601-cefa17779196	5507ed6b-1496-409d-805c-abd20d1990e2	Aktif	2025-09-26	\N	Siswa baru	2025-09-26 14:54:45.229229+07	2025-09-26 14:54:45.229229+07
+6d2a4a29-8744-47e9-8c4a-f60381938c33	66363c67-5d7e-4a70-bd14-6e7aeb5f290d	Aktif	2025-09-26	\N	Siswa baru	2025-09-26 14:54:58.934626+07	2025-09-26 14:54:58.934626+07
+0c4549c3-900c-492b-b753-1b45e0ee2bae	a1b76bf6-dcf1-43c2-902c-bda20f5a439b	Aktif	2025-09-26	\N	Siswa baru via impor Excel	2025-09-26 17:27:23.477403+07	2025-09-26 17:27:23.477403+07
 \.
 
 
@@ -1100,6 +1114,7 @@ COPY "20554021".riwayat_akademik (id, student_id, status, tanggal_kejadian, kela
 COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tanggal_selesai, keterangan, created_at, updated_at) FROM stdin;
 830fc458-bf17-4adf-8fe4-f2915a778288	b4dfe292-d83d-4fe9-b6da-86c4661393df	Aktif	2025-09-26	\N	\N	2025-09-26 08:46:35.743405+07	2025-09-26 08:46:35.743405+07
 11a970df-9da3-4a3b-8353-3976362542cc	b97a652a-9081-47d3-a28e-bd8dbe275384	Aktif	2025-09-26	\N	\N	2025-09-26 08:47:20.322769+07	2025-09-26 08:47:20.322769+07
+7a62d10f-17ff-4d67-9793-9e49809b53a3	faa30c1c-503b-426e-b70d-7dedf3f545ab	Aktif	2025-09-26	\N	\N	2025-09-26 14:55:40.00868+07	2025-09-26 14:55:40.00868+07
 \.
 
 
@@ -1109,6 +1124,9 @@ COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tang
 
 COPY "20554021".students (id, created_at, updated_at, nis, nisn, nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali, pekerjaan_ayah, alamat_ayah, pekerjaan_ibu, alamat_ibu, pekerjaan_wali, alamat_wali) FROM stdin;
 0a407143-1f0f-4610-9f79-362df5253ff5	2025-09-26 08:47:27.768191+07	2025-09-26 08:47:27.768191+07	\N	\N	Jokowi	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+5507ed6b-1496-409d-805c-abd20d1990e2	2025-09-26 14:54:45.229229+07	2025-09-26 14:54:45.229229+07	\N	\N	Prabowo	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+66363c67-5d7e-4a70-bd14-6e7aeb5f290d	2025-09-26 14:54:58.934626+07	2025-09-26 14:54:58.934626+07	\N	\N	Srimulyani	\N	Perempuan	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+a1b76bf6-dcf1-43c2-902c-bda20f5a439b	2025-09-26 17:27:23.477403+07	2025-09-26 17:27:23.477403+07	12345	0012345678	Budi Santoso	Budi	Laki-laki	Jakarta	2010-05-15	Islam	Indonesia	Jl. Merdeka No. 10	Cijantung	Pasar Rebo	Jakarta Timur	DKI Jakarta	13770	Ahmad Santoso	Siti Aminah	\N	08123456789	PNS	Jl. Merdeka No. 10	Ibu Rumah Tangga	Jl. Merdeka No. 10	\N	\N
 \.
 
 
@@ -1135,7 +1153,8 @@ COPY "20554021".tahun_ajaran_kurikulum (tahun_ajaran_id, kurikulum_id) FROM stdi
 
 COPY "20554021".teachers (id, user_id, nama_lengkap, nip_nuptk, alamat_lengkap, no_hp, created_at, updated_at, nama_panggilan, gelar_akademik, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, provinsi, kota_kabupaten, kecamatan, desa_kelurahan, kode_pos) FROM stdin;
 b4dfe292-d83d-4fe9-b6da-86c4661393df	6c8abb5d-2daa-461c-80de-abe4c7879e7e	Admin Nurul Huda	\N	\N	\N	2025-09-26 08:46:35.743405+07	2025-09-26 08:46:35.743405+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-b97a652a-9081-47d3-a28e-bd8dbe275384	d18584b9-9b46-43dd-b54b-6aa84ceea53c	Fahmi	\N	\N	\N	2025-09-26 08:47:20.322769+07	2025-09-26 08:47:20.322769+07	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+b97a652a-9081-47d3-a28e-bd8dbe275384	d18584b9-9b46-43dd-b54b-6aa84ceea53c	Fahmi	\N	\N	\N	2025-09-26 08:47:20.322769+07	2025-09-26 14:55:10.404396+07	\N	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N
+faa30c1c-503b-426e-b70d-7dedf3f545ab	1bb9587b-3b4b-4c54-a518-cca4da2a18dc	susanti	\N	\N	\N	2025-09-26 14:55:40.00868+07	2025-09-26 14:58:07.095542+07	\N	\N	Perempuan	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -1158,9 +1177,9 @@ COPY "20554021".tingkatan (id, nama_tingkatan, urutan, created_at, updated_at) F
 --
 
 COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujuan, urutan, created_at, updated_at) FROM stdin;
-1	1	Pengertian Bangun Datar	1	2025-09-26 08:48:03.274492+07	2025-09-26 08:48:13.619413+07
-2	1	Rumus Bangun Datar	2	2025-09-26 08:48:28.36606+07	2025-09-26 08:48:35.887206+07
 3	2	Pengertian Pytagoras	1	2025-09-26 12:42:11.498622+07	2025-09-26 12:42:19.264873+07
+1	1	Pengertian Bangun Datar	1	2025-09-26 08:48:03.274492+07	2025-09-26 08:48:13.619413+07
+4	1	Penerapan Bangun Datar	2	2025-09-26 13:15:51.726191+07	2025-09-26 14:13:03.275365+07
 \.
 
 
@@ -1171,6 +1190,7 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 COPY "20554021".users (id, email, password_hash, role, created_at, updated_at) FROM stdin;
 6c8abb5d-2daa-461c-80de-abe4c7879e7e	admin.sdnu03@gmail.com	$2a$10$iotpCNBlRW2RDCOdbSDvEuyxqjPrz3rBishtVbHUzWPvbKnfzeW8u	admin	2025-09-26 08:46:35.743405+07	2025-09-26 08:46:35.743405+07
 d18584b9-9b46-43dd-b54b-6aa84ceea53c	fahmi.andi@email.com	$2a$10$/TPM1rCpuekAhf3I6LEBgefXKxexelqkeOuKPZyNTkMAPx0V75zUS	teacher	2025-09-26 08:47:20.322769+07	2025-09-26 08:47:20.322769+07
+1bb9587b-3b4b-4c54-a518-cca4da2a18dc	susanti@gmail.com	$2a$10$XpApG5Z8FfMSVicNMWC3zuiqM91f5o9UZJnvH0ToR3jm8dr2HmwnS	teacher	2025-09-26 14:55:40.00868+07	2025-09-26 14:55:40.00868+07
 \.
 
 
@@ -1254,14 +1274,14 @@ SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 2, true);
 -- Name: nilai_sumatif_siswa_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 9, true);
 
 
 --
 -- Name: penilaian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".penilaian_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".penilaian_id_seq', 5, true);
 
 
 --
@@ -1275,7 +1295,7 @@ SELECT pg_catalog.setval('"20554021".tingkatan_id_seq', 6, true);
 -- Name: tujuan_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 4, true);
 
 
 --
@@ -2038,5 +2058,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2hJknLukEZP81ryHO2Ck0zLaWCFEahsZR1nP48QfK7JEfHRU1DJyUrkmuuppPUh
+\unrestrict X21AXcnEb1Wq13rngTDM6wC3DalsYcUs7ZNZo2joJJ5Zf5QJEo7d2yZLfgBTY56
 
