@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"skoola/internal/penilaiansumatif"
 
-	"github.com/lib/pq" // <-- 1. PASTIKAN IMPOR INI ADA
+	"github.com/lib/pq"
 )
 
 // Repository mendefinisikan interface untuk interaksi database.
@@ -55,7 +55,6 @@ func (r *postgresRepository) UpdateUrutanMateri(ctx context.Context, schemaName 
 	}
 	defer tx.Rollback()
 
-	// --- PERBAIKAN UTAMA DI SINI ---
 	query := `
 		UPDATE materi_pembelajaran AS m
 		SET urutan = new_order.new_urutan
@@ -84,7 +83,6 @@ func (r *postgresRepository) UpdateUrutanTujuan(ctx context.Context, schemaName 
 	}
 	defer tx.Rollback()
 
-	// --- PERBAIKAN UTAMA DI SINI ---
 	query := `
 		UPDATE tujuan_pembelajaran AS tp
 		SET urutan = new_order.new_urutan
@@ -102,7 +100,6 @@ func (r *postgresRepository) UpdateUrutanTujuan(ctx context.Context, schemaName 
 	return tx.Commit()
 }
 
-// Sisa file repository.go tetap sama
 func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -185,6 +182,7 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 		return nil, err
 	}
 
+	// 1. Ambil semua materi
 	materiQuery := `SELECT id, pengajar_kelas_id, nama_materi, deskripsi, urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1 ORDER BY urutan ASC, created_at ASC`
 	materiRows, err := r.db.QueryContext(ctx, materiQuery, pengajarKelasID)
 	if err != nil {
@@ -192,21 +190,21 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 	}
 	defer materiRows.Close()
 
+	var materiList []MateriPembelajaran
 	materiMap := make(map[int]*MateriPembelajaran)
-	var materiList []*MateriPembelajaran
-	var tpIDs []int
-	tpMap := make(map[int]*TujuanPembelajaran)
-
 	for materiRows.Next() {
 		var m MateriPembelajaran
 		if err := materiRows.Scan(&m.ID, &m.PengajarKelasID, &m.NamaMateri, &m.Deskripsi, &m.Urutan); err != nil {
 			return nil, err
 		}
 		m.TujuanPembelajaran = []TujuanPembelajaran{}
-		materiMap[m.ID] = &m
-		materiList = append(materiList, &m)
+		materiList = append(materiList, m)
+	}
+	for i := range materiList {
+		materiMap[materiList[i].ID] = &materiList[i]
 	}
 
+	// 2. Ambil semua TP dan kelompokkan
 	tpQuery := `
 		SELECT tp.id, tp.materi_pembelajaran_id, tp.deskripsi_tujuan, tp.urutan
 		FROM tujuan_pembelajaran tp
@@ -220,20 +218,22 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 	}
 	defer tpRows.Close()
 
+	var tpIDs []int
 	for tpRows.Next() {
 		var tp TujuanPembelajaran
 		if err := tpRows.Scan(&tp.ID, &tp.MateriPembelajaranID, &tp.DeskripsiTujuan, &tp.Urutan); err != nil {
 			return nil, err
 		}
 		if materi, ok := materiMap[tp.MateriPembelajaranID]; ok {
+			tp.PenilaianSumatif = []penilaiansumatif.PenilaianSumatif{}
 			materi.TujuanPembelajaran = append(materi.TujuanPembelajaran, tp)
 			tpIDs = append(tpIDs, tp.ID)
-			// Add to tpMap for later lookup
-			tpMap[tp.ID] = &materi.TujuanPembelajaran[len(materi.TujuanPembelajaran)-1]
 		}
 	}
 
+	// 3. Ambil semua penilaian dan kelompokkan
 	if len(tpIDs) > 0 {
+		penilaianMap := make(map[int][]penilaiansumatif.PenilaianSumatif)
 		penilaianQuery := `
 			SELECT 
 				ps.id, ps.tujuan_pembelajaran_id, ps.jenis_ujian_id, ps.nama_penilaian, 
@@ -259,19 +259,20 @@ func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, sc
 			); err != nil {
 				return nil, err
 			}
+			penilaianMap[ps.TujuanPembelajaranID] = append(penilaianMap[ps.TujuanPembelajaranID], ps)
+		}
 
-			if tp, ok := tpMap[ps.TujuanPembelajaranID]; ok {
-				tp.PenilaianSumatif = append(tp.PenilaianSumatif, ps)
+		// 4. Gabungkan penilaian ke dalam struktur TP
+		for _, materi := range materiMap {
+			for i, tp := range materi.TujuanPembelajaran {
+				if penilaian, ok := penilaianMap[tp.ID]; ok {
+					materi.TujuanPembelajaran[i].PenilaianSumatif = penilaian
+				}
 			}
 		}
 	}
 
-	result := make([]MateriPembelajaran, len(materiList))
-	for i, m := range materiList {
-		result[i] = *m
-	}
-
-	return result, nil
+	return materiList, nil
 }
 
 func (r *postgresRepository) UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error {
