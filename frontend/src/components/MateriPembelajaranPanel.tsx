@@ -1,6 +1,6 @@
 // file: frontend/src/components/MateriPembelajaranPanel.tsx
 import { useState, useEffect } from 'react';
-import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, List, Tag, Tooltip, Typography, Popover, Badge } from 'antd';
+import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, Tag, Tooltip, Typography } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, AuditOutlined } from '@ant-design/icons';
 import {
@@ -33,12 +33,13 @@ type EditableNode = {
     value: string;
 };
 
-const parseKey = (key: Key): { type: string; id: number; parentId?: number } => {
+const parseKey = (key: Key): { type: string; id: number | string; parentId?: number } => {
     const keyStr = String(key);
     const parts = keyStr.split('-');
+    const id = parts[0] === 'penilaian' ? parts[1] : parseInt(parts[1], 10);
     return {
         type: parts[0],
-        id: parseInt(parts[1], 10),
+        id: id,
         parentId: parts.length > 2 ? parseInt(parts[2], 10) : undefined,
     };
 };
@@ -105,13 +106,13 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
         if (type === 'materi') {
             const materi = materiList.find(m => m.id === id);
             if (materi) {
-                await updateMateri(id, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id, deskripsi: materi.deskripsi || undefined, urutan: materi.urutan });
+                await updateMateri(id as number, { ...materi, nama_materi: value, pengajar_kelas_id: materi.pengajar_kelas_id, deskripsi: materi.deskripsi || undefined, urutan: materi.urutan });
             }
         } else if (type === 'tp') {
             const { parentId } = parseKey(key);
             const tp = materiList.flatMap(m => m.tujuan_pembelajaran).find(t => t.id === id);
             if (tp && parentId) {
-                await updateTujuan(id, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: parentId });
+                await updateTujuan(id as number, { ...tp, deskripsi_tujuan: value, materi_pembelajaran_id: parentId });
             }
         }
         message.success("Perubahan berhasil disimpan.");
@@ -126,9 +127,11 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     const { type, id } = parseKey(key);
     try {
       if (type === 'materi') {
-        await deleteMateri(id);
+        await deleteMateri(id as number);
       } else if (type === 'tp') {
-        await deleteTujuan(id);
+        await deleteTujuan(id as number);
+      } else if (type === 'penilaian') {
+        await deletePenilaian(String(id));
       }
       message.success("Data berhasil dihapus.");
       fetchData();
@@ -170,16 +173,6 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       fetchData();
     } catch (error) {
       message.error("Gagal menyimpan rencana penilaian.");
-    }
-  };
-
-  const handleDeletePenilaian = async (id: string) => {
-    try {
-      await deletePenilaian(id);
-      message.success("Rencana penilaian berhasil dihapus.");
-      fetchData();
-    } catch (error) {
-      message.error("Gagal menghapus rencana penilaian.");
     }
   };
 
@@ -277,90 +270,74 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                     )}
                 </div>
             ),
-            children: materi.tujuan_pembelajaran.map(tp => {
-                const tpKey = `tp-${tp.id}-${materi.id}`;
-                const isEditingTP = editableNode?.key === tpKey;
-                return {
-                    key: tpKey,
-                    title: (
-                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <div style={{ flex: 1, marginRight: '8px' }}>
-                          {isEditingTP ? (
-                            <TextArea
-                              defaultValue={editableNode.value}
-                              onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
-                              autoSize={{ minRows: 1, maxRows: 4 }}
-                              onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
-                              autoFocus
-                            />
-                          ) : (
-                            <Text>{tp.deskripsi_tujuan}</Text>
-                          )}
-                        </div>
-                        <Space>
-                          <Popover
-                            placement="bottomRight"
-                            title="Rencana Penilaian"
-                            content={
-                              <div style={{ minWidth: 300 }}>
-                                <List
-                                  size="small"
-                                  dataSource={tp.penilaian_sumatif || []}
-                                  renderItem={(item) => (
-                                    <List.Item
-                                      actions={[
-                                        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenPenilaianModal(tp, item)} />,
-                                        <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDeletePenilaian(item.id)}>
-                                          <Button type="text" danger size="small" icon={<DeleteOutlined />} />
-                                        </Popconfirm>
-                                      ]}
-                                    >
-                                      <Space>
-                                        <Tag color="blue">{item.kode_jenis_ujian}</Tag>
-                                        <Text>{item.nama_penilaian}</Text>
-                                        {item.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(new Date(item.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
-                                      </Space>
-                                    </List.Item>
-                                  )}
+            children: [
+                ...materi.tujuan_pembelajaran.map(tp => {
+                    const tpKey = `tp-${tp.id}-${materi.id}`;
+                    const isEditingTP = editableNode?.key === tpKey;
+                    return {
+                        key: tpKey,
+                        title: (
+                          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <div style={{ flex: 1, marginRight: '8px' }}>
+                              {isEditingTP ? (
+                                <TextArea
+                                  defaultValue={editableNode.value}
+                                  onChange={(e) => setEditableNode({ ...editableNode, value: e.target.value })}
+                                  autoSize={{ minRows: 1, maxRows: 4 }}
+                                  onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
+                                  autoFocus
                                 />
-                                <Button
-                                  type="primary"
-                                  icon={<PlusOutlined />}
-                                  size="small"
-                                  onClick={() => handleOpenPenilaianModal(tp, null)}
-                                  style={{ marginTop: '8px', width: '100%' }}
-                                >
-                                  Tambah
-                                </Button>
-                              </div>
-                            }
-                            trigger="click"
-                          >
-                            <Badge count={(tp.penilaian_sumatif || []).length} size="small">
-                              <Tooltip title="Kelola Penilaian">
-                                <Button icon={<AuditOutlined />} size="small" type="text" />
+                              ) : (
+                                <Text>{tp.deskripsi_tujuan}</Text>
+                              )}
+                            </div>
+                            <Space>
+                              <Tooltip title="Tambah Penilaian">
+                                <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/>
                               </Tooltip>
-                            </Badge>
-                          </Popover>
-                          {isEditingTP ? (
-                            <>
-                              <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
-                              <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
-                            </>
-                          ) : (
-                            <>
-                              <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
-                              <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
-                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                              </Popconfirm>
-                            </>
-                          )}
-                        </Space>
-                      </div>
-                    ),
-                    isLeaf: true,
-                }
-            })
+                              {isEditingTP ? (
+                                <>
+                                  <Button icon={<CheckOutlined />} onClick={handleSave} type="primary" size="small" />
+                                  <Button icon={<CloseOutlined />} onClick={() => setEditableNode(null)} size="small" />
+                                </>
+                              ) : (
+                                <>
+                                  <Button icon={<EditOutlined />} onClick={() => setEditableNode({ key: tpKey, value: tp.deskripsi_tujuan })} size="small" type="text" />
+                                  <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
+                                    <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                                  </Popconfirm>
+                                </>
+                              )}
+                            </Space>
+                          </div>
+                        ),
+                        children: (tp.penilaian_sumatif || []).map(penilaian => {
+                          const penilaianKey = `penilaian-${penilaian.id}-${tp.id}`;
+                          return {
+                            key: penilaianKey,
+                            title: (
+                              <div style={{ display: 'flex', alignItems: 'center', width: '100%', paddingLeft: '24px' }}>
+                                <div style={{ flex: 1, marginRight: '8px' }}>
+                                  <Space>
+                                      <Tag color="blue">{penilaian.kode_jenis_ujian}</Tag>
+                                      <Text>{penilaian.nama_penilaian}</Text>
+                                      {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(new Date(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                                  </Space>
+                                </div>
+                                <Space>
+                                  <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, penilaian)} />
+                                  <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDelete(penilaianKey)}>
+                                      <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                                  </Popconfirm>
+                                </Space>
+                              </div>
+                            ),
+                            isLeaf: true
+                          }
+                        })
+                    }
+                })
+            ]
         };
     });
 };
