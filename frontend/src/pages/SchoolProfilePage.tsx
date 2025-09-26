@@ -57,7 +57,7 @@ const SchoolProfilePage = () => {
 
   return (
     <Card>
-      <Title level={2} style={{ marginBottom: '24px' }}>Profil Sekolah</Title>
+      <Title level={3} style={{ marginBottom: '24px' }}>Profil Sekolah</Title>
       <Form
         form={form}
         layout="vertical"

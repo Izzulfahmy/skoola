@@ -40,7 +40,7 @@ const items: TabsProps['items'] = [
 const SettingsPage = () => {
   return (
     <Card>
-      <Title level={2} style={{ marginBottom: '24px' }}>
+      <Title level={3} style={{ marginBottom: '24px' }}>
         Pengaturan Sekolah
       </Title>
       <Tabs defaultActiveKey="0" items={items} />

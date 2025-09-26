@@ -114,7 +114,7 @@ const DashboardPage = () => {
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
-        <Title level={2}>Selamat Datang di Dasbor</Title>
+        <Title level={2}>Selamat Datang di Dasboard</Title>
         <Text type="secondary">Ini adalah ringkasan untuk {schoolName}.</Text>
       </div>
 

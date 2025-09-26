@@ -306,7 +306,7 @@ const KurikulumPage: React.FC = () => {
           vertical={isMobile}
           gap={isMobile ? "middle" : 0}
         >
-          <Title level={2} style={{ margin: 0 }}>Manajemen Kurikulum</Title>
+          <Title level={4} style={{ margin: 0 }}>Manajemen Kurikulum</Title>
           <Space>
             <Text>Tahun Ajaran:</Text>
             <Select

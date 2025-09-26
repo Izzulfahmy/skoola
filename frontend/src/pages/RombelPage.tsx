@@ -282,7 +282,7 @@ const RombelPage = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <Row justify="space-between" align="middle" gutter={[16, 16]}>
         <Col>
-          <Title level={2} style={{ margin: 0 }}>Manajemen Rombongan Belajar (Rombel)</Title>
+          <Title level={4} style={{ margin: 0 }}>Manajemen Rombongan Belajar (Rombel)</Title>
         </Col>
         <Col>
           <Space>

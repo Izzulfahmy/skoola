@@ -232,7 +232,7 @@ const StudentsPage = () => {
     <div>
       <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '16px' }}>
         <Col xs={24} sm={12}>
-          <Title level={2} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
+          <Title level={3} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
         </Col>
         <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
             <Space>
