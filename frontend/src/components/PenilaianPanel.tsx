@@ -86,9 +86,9 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
                   if (hasSubPenilaian) {
                       const tpColspan = tp.penilaian_sumatif.length;
                       itemColspan += tpColspan;
-                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: tpColspan, tooltip: tp.deskripsi_tujuan });
+                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: tpColspan });
                       tp.penilaian_sumatif.forEach((ps) => {
-                          finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${ps.nama_penilaian}` } as any);
+                          finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian } as any);
                           allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
                       });
                   } else {
@@ -101,18 +101,13 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
                   itemColspan += 1;
                   const isReadOnly = hasSubPenilaian;
                   const titleText = `TP ${tp.urutan}${isReadOnly ? '*' : ''}`;
-                  finalColumns.push({ type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: titleText, tooltip: tp.deskripsi_tujuan, className: isReadOnly ? 'jss-readonly' : '' } as any);
+                  finalColumns.push({ type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: titleText, className: isReadOnly ? 'jss-readonly' : '' } as any);
                   allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
               }
           });
           if (itemColspan > 0) {
               nestedHeadersLvl1.push({ 
-                title: `${item.nama}`, // Remove "Materi X" prefix
-                tooltip: `Materi ini mencakup ${item.tujuan_pembelajaran?.length || 0} tujuan pembelajaran:\n${
-                  item.tujuan_pembelajaran
-                    ?.map((tp, idx) => `${idx + 1}. ${tp.deskripsi_tujuan}`)
-                    .join('\n')
-                }`,
+                title: `${item.nama}`,
                 colspan: itemColspan 
               });
               materiCounter++;
@@ -122,7 +117,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           
           if (viewMode === 'detail') {
               itemColspan = Math.max(1, penilaianSumatif.length);
-              nestedHeadersLvl2.push({ title: 'Rincian Ujian', colspan: itemColspan, tooltip: `Rincian untuk ${item.nama}` });
+              nestedHeadersLvl2.push({ title: 'Rincian Ujian', colspan: itemColspan });
               
               if (penilaianSumatif.length > 0) {
                   penilaianSumatif.forEach((ps) => {
@@ -130,25 +125,20 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
                       allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', ujianId: item.id, sumatifId: ps.id });
                   });
               } else {
-                  finalColumns.push({ type: 'text', width: 100, title: '\u00A0', readOnly: true, tooltip: `Belum ada rincian untuk ${item.nama}` } as any);
+                  finalColumns.push({ type: 'text', width: 100, title: '\u00A0', readOnly: true } as any);
                   allColumnsMeta.push({ key: `ujian-placeholder-${item.id}`, type: 'sumatif', ujianId: item.id });
               }
           } else { 
               itemColspan = 1;
               const isReadOnly = penilaianSumatif.length > 0;
               const titleText = `Nilai Akhir${isReadOnly ? '*' : ''}`;
-              finalColumns.push({ type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: titleText, tooltip: item.nama, className: isReadOnly ? 'jss-readonly' : '' } as any);
+              finalColumns.push({ type: 'numeric', width: 100, mask: '0', readOnly: isReadOnly, title: titleText, className: isReadOnly ? 'jss-readonly' : '' } as any);
               allColumnsMeta.push({ key: `ujian-${item.id}`, type: 'sumatif', ujianId: item.id });
           }
 
           if (itemColspan > 0) {
               nestedHeadersLvl1.push({ 
                 title: item.nama,
-                tooltip: penilaianSumatif.length > 0 
-                  ? `Ujian ini memiliki ${penilaianSumatif.length} komponen penilaian:\n${
-                      penilaianSumatif.map((ps, idx) => `${idx + 1}. ${ps.nama_penilaian} (${ps.kode_jenis_ujian})`).join('\n')
-                    }`
-                  : 'Belum ada komponen penilaian untuk ujian ini',
                 colspan: itemColspan 
               });
           }
