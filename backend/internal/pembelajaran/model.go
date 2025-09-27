@@ -6,6 +6,29 @@ import (
 	"time"
 )
 
+// RencanaPembelajaranItem adalah tipe gabungan yang bisa berisi Materi atau Ujian.
+type RencanaPembelajaranItem struct {
+	Type               string                              `json:"type"` // "materi" atau "ujian"
+	ID                 int                                 `json:"id"`
+	PengajarKelasID    string                              `json:"pengajar_kelas_id"`
+	Nama               string                              `json:"nama"`
+	Urutan             int                                 `json:"urutan"`
+	Deskripsi          *string                             `json:"deskripsi,omitempty"`
+	TujuanPembelajaran []TujuanPembelajaran                `json:"tujuan_pembelajaran,omitempty"`
+	PenilaianSumatif   []penilaiansumatif.PenilaianSumatif `json:"penilaian_sumatif,omitempty"`
+}
+
+// Ujian merepresentasikan data dari tabel 'ujian'.
+type Ujian struct {
+	ID               int                                 `json:"id"`
+	PengajarKelasID  string                              `json:"pengajar_kelas_id"`
+	NamaUjian        string                              `json:"nama_ujian"`
+	Urutan           int                                 `json:"urutan"`
+	CreatedAt        time.Time                           `json:"created_at"`
+	UpdatedAt        time.Time                           `json:"updated_at"`
+	PenilaianSumatif []penilaiansumatif.PenilaianSumatif `json:"penilaian_sumatif"`
+}
+
 // TujuanPembelajaran merepresentasikan data dari tabel 'tujuan_pembelajaran'.
 type TujuanPembelajaran struct {
 	ID                   int                                 `json:"id"`
@@ -37,6 +60,13 @@ type UpsertMateriInput struct {
 	PengajarKelasID string `json:"pengajar_kelas_id" validate:"required,uuid"`
 	NamaMateri      string `json:"nama_materi" validate:"required,min=3,max=255"`
 	Deskripsi       string `json:"deskripsi" validate:"omitempty"`
+	Urutan          int    `json:"urutan" validate:"omitempty,numeric"`
+}
+
+// UpsertUjianInput adalah DTO untuk membuat atau mengupdate data ujian.
+type UpsertUjianInput struct {
+	PengajarKelasID string `json:"pengajar_kelas_id" validate:"required,uuid"`
+	NamaUjian       string `json:"nama_ujian" validate:"required,min=3,max=255"`
 	Urutan          int    `json:"urutan" validate:"omitempty,numeric"`
 }
 

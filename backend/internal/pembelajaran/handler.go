@@ -47,6 +47,53 @@ func (h *Handler) UpdateUrutanTujuan(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// --- HANDLER UJIAN ---
+func (h *Handler) CreateUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpsertUjianInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.service.CreateUjian(r.Context(), schemaName, input)
+	if err != nil {
+		http.Error(w, "Gagal membuat ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) UpdateUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianID, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	var input UpsertUjianInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdateUjian(r.Context(), schemaName, ujianID, input); err != nil {
+		http.Error(w, "Gagal memperbarui ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianID, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	if err := h.service.DeleteUjian(r.Context(), schemaName, ujianID); err != nil {
+		http.Error(w, "Gagal menghapus ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // Sisa file handler.go tetap sama
 func (h *Handler) CreateMateri(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
@@ -67,13 +114,13 @@ func (h *Handler) CreateMateri(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func (h *Handler) GetAllMateriByPengajarKelas(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAllRencanaPembelajaran(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	pengajarKelasID := chi.URLParam(r, "pengajarKelasID")
 
-	result, err := h.service.GetAllMateriByPengajarKelas(r.Context(), schemaName, pengajarKelasID)
+	result, err := h.service.GetAllRencanaPembelajaran(r.Context(), schemaName, pengajarKelasID)
 	if err != nil {
-		http.Error(w, "Gagal mengambil data materi: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Gagal mengambil data rencana pembelajaran: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

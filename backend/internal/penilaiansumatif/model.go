@@ -6,7 +6,8 @@ import "time"
 // PenilaianSumatif merepresentasikan data dari tabel 'penilaian_sumatif'.
 type PenilaianSumatif struct {
 	ID                   string     `json:"id"`
-	TujuanPembelajaranID int        `json:"tujuan_pembelajaran_id"`
+	TujuanPembelajaranID *int       `json:"tujuan_pembelajaran_id,omitempty"` // Pointer karena bisa NULL
+	UjianID              *int       `json:"ujian_id,omitempty"`               // Pointer karena bisa NULL
 	JenisUjianID         int        `json:"jenis_ujian_id"`
 	NamaPenilaian        string     `json:"nama_penilaian"`
 	TanggalPelaksanaan   *time.Time `json:"tanggal_pelaksanaan"`
@@ -19,7 +20,8 @@ type PenilaianSumatif struct {
 
 // UpsertPenilaianSumatifInput adalah DTO untuk membuat atau mengupdate data.
 type UpsertPenilaianSumatifInput struct {
-	TujuanPembelajaranID int    `json:"tujuan_pembelajaran_id" validate:"required"`
+	TujuanPembelajaranID *int   `json:"tujuan_pembelajaran_id" validate:"omitempty,required_without=UjianID"`
+	UjianID              *int   `json:"ujian_id" validate:"omitempty,required_without=TujuanPembelajaranID"`
 	JenisUjianID         int    `json:"jenis_ujian_id" validate:"required"`
 	NamaPenilaian        string `json:"nama_penilaian" validate:"required,min=3,max=255"`
 	TanggalPelaksanaan   string `json:"tanggal_pelaksanaan" validate:"omitempty,datetime=2006-01-02"`

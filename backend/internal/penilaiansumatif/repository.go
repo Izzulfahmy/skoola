@@ -37,11 +37,11 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, ps *
 	}
 	ps.ID = uuid.New().String()
 	query := `
-		INSERT INTO penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, nama_penilaian, tanggal_pelaksanaan, keterangan)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO penilaian_sumatif (id, tujuan_pembelajaran_id, ujian_id, jenis_ujian_id, nama_penilaian, tanggal_pelaksanaan, keterangan)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at, updated_at
 	`
-	err := r.db.QueryRowContext(ctx, query, ps.ID, ps.TujuanPembelajaranID, ps.JenisUjianID, ps.NamaPenilaian, ps.TanggalPelaksanaan, ps.Keterangan).Scan(&ps.CreatedAt, &ps.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, query, ps.ID, ps.TujuanPembelajaranID, ps.UjianID, ps.JenisUjianID, ps.NamaPenilaian, ps.TanggalPelaksanaan, ps.Keterangan).Scan(&ps.CreatedAt, &ps.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create penilaian sumatif: %w", err)
 	}
@@ -80,7 +80,7 @@ func (r *postgresRepository) GetByTujuanPembelajaranID(ctx context.Context, sche
 
 	query := `
 		SELECT 
-			ps.id, ps.tujuan_pembelajaran_id, ps.jenis_ujian_id, ps.nama_penilaian, 
+			ps.id, ps.tujuan_pembelajaran_id, ps.ujian_id, ps.jenis_ujian_id, ps.nama_penilaian, 
 			ps.tanggal_pelaksanaan, ps.keterangan, ps.created_at, ps.updated_at,
 			ju.nama_ujian, ju.kode_ujian
 		FROM penilaian_sumatif ps
@@ -99,7 +99,7 @@ func (r *postgresRepository) GetByTujuanPembelajaranID(ctx context.Context, sche
 	for rows.Next() {
 		var ps PenilaianSumatif
 		if err := rows.Scan(
-			&ps.ID, &ps.TujuanPembelajaranID, &ps.JenisUjianID, &ps.NamaPenilaian,
+			&ps.ID, &ps.TujuanPembelajaranID, &ps.UjianID, &ps.JenisUjianID, &ps.NamaPenilaian,
 			&ps.TanggalPelaksanaan, &ps.Keterangan, &ps.CreatedAt, &ps.UpdatedAt,
 			&ps.NamaJenisUjian, &ps.KodeJenisUjian,
 		); err != nil {

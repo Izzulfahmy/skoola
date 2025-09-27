@@ -50,6 +50,7 @@ func (s *service) Create(ctx context.Context, schemaName string, input UpsertPen
 
 	ps := &PenilaianSumatif{
 		TujuanPembelajaranID: input.TujuanPembelajaranID,
+		UjianID:              input.UjianID,
 		JenisUjianID:         input.JenisUjianID,
 		NamaPenilaian:        input.NamaPenilaian,
 		TanggalPelaksanaan:   tanggal,
@@ -80,6 +81,7 @@ func (s *service) Update(ctx context.Context, schemaName string, id string, inpu
 	ps := &PenilaianSumatif{
 		ID:                   id,
 		TujuanPembelajaranID: input.TujuanPembelajaranID,
+		UjianID:              input.UjianID,
 		JenisUjianID:         input.JenisUjianID,
 		NamaPenilaian:        input.NamaPenilaian,
 		TanggalPelaksanaan:   tanggal,

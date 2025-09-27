@@ -13,18 +13,25 @@ var ErrValidation = errors.New("validation failed")
 
 // Service mendefinisikan interface untuk logika bisnis.
 type Service interface {
+	// Rencana Pembelajaran
+	GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error)
+
 	// Materi
 	CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error)
-	GetAllMateriByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasID string) ([]MateriPembelajaran, error)
 	UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error
 	DeleteMateri(ctx context.Context, schemaName string, id int) error
-	UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error // <-- TAMBAHKAN INI
+	UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error
+
+	// Ujian
+	CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error)
+	UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error
+	DeleteUjian(ctx context.Context, schemaName string, id int) error
 
 	// Tujuan Pembelajaran
 	CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error)
 	UpdateTujuan(ctx context.Context, schemaName string, id int, input UpsertTujuanInput) error
 	DeleteTujuan(ctx context.Context, schemaName string, id int) error
-	UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error // <-- TAMBAHKAN INI
+	UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error
 }
 
 type service struct {
@@ -37,7 +44,10 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
-// --- FUNGSI SERVICE BARU ---
+func (s *service) GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error) {
+	return s.repo.GetAllRencanaPembelajaran(ctx, schemaName, pengajarKelasID)
+}
+
 func (s *service) UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
@@ -52,16 +62,11 @@ func (s *service) UpdateUrutanTujuan(ctx context.Context, schemaName string, inp
 	return s.repo.UpdateUrutanTujuan(ctx, schemaName, input.OrderedIDs)
 }
 
-// Sisa file service.go tetap sama
 func (s *service) CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 	return s.repo.CreateMateri(ctx, schemaName, input)
-}
-
-func (s *service) GetAllMateriByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasID string) ([]MateriPembelajaran, error) {
-	return s.repo.GetAllMateriByPengajarKelas(ctx, schemaName, pengajarKelasID)
 }
 
 func (s *service) UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error {
@@ -75,6 +80,26 @@ func (s *service) DeleteMateri(ctx context.Context, schemaName string, id int) e
 	return s.repo.DeleteMateri(ctx, schemaName, id)
 }
 
+// --- UJIAN ---
+func (s *service) CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error) {
+	if err := s.validate.Struct(input); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.CreateUjian(ctx, schemaName, input)
+}
+
+func (s *service) UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateUjian(ctx, schemaName, id, input)
+}
+
+func (s *service) DeleteUjian(ctx context.Context, schemaName string, id int) error {
+	return s.repo.DeleteUjian(ctx, schemaName, id)
+}
+
+// --- TUJUAN ---
 func (s *service) CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())

@@ -13,7 +13,7 @@ import (
 
 // Repository mendefinisikan interface untuk interaksi database.
 type Repository interface {
-	GetPenilaianLengkap(ctx context.Context, schemaName string, kelasID string, pengajarKelasID string) (*FullPenilaianData, []pembelajaran.MateriPembelajaran, error)
+	GetPenilaianLengkap(ctx context.Context, schemaName string, kelasID string, pengajarKelasID string) (*FullPenilaianData, []pembelajaran.RencanaPembelajaranItem, error)
 	UpsertNilaiBulk(ctx context.Context, schemaName string, input BulkUpsertNilaiInput) error
 }
 
@@ -31,16 +31,16 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 	return err
 }
 
-func (r *postgresRepository) GetPenilaianLengkap(ctx context.Context, schemaName string, kelasID string, pengajarKelasID string) (*FullPenilaianData, []pembelajaran.MateriPembelajaran, error) {
+func (r *postgresRepository) GetPenilaianLengkap(ctx context.Context, schemaName string, kelasID string, pengajarKelasID string) (*FullPenilaianData, []pembelajaran.RencanaPembelajaranItem, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, nil, err
 	}
 
-	// 1. Ambil struktur Materi dan TP dari service pembelajaran
+	// 1. Ambil struktur Rencana Pembelajaran (Materi & Ujian)
 	pembelajaranRepo := pembelajaran.NewRepository(r.db)
-	materiList, err := pembelajaranRepo.GetAllMateriByPengajarKelas(ctx, schemaName, pengajarKelasID)
+	rencanaList, err := pembelajaranRepo.GetAllRencanaPembelajaran(ctx, schemaName, pengajarKelasID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("gagal mengambil struktur materi: %w", err)
+		return nil, nil, fmt.Errorf("gagal mengambil struktur rencana pembelajaran: %w", err)
 	}
 
 	// 2. Ambil daftar siswa dalam kelas
@@ -74,7 +74,7 @@ func (r *postgresRepository) GetPenilaianLengkap(ctx context.Context, schemaName
 	}
 
 	if len(siswaList) == 0 {
-		return &FullPenilaianData{Siswa: siswaList}, materiList, nil
+		return &FullPenilaianData{Siswa: siswaList}, rencanaList, nil
 	}
 
 	siswaMap := make(map[string]*PenilaianSiswaData)
@@ -147,7 +147,7 @@ func (r *postgresRepository) GetPenilaianLengkap(ctx context.Context, schemaName
 		}
 	}
 
-	return &FullPenilaianData{Siswa: siswaList, LastUpdated: lastUpdated}, materiList, nil
+	return &FullPenilaianData{Siswa: siswaList, LastUpdated: lastUpdated}, rencanaList, nil
 }
 
 func (r *postgresRepository) UpsertNilaiBulk(ctx context.Context, schemaName string, input BulkUpsertNilaiInput) error {

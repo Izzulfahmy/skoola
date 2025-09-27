@@ -3,7 +3,8 @@
 // --- TIPE BARU UNTUK PENILAIAN SUMATIF ---
 export interface PenilaianSumatif {
   id: string;
-  tujuan_pembelajaran_id: number;
+  tujuan_pembelajaran_id?: number;
+  ujian_id?: number;
   jenis_ujian_id: number;
   nama_penilaian: string;
   tanggal_pelaksanaan?: string;
@@ -13,13 +14,34 @@ export interface PenilaianSumatif {
 }
 
 export interface UpsertPenilaianSumatifInput {
-  tujuan_pembelajaran_id: number;
+  tujuan_pembelajaran_id?: number;
+  ujian_id?: number;
   jenis_ujian_id: number;
   nama_penilaian: string;
   tanggal_pelaksanaan?: string;
   keterangan?: string;
 }
 // ------------------------------------
+
+export interface Ujian {
+  id: number;
+  pengajar_kelas_id: string;
+  nama: string;
+  urutan: number;
+  penilaian_sumatif: PenilaianSumatif[];
+}
+
+
+export interface RencanaPembelajaranItem {
+    type: 'materi' | 'ujian';
+    id: number;
+    pengajar_kelas_id: string;
+    nama: string;
+    urutan: number;
+    deskripsi?: string;
+    tujuan_pembelajaran?: TujuanPembelajaran[];
+    penilaian_sumatif?: PenilaianSumatif[];
+}
 
 export interface KelompokMataPelajaran {
   id: number;
@@ -225,6 +247,7 @@ export interface TujuanPembelajaran {
 
 export interface MateriPembelajaran {
   id: number;
+  type: 'materi';
   pengajar_kelas_id: string;
   nama_materi: string;
   deskripsi?: string;
@@ -238,6 +261,12 @@ export interface UpsertMateriInput {
   deskripsi?: string;
   urutan?: number;
 }
+
+export interface UpsertUjianInput {
+    pengajar_kelas_id: string;
+    nama_ujian: string;
+}
+
 
 export interface UpsertTujuanInput {
   materi_pembelajaran_id: number;
@@ -494,4 +523,3 @@ export interface UpsertJenisUjianInput {
   kode_ujian: string;
   nama_ujian: string;
 }
-

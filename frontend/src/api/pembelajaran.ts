@@ -5,19 +5,24 @@ import type {
   TujuanPembelajaran,
   UpsertMateriInput,
   UpsertTujuanInput,
-  UpdateUrutanInput, // <-- Impor tipe baru
+  UpdateUrutanInput,
+  RencanaPembelajaranItem,
+  Ujian,
+  UpsertUjianInput,
 } from '../types';
 
-// --- API untuk Materi Pembelajaran ---
-
-export const getAllMateriByPengajarKelas = async (pengajarKelasID: string): Promise<MateriPembelajaran[]> => {
+// --- API untuk Rencana Pembelajaran (Gabungan) ---
+export const getAllRencanaPembelajaran = async (pengajarKelasID: string): Promise<RencanaPembelajaranItem[]> => {
   try {
-    const response = await apiClient.get(`/pembelajaran/materi/by-pengajar/${pengajarKelasID}`);
+    const response = await apiClient.get(`/pembelajaran/rencana/by-pengajar/${pengajarKelasID}`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
+
+
+// --- API untuk Materi Pembelajaran ---
 
 export const createMateri = async (data: UpsertMateriInput): Promise<MateriPembelajaran> => {
   try {
@@ -44,13 +49,39 @@ export const deleteMateri = async (materiID: number): Promise<void> => {
   }
 };
 
-// --- FUNGSI BARU UNTUK UPDATE URUTAN MATERI ---
 export const updateUrutanMateri = async (data: UpdateUrutanInput): Promise<void> => {
     try {
       await apiClient.put('/pembelajaran/materi/reorder', data);
     } catch (error) {
       throw error;
     }
+};
+
+// --- API untuk Ujian ---
+
+export const createUjian = async (data: UpsertUjianInput): Promise<Ujian> => {
+  try {
+    const response = await apiClient.post('/pembelajaran/ujian', data);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateUjian = async (ujianID: number, data: UpsertUjianInput): Promise<void> => {
+  try {
+    await apiClient.put(`/pembelajaran/ujian/${ujianID}`, data);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteUjian = async (ujianID: number): Promise<void> => {
+  try {
+    await apiClient.delete(`/pembelajaran/ujian/${ujianID}`);
+  } catch (error) {
+    throw error;
+  }
 };
 
 
@@ -81,7 +112,6 @@ export const createTujuan = async (data: UpsertTujuanInput): Promise<TujuanPembe
     }
   };
 
-// --- FUNGSI BARU UNTUK UPDATE URUTAN TUJUAN ---
 export const updateUrutanTujuan = async (data: UpdateUrutanInput): Promise<void> => {
     try {
         await apiClient.put('/pembelajaran/tujuan/reorder', data);

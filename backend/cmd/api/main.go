@@ -308,11 +308,15 @@ func main() {
 
 	r.Route("/pembelajaran", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin", "teacher")).Get("/materi/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllMateriByPengajarKelas)
+		r.With(auth.Authorize("admin", "teacher")).Get("/rencana/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllRencanaPembelajaran) // Diubah
 		r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
 		r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
 		r.With(auth.Authorize("admin", "teacher")).Put("/materi/reorder", pembelajaranHandler.UpdateUrutanMateri)
+
+		r.With(auth.Authorize("admin", "teacher")).Post("/ujian", pembelajaranHandler.CreateUjian)        // Baru
+		r.With(auth.Authorize("admin", "teacher")).Put("/ujian/{id}", pembelajaranHandler.UpdateUjian)    // Baru
+		r.With(auth.Authorize("admin", "teacher")).Delete("/ujian/{id}", pembelajaranHandler.DeleteUjian) // Baru
 
 		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
 		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)

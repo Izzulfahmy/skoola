@@ -12,13 +12,20 @@ import (
 
 // Repository mendefinisikan interface untuk interaksi database.
 type Repository interface {
+	// Rencana Pembelajaran (Gabungan)
+	GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error)
+
 	// Materi
 	CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error)
 	GetMateriByID(ctx context.Context, schemaName string, id int) (*MateriPembelajaran, error)
-	GetAllMateriByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasID string) ([]MateriPembelajaran, error)
 	UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error
 	DeleteMateri(ctx context.Context, schemaName string, id int) error
 	UpdateUrutanMateri(ctx context.Context, schemaName string, orderedIDs []int) error
+
+	// Ujian
+	CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error)
+	UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error
+	DeleteUjian(ctx context.Context, schemaName string, id int) error
 
 	// Tujuan Pembelajaran
 	CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error)
@@ -42,6 +49,126 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 	return nil
+}
+
+func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT 'materi' as type, id, pengajar_kelas_id, nama_materi as nama, deskripsi, urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1
+		UNION ALL
+		SELECT 'ujian' as type, id, pengajar_kelas_id, nama_ujian as nama, NULL as deskripsi, urutan FROM ujian WHERE pengajar_kelas_id = $1
+		ORDER BY urutan ASC, type DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, pengajarKelasID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal query gabungan materi dan ujian: %w", err)
+	}
+	defer rows.Close()
+
+	var items []RencanaPembelajaranItem
+	materiMap := make(map[int]*RencanaPembelajaranItem)
+	ujianMap := make(map[int]*RencanaPembelajaranItem)
+	var tpIDs []int
+	var ujianIDs []int
+
+	for rows.Next() {
+		var item RencanaPembelajaranItem
+		if err := rows.Scan(&item.Type, &item.ID, &item.PengajarKelasID, &item.Nama, &item.Deskripsi, &item.Urutan); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	for i := range items {
+		if items[i].Type == "materi" {
+			materiMap[items[i].ID] = &items[i]
+		} else {
+			ujianMap[items[i].ID] = &items[i]
+			ujianIDs = append(ujianIDs, items[i].ID)
+		}
+	}
+
+	// Ambil tujuan pembelajaran untuk semua materi
+	if len(materiMap) > 0 {
+		materiIDs := make([]int, 0, len(materiMap))
+		for id := range materiMap {
+			materiIDs = append(materiIDs, id)
+		}
+
+		tpQuery := `
+			SELECT id, materi_pembelajaran_id, deskripsi_tujuan, urutan
+			FROM tujuan_pembelajaran
+			WHERE materi_pembelajaran_id = ANY($1)
+			ORDER BY urutan ASC, created_at ASC
+		`
+		tpRows, err := r.db.QueryContext(ctx, tpQuery, pq.Array(materiIDs))
+		if err != nil {
+			return nil, fmt.Errorf("gagal query tujuan pembelajaran: %w", err)
+		}
+		defer tpRows.Close()
+
+		for tpRows.Next() {
+			var tp TujuanPembelajaran
+			if err := tpRows.Scan(&tp.ID, &tp.MateriPembelajaranID, &tp.DeskripsiTujuan, &tp.Urutan); err != nil {
+				return nil, err
+			}
+			if materi, ok := materiMap[tp.MateriPembelajaranID]; ok {
+				materi.TujuanPembelajaran = append(materi.TujuanPembelajaran, tp)
+				tpIDs = append(tpIDs, tp.ID)
+			}
+		}
+	}
+
+	// Ambil semua penilaian sumatif terkait (baik untuk TP maupun Ujian)
+	if len(tpIDs) > 0 || len(ujianIDs) > 0 {
+		penilaianSumatifQuery := `
+			SELECT 
+				ps.id, ps.tujuan_pembelajaran_id, ps.ujian_id, ps.jenis_ujian_id, ps.nama_penilaian, 
+				ps.tanggal_pelaksanaan, ps.keterangan, ps.created_at, ps.updated_at,
+				ju.nama_ujian, ju.kode_ujian
+			FROM penilaian_sumatif ps
+			JOIN jenis_ujian ju ON ps.jenis_ujian_id = ju.id
+			WHERE ps.tujuan_pembelajaran_id = ANY($1) OR ps.ujian_id = ANY($2)
+			ORDER BY ps.tanggal_pelaksanaan ASC, ps.created_at ASC
+		`
+		penilaianRows, err := r.db.QueryContext(ctx, penilaianSumatifQuery, pq.Array(tpIDs), pq.Array(ujianIDs))
+		if err != nil {
+			return nil, fmt.Errorf("gagal query penilaian sumatif: %w", err)
+		}
+		defer penilaianRows.Close()
+
+		for penilaianRows.Next() {
+			var ps penilaiansumatif.PenilaianSumatif
+			if err := penilaianRows.Scan(
+				&ps.ID, &ps.TujuanPembelajaranID, &ps.UjianID, &ps.JenisUjianID, &ps.NamaPenilaian,
+				&ps.TanggalPelaksanaan, &ps.Keterangan, &ps.CreatedAt, &ps.UpdatedAt,
+				&ps.NamaJenisUjian, &ps.KodeJenisUjian,
+			); err != nil {
+				return nil, err
+			}
+
+			if ps.TujuanPembelajaranID != nil {
+				// Cari di semua materi -> tujuan
+				for _, materi := range materiMap {
+					for i, tp := range materi.TujuanPembelajaran {
+						if tp.ID == *ps.TujuanPembelajaranID {
+							materi.TujuanPembelajaran[i].PenilaianSumatif = append(materi.TujuanPembelajaran[i].PenilaianSumatif, ps)
+						}
+					}
+				}
+			} else if ps.UjianID != nil {
+				if ujian, ok := ujianMap[*ps.UjianID]; ok {
+					ujian.PenilaianSumatif = append(ujian.PenilaianSumatif, ps)
+				}
+			}
+		}
+	}
+
+	return items, nil
 }
 
 // --- FUNGSI BARU UNTUK UPDATE URUTAN MATERI ---
@@ -175,104 +302,6 @@ func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName strin
 	m.TujuanPembelajaran = tps
 
 	return &m, nil
-}
-
-func (r *postgresRepository) GetAllMateriByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasID string) ([]MateriPembelajaran, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-
-	// 1. Ambil semua materi
-	materiQuery := `SELECT id, pengajar_kelas_id, nama_materi, deskripsi, urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1 ORDER BY urutan ASC, created_at ASC`
-	materiRows, err := r.db.QueryContext(ctx, materiQuery, pengajarKelasID)
-	if err != nil {
-		return nil, fmt.Errorf("gagal query materi: %w", err)
-	}
-	defer materiRows.Close()
-
-	var materiList []MateriPembelajaran
-	materiMap := make(map[int]*MateriPembelajaran)
-	for materiRows.Next() {
-		var m MateriPembelajaran
-		if err := materiRows.Scan(&m.ID, &m.PengajarKelasID, &m.NamaMateri, &m.Deskripsi, &m.Urutan); err != nil {
-			return nil, err
-		}
-		m.TujuanPembelajaran = []TujuanPembelajaran{}
-		materiList = append(materiList, m)
-	}
-	for i := range materiList {
-		materiMap[materiList[i].ID] = &materiList[i]
-	}
-
-	// 2. Ambil semua TP dan kelompokkan
-	tpQuery := `
-		SELECT tp.id, tp.materi_pembelajaran_id, tp.deskripsi_tujuan, tp.urutan
-		FROM tujuan_pembelajaran tp
-		JOIN materi_pembelajaran mp ON tp.materi_pembelajaran_id = mp.id
-		WHERE mp.pengajar_kelas_id = $1
-		ORDER BY tp.urutan ASC, tp.created_at ASC
-	`
-	tpRows, err := r.db.QueryContext(ctx, tpQuery, pengajarKelasID)
-	if err != nil {
-		return nil, fmt.Errorf("gagal query tujuan pembelajaran: %w", err)
-	}
-	defer tpRows.Close()
-
-	var tpIDs []int
-	for tpRows.Next() {
-		var tp TujuanPembelajaran
-		if err := tpRows.Scan(&tp.ID, &tp.MateriPembelajaranID, &tp.DeskripsiTujuan, &tp.Urutan); err != nil {
-			return nil, err
-		}
-		if materi, ok := materiMap[tp.MateriPembelajaranID]; ok {
-			tp.PenilaianSumatif = []penilaiansumatif.PenilaianSumatif{}
-			materi.TujuanPembelajaran = append(materi.TujuanPembelajaran, tp)
-			tpIDs = append(tpIDs, tp.ID)
-		}
-	}
-
-	// 3. Ambil semua penilaian dan kelompokkan
-	if len(tpIDs) > 0 {
-		penilaianMap := make(map[int][]penilaiansumatif.PenilaianSumatif)
-		penilaianQuery := `
-			SELECT 
-				ps.id, ps.tujuan_pembelajaran_id, ps.jenis_ujian_id, ps.nama_penilaian, 
-				ps.tanggal_pelaksanaan, ps.keterangan, ps.created_at, ps.updated_at,
-				ju.nama_ujian, ju.kode_ujian
-			FROM penilaian_sumatif ps
-			JOIN jenis_ujian ju ON ps.jenis_ujian_id = ju.id
-			WHERE ps.tujuan_pembelajaran_id = ANY($1)
-			ORDER BY ps.tanggal_pelaksanaan ASC, ps.created_at ASC
-		`
-		penilaianRows, err := r.db.QueryContext(ctx, penilaianQuery, pq.Array(tpIDs))
-		if err != nil {
-			return nil, fmt.Errorf("gagal query penilaian sumatif: %w", err)
-		}
-		defer penilaianRows.Close()
-
-		for penilaianRows.Next() {
-			var ps penilaiansumatif.PenilaianSumatif
-			if err := penilaianRows.Scan(
-				&ps.ID, &ps.TujuanPembelajaranID, &ps.JenisUjianID, &ps.NamaPenilaian,
-				&ps.TanggalPelaksanaan, &ps.Keterangan, &ps.CreatedAt, &ps.UpdatedAt,
-				&ps.NamaJenisUjian, &ps.KodeJenisUjian,
-			); err != nil {
-				return nil, err
-			}
-			penilaianMap[ps.TujuanPembelajaranID] = append(penilaianMap[ps.TujuanPembelajaranID], ps)
-		}
-
-		// 4. Gabungkan penilaian ke dalam struktur TP
-		for _, materi := range materiMap {
-			for i, tp := range materi.TujuanPembelajaran {
-				if penilaian, ok := penilaianMap[tp.ID]; ok {
-					materi.TujuanPembelajaran[i].PenilaianSumatif = penilaian
-				}
-			}
-		}
-	}
-
-	return materiList, nil
 }
 
 func (r *postgresRepository) UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error {
@@ -421,4 +450,67 @@ func (r *postgresRepository) DeleteTujuan(ctx context.Context, schemaName string
 	}
 
 	return tx.Commit()
+}
+
+// --- CRUD UJIAN ---
+
+func (r *postgresRepository) CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
+	var maxUrutan sql.NullInt64
+	urutanQuery := `
+		SELECT COALESCE(MAX(urutan), 0) FROM (
+			SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1
+			UNION ALL
+			SELECT urutan FROM ujian WHERE pengajar_kelas_id = $1
+		) as combined
+	`
+	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
+	}
+
+	nextUrutan := int(maxUrutan.Int64) + 1
+
+	query := `
+		INSERT INTO ujian (pengajar_kelas_id, nama_ujian, urutan)
+		VALUES ($1, $2, $3)
+		RETURNING id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at
+	`
+	row := tx.QueryRowContext(ctx, query, input.PengajarKelasID, input.NamaUjian, nextUrutan)
+
+	var u Ujian
+	if err := row.Scan(&u.ID, &u.PengajarKelasID, &u.NamaUjian, &u.Urutan, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("gagal memindai data ujian setelah dibuat: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
+	}
+
+	return &u, nil
+}
+
+func (r *postgresRepository) UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	query := `UPDATE ujian SET nama_ujian = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, input.NamaUjian, id)
+	return err
+}
+
+func (r *postgresRepository) DeleteUjian(ctx context.Context, schemaName string, id int) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	_, err := r.db.ExecContext(ctx, "DELETE FROM ujian WHERE id = $1", id)
+	return err
 }

@@ -2,21 +2,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, Tag, Tooltip, Typography } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, AuditOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, AuditOutlined, FileTextOutlined } from '@ant-design/icons';
 import {
-  getAllMateriByPengajarKelas,
+  getAllRencanaPembelajaran,
   createMateri,
   updateMateri,
   deleteMateri,
+  createUjian,
+  updateUjian,
+  deleteUjian,
   createTujuan,
   updateTujuan,
   deleteTujuan,
-  updateUrutanMateri,
-  updateUrutanTujuan,
 } from '../api/pembelajaran';
 import { getAllJenisUjian } from '../api/jenisUjian';
 import { createPenilaian, updatePenilaian, deletePenilaian } from '../api/penilaianSumatif';
-import type { MateriPembelajaran, TujuanPembelajaran, JenisUjian, PenilaianSumatif, UpsertPenilaianSumatifInput } from '../types';
+import type { RencanaPembelajaranItem, TujuanPembelajaran, JenisUjian, PenilaianSumatif, UpsertPenilaianSumatifInput, Ujian } from '../types';
 import type { Key } from 'react';
 import dayjs from 'dayjs';
 import { format, parseISO } from 'date-fns';
@@ -83,7 +84,7 @@ interface MateriPembelajaranPanelProps {
 const parseKey = (key: Key): { type: string; id: number | string; parentId?: number } => {
     const keyStr = String(key);
     const parts = keyStr.split('_');
-    const id = parts[0] === 'penilaian' ? parts[1] : parseInt(parts[1], 10);
+    const id = (parts[0] === 'penilaian' || parts[0] === 'ujian') ? parts[1] : parseInt(parts[1], 10);
     return {
         type: parts[0],
         id: id,
@@ -92,28 +93,28 @@ const parseKey = (key: Key): { type: string; id: number | string; parentId?: num
 };
 
 const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelProps) => {
-  const [materiList, setMateriList] = useState<MateriPembelajaran[]>([]);
+  const [rencanaList, setRencanaList] = useState<RencanaPembelajaranItem[]>([]);
   const [jenisUjianList, setJenisUjianList] = useState<JenisUjian[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<Key | null>(null);
 
   const [penilaianModalVisible, setPenilaianModalVisible] = useState(false);
   const [isEditingPenilaian, setIsEditingPenilaian] = useState(false);
-  const [currentTp, setCurrentTp] = useState<TujuanPembelajaran | null>(null);
+  const [currentItem, setCurrentItem] = useState<TujuanPembelajaran | Ujian | null>(null);
   const [editingPenilaian, setEditingPenilaian] = useState<PenilaianSumatif | null>(null);
   const [penilaianForm] = Form.useForm();
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [materiData, jenisUjianData] = await Promise.all([
-        getAllMateriByPengajarKelas(pengajarKelasId),
+      const [rencanaData, jenisUjianData] = await Promise.all([
+        getAllRencanaPembelajaran(pengajarKelasId),
         getAllJenisUjian()
       ]);
-      setMateriList(materiData || []);
+      setRencanaList(rencanaData || []);
       setJenisUjianList(jenisUjianData || []);
     } catch (error) {
-      message.error('Gagal memuat data materi pembelajaran.');
+      message.error('Gagal memuat data rencana pembelajaran.');
     } finally {
       setLoading(false);
     }
@@ -133,6 +134,16 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
 
+  const handleAddUjian = async () => {
+      try {
+          await createUjian({ pengajar_kelas_id: pengajarKelasId, nama_ujian: "Ujian Baru" });
+          message.success("Ujian baru berhasil ditambahkan.");
+          fetchData();
+      } catch (error) {
+          message.error("Gagal menambahkan ujian baru.");
+      }
+  };
+
   const handleAddTujuan = async (materiId: number) => {
     try {
         await createTujuan({ materi_pembelajaran_id: materiId, deskripsi_tujuan: "Tujuan pembelajaran baru." });
@@ -149,12 +160,11 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
 
     try {
         if (type === 'materi') {
-            const materi = materiList.find(m => m.id === id);
-            if (materi) {
-                await updateMateri(id as number, { ...materi, nama_materi: newValue, pengajar_kelas_id: materi.pengajar_kelas_id });
-            }
+            await updateMateri(id as number, { nama_materi: newValue, pengajar_kelas_id: pengajarKelasId });
+        } else if (type === 'ujian') {
+            await updateUjian(id as number, { nama_ujian: newValue, pengajar_kelas_id: pengajarKelasId });
         } else if (type === 'tp') {
-            const tp = materiList.flatMap(m => m.tujuan_pembelajaran).find(t => t.id === id);
+            const tp = rencanaList.flatMap(m => m.tujuan_pembelajaran || []).find(t => t.id === id);
             if (tp && parentId) {
                 await updateTujuan(id as number, { ...tp, deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
             }
@@ -172,6 +182,8 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     try {
       if (type === 'materi') {
         await deleteMateri(id as number);
+      } else if (type === 'ujian') {
+        await deleteUjian(id as number);
       } else if (type === 'tp') {
         await deleteTujuan(id as number);
       } else if (type === 'penilaian') {
@@ -184,8 +196,8 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
   
-  const handleOpenPenilaianModal = (tp: TujuanPembelajaran, penilaian: PenilaianSumatif | null) => {
-    setCurrentTp(tp);
+  const handleOpenPenilaianModal = (item: TujuanPembelajaran | Ujian, penilaian: PenilaianSumatif | null) => {
+    setCurrentItem(item);
     setEditingPenilaian(penilaian);
     setIsEditingPenilaian(!!penilaian);
     penilaianForm.setFieldsValue(
@@ -197,13 +209,19 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   };
 
   const handleFinishPenilaian = async (values: any) => {
-    if (!currentTp) return;
+    if (!currentItem) return;
 
     const payload: UpsertPenilaianSumatifInput = {
       ...values,
-      tujuan_pembelajaran_id: currentTp.id,
       tanggal_pelaksanaan: values.tanggal_pelaksanaan ? values.tanggal_pelaksanaan.format('YYYY-MM-DD') : undefined,
     };
+    
+    if ('deskripsi_tujuan' in currentItem) { // Cek apakah ini TujuanPembelajaran
+        payload.tujuan_pembelajaran_id = currentItem.id;
+    } else { // Ini adalah Ujian
+        payload.ujian_id = currentItem.id;
+    }
+
 
     try {
       if (isEditingPenilaian && editingPenilaian) {
@@ -220,75 +238,58 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
 
-  const onDrop: TreeProps['onDrop'] = (info) => {
-    const dropKey = info.node.key;
-    const dragKey = info.dragNode.key;
-    const dropPos = info.node.pos.split('-');
-    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
-
-    const dragNodeData = parseKey(dragKey);
-    const dropNodeData = parseKey(dropKey);
-
-    if (dragNodeData.type !== dropNodeData.type) return;
-
-    if (dragNodeData.type === 'materi') {
-        const data = [...materiList];
-        const fromIndex = data.findIndex(item => item.id === dragNodeData.id);
-        if (fromIndex === -1) return;
-        const [dragObj] = data.splice(fromIndex, 1);
-
-        let toIndex = data.findIndex(item => item.id === dropNodeData.id);
-        if (info.dropToGap) {
-            toIndex = dropPosition === -1 ? toIndex : toIndex + 1;
-        }
-        data.splice(toIndex, 0, dragObj);
-        
-        setMateriList(data);
-        const orderedIDs = data.map(item => item.id);
-        updateUrutanMateri({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan materi."));
-    } else if (dragNodeData.type === 'tp') {
-        if(dragNodeData.parentId !== dropNodeData.parentId) return;
-        const parentId = dragNodeData.parentId;
-        if (!parentId) return;
-
-        const data = [...materiList];
-        const materiIndex = data.findIndex(m => m.id === parentId);
-        if (materiIndex === -1) return;
-
-        let tpList = [...data[materiIndex].tujuan_pembelajaran];
-        const fromIndex = tpList.findIndex(item => item.id === dragNodeData.id);
-        if (fromIndex === -1) return;
-        const [dragObj] = tpList.splice(fromIndex, 1);
-
-        let toIndex = tpList.findIndex(item => item.id === dropNodeData.id);
-         if (info.dropToGap) {
-            toIndex = dropPosition === -1 ? toIndex : toIndex + 1;
-        }
-        tpList.splice(toIndex, 0, dragObj);
-
-        data[materiIndex].tujuan_pembelajaran = tpList;
-        setMateriList(data);
-        const orderedIDs = tpList.map(item => item.id);
-        updateUrutanTujuan({ ordered_ids: orderedIDs }).catch(() => message.error("Gagal menyimpan urutan tujuan."));
-    }
-};
+  const onDrop: TreeProps['onDrop'] = () => {
+    message.warning("Drag and drop antar tipe item yang berbeda belum didukung.");
+    return;
+    // Logika drag and drop yang lebih kompleks bisa ditambahkan di sini nanti.
+  };
 
   const generateTreeData = useCallback((): TreeDataNode[] => {
-    return materiList.map(materi => {
-        const key = `materi_${materi.id}`;
+    return rencanaList.map(item => {
+        if (item.type === 'ujian') {
+            const key = `ujian_${item.id}`;
+            return {
+                key: key,
+                icon: <FileTextOutlined />,
+                title: editingKey === key ? (
+                    <EditableTitle 
+                        initialValue={item.nama} 
+                        onSave={handleSave} 
+                        onCancel={() => setEditingKey(null)}
+                    />
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{item.nama}</span>
+                        <Space>
+                            <Tooltip title="Tambah Rincian Ujian">
+                                <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, null)}/>
+                            </Tooltip>
+                            <Button icon={<EditOutlined />} onClick={() => setEditingKey(key)} size="small" type="text" />
+                            <Popconfirm title="Hapus ujian ini?" onConfirm={() => handleDelete(key)}>
+                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                            </Popconfirm>
+                        </Space>
+                    </div>
+                ),
+                isLeaf: true, // Ujian tidak punya anak
+            };
+        }
+
+        // Jika item.type === 'materi'
+        const key = `materi_${item.id}`;
         return {
             key: key,
             title: editingKey === key ? (
               <EditableTitle 
-                initialValue={materi.nama_materi} 
+                initialValue={item.nama} 
                 onSave={handleSave} 
                 onCancel={() => setEditingKey(null)}
               />
             ) : (
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{materi.nama_materi}</span>
+                    <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{item.nama}</span>
                     <Space>
-                        <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(materi.id)} size="small" type="text" />
+                        <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(item.id)} size="small" type="text" />
                         <Button icon={<EditOutlined />} onClick={() => setEditingKey(key)} size="small" type="text" />
                         <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}>
                             <Button icon={<DeleteOutlined />} size="small" type="text" danger />
@@ -296,8 +297,8 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                     </Space>
                 </div>
             ),
-            children: materi.tujuan_pembelajaran.map(tp => {
-                const tpKey = `tp_${tp.id}_${materi.id}`;
+            children: (item.tujuan_pembelajaran || []).map(tp => {
+                const tpKey = `tp_${tp.id}_${item.id}`;
                 return {
                     key: tpKey,
                     title: editingKey === tpKey ? (
@@ -349,18 +350,23 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
             })
         };
     });
-  }, [materiList, editingKey]);
+  }, [rencanaList, editingKey]);
   
   if (loading) return <Spin />;
 
   return (
     <div>
-      <Button icon={<PlusOutlined />} onClick={handleAddMateri} style={{ marginBottom: 16 }}>
-        Tambah Materi
-      </Button>
-      {materiList.length > 0 ? (
+      <Space style={{ marginBottom: 16 }}>
+        <Button icon={<PlusOutlined />} onClick={handleAddMateri}>
+          Tambah Materi
+        </Button>
+        <Button icon={<PlusOutlined />} onClick={handleAddUjian}>
+          Tambah Ujian
+        </Button>
+      </Space>
+      {rencanaList.length > 0 ? (
         <Tree
-          showLine
+          showLine={{ showLeafIcon: false }}
           draggable={{ icon: false }}
           blockNode
           onDrop={onDrop}
@@ -368,7 +374,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
           defaultExpandAll
         />
       ) : (
-        <Empty description="Belum ada materi untuk mata pelajaran ini." />
+        <Empty description="Belum ada materi atau ujian untuk mata pelajaran ini." />
       )}
       <Modal
         title={isEditingPenilaian ? "Edit Rencana Penilaian" : "Tambah Rencana Penilaian"}
