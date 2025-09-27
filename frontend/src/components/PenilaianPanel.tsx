@@ -1,6 +1,8 @@
 // file: frontend/src/components/PenilaianPanel.tsx
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { message, Spin, Empty } from 'antd';
+import { message, Spin, Empty, Tooltip } from 'antd';
+// --- PERBAIKAN DI SINI ---
+import { createRoot, type Root } from 'react-dom/client'; // Impor Root sebagai tipe
 import jspreadsheet from 'jspreadsheet-ce';
 import 'jspreadsheet-ce/dist/jspreadsheet.css';
 import { getPenilaianLengkap, upsertNilaiBulk } from '../api/penilaian';
@@ -16,6 +18,7 @@ interface PenilaianPanelProps {
 const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pengajarKelasId, kelasId, viewMode }, ref) => {
   const spreadsheetRef = useRef<HTMLDivElement>(null);
   const spreadsheetInstance = useRef<any | null>(null);
+  const tooltipRoots = useRef<Map<Element, Root>>(new Map());
 
   const [loading, setLoading] = useState(true);
   const [rencanaList, setRencanaList] = useState<RencanaPembelajaranItem[]>([]);
@@ -37,6 +40,14 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
   useEffect(() => {
     fetchData();
   }, [pengajarKelasId, kelasId, viewMode]);
+
+  // Cleanup tooltip roots on unmount
+  useEffect(() => {
+    return () => {
+      tooltipRoots.current.forEach(root => root.unmount());
+    };
+  }, []);
+
 
   const { columns, data, nestedHeaders, allColumnsMeta } = useMemo(() => {
     if (rencanaList.length === 0) {
@@ -75,15 +86,15 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
                   if (hasSubPenilaian) {
                       const tpColspan = tp.penilaian_sumatif.length;
                       itemColspan += tpColspan;
-                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: tpColspan });
+                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: tpColspan, tooltip: tp.deskripsi_tujuan });
                       tp.penilaian_sumatif.forEach((ps) => {
-                          finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${tp.deskripsi_tujuan} - ${ps.nama_penilaian}` } as any);
+                          finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${ps.nama_penilaian}` } as any);
                           allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', tpId: tp.id, sumatifId: ps.id });
                       });
                   } else {
                       itemColspan += 1;
-                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: 1 });
-                      finalColumns.push({ type: 'numeric', width: 100, mask: '0', title: '\u00A0', tooltip: tp.deskripsi_tujuan } as any);
+                      nestedHeadersLvl2.push({ title: `TP ${tp.urutan}`, colspan: 1, tooltip: tp.deskripsi_tujuan });
+                      finalColumns.push({ type: 'numeric', width: 100, mask: '0', title: '\u00A0' } as any);
                       allColumnsMeta.push({ key: `tp-${tp.id}`, type: 'tp', tpId: tp.id });
                   }
               } else {
@@ -96,8 +107,12 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           });
           if (itemColspan > 0) {
               nestedHeadersLvl1.push({ 
-                title: `Materi ${materiCounter}`, 
-                tooltip: item.nama, 
+                title: `${item.nama}`, // Remove "Materi X" prefix
+                tooltip: `Materi ini mencakup ${item.tujuan_pembelajaran?.length || 0} tujuan pembelajaran:\n${
+                  item.tujuan_pembelajaran
+                    ?.map((tp, idx) => `${idx + 1}. ${tp.deskripsi_tujuan}`)
+                    .join('\n')
+                }`,
                 colspan: itemColspan 
               });
               materiCounter++;
@@ -107,11 +122,11 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
           
           if (viewMode === 'detail') {
               itemColspan = Math.max(1, penilaianSumatif.length);
-              nestedHeadersLvl2.push({ title: 'Rincian Ujian', colspan: itemColspan });
+              nestedHeadersLvl2.push({ title: 'Rincian Ujian', colspan: itemColspan, tooltip: `Rincian untuk ${item.nama}` });
               
               if (penilaianSumatif.length > 0) {
                   penilaianSumatif.forEach((ps) => {
-                      finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: `${item.nama} - ${ps.nama_penilaian}` } as any);
+                      finalColumns.push({ type: 'numeric', width: 90, mask: '0', title: ps.kode_jenis_ujian, tooltip: ps.nama_penilaian } as any);
                       allColumnsMeta.push({ key: `sumatif-${ps.id}`, type: 'sumatif', ujianId: item.id, sumatifId: ps.id });
                   });
               } else {
@@ -128,8 +143,12 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
 
           if (itemColspan > 0) {
               nestedHeadersLvl1.push({ 
-                title: item.nama, 
-                tooltip: item.nama, 
+                title: item.nama,
+                tooltip: penilaianSumatif.length > 0 
+                  ? `Ujian ini memiliki ${penilaianSumatif.length} komponen penilaian:\n${
+                      penilaianSumatif.map((ps, idx) => `${idx + 1}. ${ps.nama_penilaian} (${ps.kode_jenis_ujian})`).join('\n')
+                    }`
+                  : 'Belum ada komponen penilaian untuk ujian ini',
                 colspan: itemColspan 
               });
           }
@@ -176,29 +195,94 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
 
   useEffect(() => {
     if (!loading && spreadsheetRef.current && data.length > 0 && columns.length > 2) {
-        if (spreadsheetInstance.current) {
-            spreadsheetInstance.current.destroy();
-        }
-        spreadsheetInstance.current = jspreadsheet(spreadsheetRef.current, {
-            data: data as jspreadsheet.CellValue[][],
-            columns,
-            nestedHeaders,
-            allowInsertRow: false,
-            allowDeleteRow: false,
-            allowInsertColumn: false,
-            allowDeleteColumn: false,
-            columnDrag: false,
-            rowDrag: false,
-            tableOverflow: true,
-            tableWidth: '100%',
-            tableHeight: '60vh',
-            defaultColAlign: 'center',
-        });
-    } else if (spreadsheetInstance.current) {
+      // Add styles to document if not already present
+      if (!document.querySelector('style[data-jexcel-custom-styles]')) {
+        const styleElement = document.createElement('div');
+        styleElement.innerHTML = styles;
+        document.head.appendChild(styleElement.firstElementChild!);
+      }
+
+      if (spreadsheetInstance.current) {
         spreadsheetInstance.current.destroy();
-        spreadsheetInstance.current = null;
+      }
+      tooltipRoots.current.forEach(root => root.unmount());
+      tooltipRoots.current.clear();
+
+      spreadsheetInstance.current = jspreadsheet(spreadsheetRef.current, {
+        data: data as jspreadsheet.CellValue[][],
+        columns,
+        nestedHeaders,
+        allowInsertRow: false,
+        allowDeleteRow: false,
+        allowInsertColumn: false,
+        allowDeleteColumn: false,
+        columnDrag: false,
+        rowDrag: false,
+        tableOverflow: true,
+        tableWidth: '100%',
+        tableHeight: '60vh',
+        defaultColAlign: 'center',
+        onload: function(instance: HTMLElement) {
+          // Render tooltip for header cells
+          const headerRows = instance.querySelectorAll('thead tr');
+          
+          headerRows.forEach((row, rowIdx) => {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((cell) => {
+              const actualColIdx = parseInt(cell.getAttribute('data-x') || '0');
+              
+              // Skip NIS and Nama columns
+              if (actualColIdx < 2) return;
+
+              let title = '';
+              let tooltipContent = '';
+
+              if (viewMode === 'rata-rata') {
+                if (rowIdx === 0) {
+                  // For first row (Materi/Ujian names)
+                  const headerInfo = nestedHeaders[0].find(h => 
+                    h.colspan && cell.getAttribute('colspan') === h.colspan.toString()
+                  );
+                  
+                  if (headerInfo) {
+                    title = headerInfo.title;
+                    tooltipContent = `${title}\n\n${headerInfo.tooltip || ''}`;
+                  }
+                } else {
+                  // For regular columns
+                  const columnConfig = columns[actualColIdx];
+                  if (columnConfig) {
+                    title = columnConfig.title as string;
+                    tooltipContent = (columnConfig as any).tooltip || '';
+                  }
+                }
+
+                if (tooltipContent) {
+                  const root = createRoot(cell as HTMLElement);
+                  tooltipRoots.current.set(cell, root);
+
+                  root.render(
+                    <Tooltip 
+                      title={tooltipContent}
+                      mouseEnterDelay={0.1}
+                      overlayStyle={{ maxWidth: '400px', whiteSpace: 'pre-wrap' }}
+                    >
+                      <div className="header-content">
+                        {title}
+                      </div>
+                    </Tooltip>
+                  );
+                }
+              }
+            });
+          });
+        }
+      });
+    } else if (spreadsheetInstance.current) {
+      spreadsheetInstance.current.destroy();
+      spreadsheetInstance.current = null;
     }
-  }, [loading, data, columns, nestedHeaders]);
+  }, [loading, data, columns, nestedHeaders, viewMode]);
   
   useImperativeHandle(ref, () => ({
     handleSave: async () => {
@@ -260,7 +344,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
   }));
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}><Spin tip="Memuat data penilaian..." /></div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}><Spin /></div>;
   }
   
   return (
@@ -277,3 +361,25 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
 });
 
 export default PenilaianPanel;
+
+const styles = `
+<style>
+.jexcel > thead > tr > td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: initial !important;
+  padding: 4px 8px !important;
+  min-height: 40px;
+  height: auto !important;
+  line-height: 1.2;
+}
+.header-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
+  text-align: center;
+}
+</style>
+`;
