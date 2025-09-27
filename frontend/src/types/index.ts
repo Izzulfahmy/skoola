@@ -278,6 +278,15 @@ export interface UpsertTujuanInput {
 export interface UpdateUrutanInput {
   ordered_ids: number[];
 }
+
+export interface RencanaUrutanItem {
+  id: number;
+  type: 'materi' | 'ujian';
+}
+
+export interface UpdateRencanaUrutanInput {
+  ordered_items: RencanaUrutanItem[];
+}
 // ------------------------------------
 
 // --- TIPE BARU UNTUK PENILAIAN LENGKAP ---
@@ -287,8 +296,8 @@ export interface NilaiSiswa {
 }
 
 export interface NilaiSumatifSiswa {
-	nilai: number | null;
-	updated_at?: string;
+  nilai: number | null;
+  updated_at?: string;
 }
 
 export interface PenilaianSiswaData {

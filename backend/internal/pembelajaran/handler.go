@@ -19,15 +19,15 @@ func NewHandler(s Service) *Handler {
 }
 
 // --- HANDLER BARU ---
-func (h *Handler) UpdateUrutanMateri(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateRencanaUrutan(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	var input UpdateUrutanInput
+	var input UpdateRencanaUrutanInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-	if err := h.service.UpdateUrutanMateri(r.Context(), schemaName, input); err != nil {
-		http.Error(w, "Gagal memperbarui urutan materi: "+err.Error(), http.StatusInternalServerError)
+	if err := h.service.UpdateRencanaUrutan(r.Context(), schemaName, input); err != nil {
+		http.Error(w, "Gagal memperbarui urutan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

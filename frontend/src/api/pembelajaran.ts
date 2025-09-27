@@ -9,9 +9,10 @@ import type {
   RencanaPembelajaranItem,
   Ujian,
   UpsertUjianInput,
+  UpdateRencanaUrutanInput, // <-- Impor tipe baru
 } from '../types';
 
-// --- API untuk Rencana Pembelajaran (Gabungan) ---
+// --- API UNTUK RENCANA GABUNGAN ---
 export const getAllRencanaPembelajaran = async (pengajarKelasID: string): Promise<RencanaPembelajaranItem[]> => {
   try {
     const response = await apiClient.get(`/pembelajaran/rencana/by-pengajar/${pengajarKelasID}`);
@@ -21,9 +22,15 @@ export const getAllRencanaPembelajaran = async (pengajarKelasID: string): Promis
   }
 };
 
+export const updateRencanaUrutan = async (data: UpdateRencanaUrutanInput): Promise<void> => {
+    try {
+      await apiClient.put('/pembelajaran/rencana/reorder', data);
+    } catch (error) {
+      throw error;
+    }
+};
 
-// --- API untuk Materi Pembelajaran ---
-
+// --- API UNTUK MATERI PEMBELAJARAN (TIDAK BERUBAH) ---
 export const createMateri = async (data: UpsertMateriInput): Promise<MateriPembelajaran> => {
   try {
     const response = await apiClient.post('/pembelajaran/materi', data);
@@ -49,16 +56,7 @@ export const deleteMateri = async (materiID: number): Promise<void> => {
   }
 };
 
-export const updateUrutanMateri = async (data: UpdateUrutanInput): Promise<void> => {
-    try {
-      await apiClient.put('/pembelajaran/materi/reorder', data);
-    } catch (error) {
-      throw error;
-    }
-};
-
-// --- API untuk Ujian ---
-
+// --- API UNTUK UJIAN ---
 export const createUjian = async (data: UpsertUjianInput): Promise<Ujian> => {
   try {
     const response = await apiClient.post('/pembelajaran/ujian', data);
@@ -85,8 +83,7 @@ export const deleteUjian = async (ujianID: number): Promise<void> => {
 };
 
 
-// --- API untuk Tujuan Pembelajaran ---
-
+// --- API UNTUK TUJUAN PEMBELAJARAN ---
 export const createTujuan = async (data: UpsertTujuanInput): Promise<TujuanPembelajaran> => {
     try {
       const response = await apiClient.post('/pembelajaran/tujuan', data);

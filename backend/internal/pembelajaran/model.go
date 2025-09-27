@@ -77,7 +77,17 @@ type UpsertTujuanInput struct {
 	Urutan               int    `json:"urutan" validate:"omitempty,numeric"`
 }
 
-// --- DTO BARU UNTUK UPDATE URUTAN ---
+// UpdateUrutanInput adalah DTO untuk update urutan tujuan pembelajaran
 type UpdateUrutanInput struct {
 	OrderedIDs []int `json:"ordered_ids" validate:"required,dive,numeric"`
+}
+
+// --- DTO BARU UNTUK UPDATE URUTAN GABUNGAN ---
+type UpdateRencanaUrutanInput struct {
+	OrderedItems []RencanaUrutanItem `json:"ordered_items" validate:"required,dive"`
+}
+
+type RencanaUrutanItem struct {
+	ID   int    `json:"id" validate:"required"`
+	Type string `json:"type" validate:"required,oneof=materi ujian"`
 }

@@ -14,13 +14,13 @@ import (
 type Repository interface {
 	// Rencana Pembelajaran (Gabungan)
 	GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error)
+	UpdateRencanaUrutan(ctx context.Context, schemaName string, orderedItems []RencanaUrutanItem) error
 
 	// Materi
 	CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error)
 	GetMateriByID(ctx context.Context, schemaName string, id int) (*MateriPembelajaran, error)
 	UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error
 	DeleteMateri(ctx context.Context, schemaName string, id int) error
-	UpdateUrutanMateri(ctx context.Context, schemaName string, orderedIDs []int) error
 
 	// Ujian
 	CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error)
@@ -49,6 +49,46 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
 	return nil
+}
+
+// --- FUNGSI BARU UNTUK UPDATE URUTAN GABUNGAN ---
+func (r *postgresRepository) UpdateRencanaUrutan(ctx context.Context, schemaName string, orderedItems []RencanaUrutanItem) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
+	materiStmt, err := tx.PrepareContext(ctx, `UPDATE materi_pembelajaran SET urutan = $1, updated_at = NOW() WHERE id = $2`)
+	if err != nil {
+		return fmt.Errorf("gagal mempersiapkan statement materi: %w", err)
+	}
+	defer materiStmt.Close()
+
+	ujianStmt, err := tx.PrepareContext(ctx, `UPDATE ujian SET urutan = $1, updated_at = NOW() WHERE id = $2`)
+	if err != nil {
+		return fmt.Errorf("gagal mempersiapkan statement ujian: %w", err)
+	}
+	defer ujianStmt.Close()
+
+	for i, item := range orderedItems {
+		newUrutan := i + 1
+		switch item.Type {
+		case "materi":
+			if _, err := materiStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
+				return fmt.Errorf("gagal update urutan materi ID %d: %w", item.ID, err)
+			}
+		case "ujian":
+			if _, err := ujianStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
+				return fmt.Errorf("gagal update urutan ujian ID %d: %w", item.ID, err)
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error) {
@@ -84,9 +124,10 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 	}
 
 	for i := range items {
-		if items[i].Type == "materi" {
+		switch items[i].Type {
+		case "materi":
 			materiMap[items[i].ID] = &items[i]
-		} else {
+		case "ujian":
 			ujianMap[items[i].ID] = &items[i]
 			ujianIDs = append(ujianIDs, items[i].ID)
 		}
@@ -169,34 +210,6 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 	}
 
 	return items, nil
-}
-
-// --- FUNGSI BARU UNTUK UPDATE URUTAN MATERI ---
-func (r *postgresRepository) UpdateUrutanMateri(ctx context.Context, schemaName string, orderedIDs []int) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	query := `
-		UPDATE materi_pembelajaran AS m
-		SET urutan = new_order.new_urutan
-		FROM (
-			SELECT id, row_number() OVER () AS new_urutan
-			FROM unnest($1::int[]) AS id
-		) AS new_order
-		WHERE m.id = new_order.id;
-	`
-	_, err = tx.ExecContext(ctx, query, pq.Array(orderedIDs))
-	if err != nil {
-		return fmt.Errorf("gagal update urutan materi: %w", err)
-	}
-
-	return tx.Commit()
 }
 
 // --- FUNGSI BARU UNTUK UPDATE URUTAN TUJUAN PEMBELAJARAN ---

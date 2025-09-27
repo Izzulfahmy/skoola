@@ -15,12 +15,12 @@ var ErrValidation = errors.New("validation failed")
 type Service interface {
 	// Rencana Pembelajaran
 	GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error)
+	UpdateRencanaUrutan(ctx context.Context, schemaName string, input UpdateRencanaUrutanInput) error
 
 	// Materi
 	CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error)
 	UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error
 	DeleteMateri(ctx context.Context, schemaName string, id int) error
-	UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error
 
 	// Ujian
 	CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error)
@@ -48,11 +48,11 @@ func (s *service) GetAllRencanaPembelajaran(ctx context.Context, schemaName stri
 	return s.repo.GetAllRencanaPembelajaran(ctx, schemaName, pengajarKelasID)
 }
 
-func (s *service) UpdateUrutanMateri(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
+func (s *service) UpdateRencanaUrutan(ctx context.Context, schemaName string, input UpdateRencanaUrutanInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
-	return s.repo.UpdateUrutanMateri(ctx, schemaName, input.OrderedIDs)
+	return s.repo.UpdateRencanaUrutan(ctx, schemaName, input.OrderedItems)
 }
 
 func (s *service) UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error {

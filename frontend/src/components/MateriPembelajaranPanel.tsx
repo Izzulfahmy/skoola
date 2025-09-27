@@ -14,6 +14,8 @@ import {
   createTujuan,
   updateTujuan,
   deleteTujuan,
+  updateRencanaUrutan, // <-- Gunakan ini
+  updateUrutanTujuan,
 } from '../api/pembelajaran';
 import { getAllJenisUjian } from '../api/jenisUjian';
 import { createPenilaian, updatePenilaian, deletePenilaian } from '../api/penilaianSumatif';
@@ -235,11 +237,94 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
 
-  const onDrop: TreeProps['onDrop'] = () => {
-    message.warning("Drag and drop antar tipe item yang berbeda belum didukung.");
-    return;
-    // Logika drag and drop yang lebih kompleks bisa ditambahkan di sini nanti.
+  const onDrop: TreeProps['onDrop'] = async (info) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const dropPos = info.node.pos.split('-');
+    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
+
+    const dragNodeData = parseKey(dragKey);
+    const dropNodeData = parseKey(dropKey);
+
+    if (!info.dropToGap) {
+        message.warning("Item hanya bisa diurutkan, bukan dijadikan sub-item.");
+        return;
+    }
+    
+    // Logic for reordering main items (materi & ujian)
+    if ((dragNodeData.type === 'materi' || dragNodeData.type === 'ujian') && (dropNodeData.type === 'materi' || dropNodeData.type === 'ujian')) {
+        const reorderedList = [...rencanaList];
+        const dragIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dragKey);
+        const dropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
+
+        if (dragIndex === -1 || dropIndex === -1) return;
+
+        const [draggedItem] = reorderedList.splice(dragIndex, 1);
+        
+        // Recalculate drop index after splice
+        const newDropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
+
+        if (dropPosition === -1 || dropPosition === 0) {
+            reorderedList.splice(newDropIndex, 0, draggedItem);
+        } else {
+            reorderedList.splice(newDropIndex + 1, 0, draggedItem);
+        }
+        
+        setRencanaList(reorderedList); // Optimistic UI update
+
+        const orderedItems = reorderedList.map(item => ({ id: item.id, type: item.type as 'materi' | 'ujian' }));
+        
+        try {
+            await updateRencanaUrutan({ ordered_items: orderedItems });
+            message.success('Urutan berhasil diperbarui.');
+            fetchData();
+        } catch (error) {
+            message.error('Gagal menyimpan urutan baru.');
+            fetchData(); // Revert to original order on error
+        }
+    } 
+    // Logic for reordering Tujuan Pembelajaran (TP)
+    else if (dragNodeData.type === 'tp' && dropNodeData.type === 'tp' && dragNodeData.parentId === dropNodeData.parentId) {
+        const parentMateri = rencanaList.find(m => m.id === dragNodeData.parentId);
+        if (!parentMateri || !parentMateri.tujuan_pembelajaran) return;
+        
+        const reorderedTPs = [...parentMateri.tujuan_pembelajaran];
+        const dragIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dragKey);
+        const dropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
+        
+        if (dragIndex === -1 || dropIndex === -1) return;
+
+        const [draggedItem] = reorderedTPs.splice(dragIndex, 1);
+        
+        // Recalculate drop index after splice
+        const newDropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
+
+        if (dropPosition === -1 || dropPosition === 0) {
+            reorderedTPs.splice(newDropIndex, 0, draggedItem);
+        } else {
+            reorderedTPs.splice(newDropIndex + 1, 0, draggedItem);
+        }
+
+        const updatedRencanaList = rencanaList.map(m => 
+            m.id === dragNodeData.parentId ? { ...m, tujuan_pembelajaran: reorderedTPs } : m
+        );
+        setRencanaList(updatedRencanaList);
+
+        const orderedIds = reorderedTPs.map(tp => tp.id);
+
+        try {
+            await updateUrutanTujuan({ ordered_ids: orderedIds });
+            message.success('Urutan tujuan pembelajaran berhasil diperbarui.');
+            fetchData();
+        } catch (error) {
+            message.error('Gagal menyimpan urutan baru.');
+            fetchData();
+        }
+    } else {
+        message.warning("Drag and drop hanya didukung untuk item pada level yang sama (contoh: materi dengan materi, atau tujuan dengan tujuan).");
+    }
   };
+
 
   const generateTreeData = useCallback((): TreeDataNode[] => {
     return rencanaList.map(item => {
