@@ -1,18 +1,6 @@
 -- file: backend/db/migrations/011_add_tahun_ajaran.sql
 
--- 1. Buat tipe ENUM kustom jika belum ada
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'semester_enum') THEN
-        CREATE TYPE "semester_enum" AS ENUM ('Ganjil', 'Genap');
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_ajaran_enum') THEN
-        CREATE TYPE "status_ajaran_enum" AS ENUM ('Aktif', 'Tidak Aktif');
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'metode_absensi_enum') THEN
-        CREATE TYPE "metode_absensi_enum" AS ENUM ('HARIAN', 'PER_JAM_PELAJARAN');
-    END IF;
-END$$;
+-- 1. Blok DO untuk membuat ENUM dihapus dari sini
 
 -- 2. Buat tabel 'tahun_ajaran'
 CREATE TABLE IF NOT EXISTS "tahun_ajaran" (

@@ -1,15 +1,6 @@
 -- file: backend/db/migrations/003_add_teacher_details.sql
 
--- 1. Buat tipe ENUM kustom yang dibutuhkan jika belum ada.
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'jenis_kelamin_enum') THEN
-        CREATE TYPE "jenis_kelamin_enum" AS ENUM ('Laki-laki', 'Perempuan');
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_guru_enum') THEN
-        CREATE TYPE "status_guru_enum" AS ENUM ('Aktif', 'NonAktif', 'Pindah');
-    END IF;
-END$$;
+-- 1. Blok DO untuk membuat ENUM dihapus dari sini
 
 -- 2. Ubah tabel 'teachers' yang ada
 ALTER TABLE "teachers"
@@ -32,8 +23,7 @@ ALTER TABLE "teachers"
     ADD COLUMN "kota_kabupaten" VARCHAR(100),
     ADD COLUMN "kecamatan" VARCHAR(100),
     ADD COLUMN "desa_kelurahan" VARCHAR(100),
-    ADD COLUMN "kode_pos" VARCHAR(10),
-    ADD COLUMN "status_guru" status_guru_enum DEFAULT 'Aktif';
+    ADD COLUMN "kode_pos" VARCHAR(10);
 
 -- 3. Ubah tipe data beberapa kolom jika diperlukan
 ALTER TABLE "teachers"

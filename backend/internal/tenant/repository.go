@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings" // <-- Impor paket strings
 )
 
 type Repository interface {
@@ -109,6 +110,8 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/026_alter_penilaian_sumatif_for_ujian.sql",
 	}
 
+	// --- PERUBAHAN UTAMA DI SINI ---
+	var allMigrations strings.Builder
 	for _, path := range migrationPaths {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
@@ -118,10 +121,15 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		if err != nil {
 			return fmt.Errorf("gagal membaca file migrasi %s: %w", path, err)
 		}
-		if _, err := tx.ExecContext(ctx, string(migrationSQL)); err != nil {
-			return fmt.Errorf("gagal menjalankan migrasi %s: %w", path, err)
-		}
+		allMigrations.Write(migrationSQL)
+		allMigrations.WriteString("\n") // Tambahkan newline sebagai pemisah antar file
 	}
+
+	// Jalankan semua migrasi sebagai satu blok perintah
+	if _, err := tx.ExecContext(ctx, allMigrations.String()); err != nil {
+		return fmt.Errorf("gagal menjalankan blok migrasi gabungan: %w", err)
+	}
+	// --- AKHIR PERUBAHAN ---
 
 	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
 	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {

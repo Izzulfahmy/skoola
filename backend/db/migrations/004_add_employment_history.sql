@@ -1,20 +1,10 @@
 -- backend/db/migrations/004_add_employment_history.sql
 
 -- 1. Hapus kolom 'status_guru' yang lama dari tabel teachers.
---    Kita juga perlu menghapus tipe ENUM yang terhubung dengannya.
-ALTER TABLE "teachers" DROP COLUMN "status_guru";
-DROP TYPE "status_guru_enum";
+--    Tipe ENUM yang terhubung akan dihapus jika tidak digunakan lagi.
+ALTER TABLE "teachers" DROP COLUMN IF EXISTS "status_guru";
 
-
--- 2. Buat tipe ENUM baru yang lebih lengkap untuk status kepegawaian.
-CREATE TYPE "status_kepegawaian_enum" AS ENUM (
-    'Aktif', 
-    'Cuti', 
-    'Pindah', 
-    'Berhenti', 
-    'Pensiun'
-);
-
+-- 2. Tipe ENUM sudah dibuat di file migrasi 001.
 
 -- 3. Buat tabel baru untuk mencatat riwayat kepegawaian.
 CREATE TABLE "riwayat_kepegawaian" (
