@@ -154,7 +154,8 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		// --- PERBAIKAN CORS ---
+		AllowedOrigins:   []string{"http://localhost:5173", "https://skoola.my.id"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
 		AllowCredentials: true,
@@ -163,187 +164,186 @@ func main() {
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	// --- RUTE PUBLIK (TIDAK PERLU TOKEN) ---
 	r.Post("/login", authHandler.Login)
+	// Rute registrasi tenant dipindah ke sini, memerlukan otentikasi dan otorisasi superadmin
+	r.With(authMiddleware.AuthMiddleware, auth.AuthorizeSuperadmin).Post("/tenants/register", tenantHandler.Register)
 
-	r.Route("/naungan", func(r chi.Router) {
+	// --- RUTE YANG MEMBUTUHKAN AUTENTIKASI ---
+	r.Route("/", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
-		r.With(auth.AuthorizeSuperadmin).Get("/{naunganID}", naunganHandler.GetByID)
-		r.With(auth.AuthorizeSuperadmin).Post("/", naunganHandler.Create)
-		r.With(auth.AuthorizeSuperadmin).Put("/{naunganID}", naunganHandler.Update)
-		r.With(auth.AuthorizeSuperadmin).Delete("/{naunganID}", naunganHandler.Delete)
-	})
-	r.Route("/tenants", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
-		r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan)
-		r.With(auth.AuthorizeSuperadmin).Post("/register", tenantHandler.Register)
-		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
-		r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
-		r.With(auth.AuthorizeSuperadmin).Delete("/{schemaName}", tenantHandler.DeleteTenant)
-		r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
-	})
-	r.Route("/teachers", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("teacher")).Get("/me/details", teacherHandler.GetMyDetails)
-		r.With(auth.Authorize("teacher")).Get("/me/classes", teacherHandler.GetMyKelas)
-		r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
-		r.Route("/history", func(r chi.Router) {
-			r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)
-			r.With(auth.Authorize("admin")).Get("/{teacherID}", teacherHandler.GetHistoryByTeacherID)
-			r.With(auth.Authorize("admin")).Put("/{historyID}", teacherHandler.UpdateHistory)
-			r.With(auth.Authorize("admin")).Delete("/{historyID}", teacherHandler.DeleteHistory)
+
+		r.Route("/naungan", func(r chi.Router) {
+			r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
+			r.With(auth.AuthorizeSuperadmin).Get("/{naunganID}", naunganHandler.GetByID)
+			r.With(auth.AuthorizeSuperadmin).Post("/", naunganHandler.Create)
+			r.With(auth.AuthorizeSuperadmin).Put("/{naunganID}", naunganHandler.Update)
+			r.With(auth.AuthorizeSuperadmin).Delete("/{naunganID}", naunganHandler.Delete)
 		})
-		r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
-		r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
-		r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
-		r.With(auth.Authorize("admin")).Put("/{teacherID}", teacherHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{teacherID}", teacherHandler.Delete)
-	})
 
-	r.Route("/students", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/available", studentHandler.GetAvailableStudents)
-		r.With(auth.Authorize("admin")).Get("/import/template", studentHandler.GenerateTemplate)
-		r.With(auth.Authorize("admin")).Post("/import", studentHandler.ImportStudents)
-
-		r.Route("/history", func(r chi.Router) {
-			r.With(auth.Authorize("admin")).Get("/{studentID}", studentHistoryHandler.GetByStudentID)
-			r.With(auth.Authorize("admin")).Post("/{studentID}", studentHistoryHandler.Create)
-			r.With(auth.Authorize("admin")).Put("/{historyID}", studentHistoryHandler.Update)
-			r.With(auth.Authorize("admin")).Delete("/{historyID}", studentHistoryHandler.Delete)
+		r.Route("/tenants", func(r chi.Router) {
+			r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
+			r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan)
+			// Rute /register telah dipindahkan
+			r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
+			r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
+			r.With(auth.AuthorizeSuperadmin).Delete("/{schemaName}", tenantHandler.DeleteTenant)
+			r.With(auth.AuthorizeSuperadmin).Post("/run-migrations", tenantHandler.RunMigrations)
 		})
-		r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
-		r.With(auth.Authorize("admin", "teacher")).Get("/{studentID}", studentHandler.GetByID)
-		r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
-		r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
-	})
-	r.Route("/profile", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
-		r.With(auth.Authorize("admin")).Put("/", profileHandler.UpdateProfile)
-	})
-	r.Route("/jenjang", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", jenjangHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", jenjangHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", jenjangHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", jenjangHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
-	})
-	r.Route("/jabatan", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", jabatanHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", jabatanHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", jabatanHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", jabatanHandler.Delete)
-	})
-	r.Route("/tingkatan", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", tingkatanHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", tingkatanHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", tingkatanHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", tingkatanHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", tingkatanHandler.Delete)
-	})
-	r.Route("/tahun-ajaran", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", tahunAjaranHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", tahunAjaranHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", tahunAjaranHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", tahunAjaranHandler.Delete)
-	})
-	r.Route("/mata-pelajaran", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Put("/reorder", mataPelajaranHandler.UpdateUrutan)
-		r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
-		r.With(auth.Authorize("admin")).Get("/taught", mataPelajaranHandler.GetAllTaught)
-		r.With(auth.Authorize("admin")).Post("/", mataPelajaranHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", mataPelajaranHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
-	})
 
-	r.Route("/kelompok-mapel", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", kelompokMapelHandler.Create)
-		r.With(auth.Authorize("admin")).Put("/{id}", kelompokMapelHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", kelompokMapelHandler.Delete)
-	})
+		r.Route("/teachers", func(r chi.Router) {
+			r.With(auth.Authorize("teacher")).Get("/me/details", teacherHandler.GetMyDetails)
+			r.With(auth.Authorize("teacher")).Get("/me/classes", teacherHandler.GetMyKelas)
+			r.With(auth.Authorize("admin")).Get("/admin/details", teacherHandler.GetAdminDetails)
+			r.Route("/history", func(r chi.Router) {
+				r.With(auth.Authorize("admin")).Post("/{teacherID}", teacherHandler.CreateHistory)
+				r.With(auth.Authorize("admin")).Get("/{teacherID}", teacherHandler.GetHistoryByTeacherID)
+				r.With(auth.Authorize("admin")).Put("/{historyID}", teacherHandler.UpdateHistory)
+				r.With(auth.Authorize("admin")).Delete("/{historyID}", teacherHandler.DeleteHistory)
+			})
+			r.With(auth.Authorize("admin", "teacher")).Get("/", teacherHandler.GetAll)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{teacherID}", teacherHandler.GetByID)
+			r.With(auth.Authorize("admin")).Post("/", teacherHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{teacherID}", teacherHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{teacherID}", teacherHandler.Delete)
+		})
 
-	r.Route("/kurikulum", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)
-		r.With(auth.Authorize("admin")).Get("/by-tahun-ajaran", kurikulumHandler.GetByTahunAjaran)
-		r.With(auth.Authorize("admin")).Post("/", kurikulumHandler.Create)
-		r.With(auth.Authorize("admin")).Put("/{id}", kurikulumHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", kurikulumHandler.Delete)
-		r.With(auth.Authorize("admin")).Post("/add-to-tahun-ajaran", kurikulumHandler.AddKurikulumToTahunAjaran)
-		r.With(auth.Authorize("admin")).Get("/fase", kurikulumHandler.GetAllFase)
-		r.With(auth.Authorize("admin")).Post("/fase", kurikulumHandler.CreateFase)
-		r.With(auth.Authorize("admin")).Get("/tingkatan", kurikulumHandler.GetAllTingkatan)
-		r.With(auth.Authorize("admin")).Get("/pemetaan", kurikulumHandler.GetFaseTingkatan)
-		r.With(auth.Authorize("admin")).Post("/pemetaan", kurikulumHandler.CreatePemetaan)
-		r.With(auth.Authorize("admin")).Delete("/pemetaan/ta/{tahunAjaranID}/k/{kurikulumID}/t/{tingkatanID}", kurikulumHandler.DeletePemetaan)
-	})
-	r.Route("/rombel", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", rombelHandler.GetAllKelasByTahunAjaran)
-		r.With(auth.Authorize("admin")).Post("/", rombelHandler.CreateKelas)
-		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}", rombelHandler.GetKelasByID)
-		r.With(auth.Authorize("admin")).Put("/{kelasID}", rombelHandler.UpdateKelas)
-		r.With(auth.Authorize("admin")).Delete("/{kelasID}", rombelHandler.DeleteKelas)
-		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/anggota", rombelHandler.GetAllAnggotaByKelas)
-		r.With(auth.Authorize("admin")).Post("/{kelasID}/anggota", rombelHandler.AddAnggotaKelas)
-		r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaID}", rombelHandler.RemoveAnggotaKelas)
-		r.With(auth.Authorize("admin")).Put("/anggota/reorder", rombelHandler.UpdateAnggotaKelasUrutan)
-		r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/pengajar", rombelHandler.GetAllPengajarByKelas)
-		r.With(auth.Authorize("admin")).Post("/{kelasID}/pengajar", rombelHandler.CreatePengajarKelas)
-		r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)
-	})
+		r.Route("/students", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/available", studentHandler.GetAvailableStudents)
+			r.With(auth.Authorize("admin")).Get("/import/template", studentHandler.GenerateTemplate)
+			r.With(auth.Authorize("admin")).Post("/import", studentHandler.ImportStudents)
 
-	r.Route("/pembelajaran", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin", "teacher")).Get("/rencana/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllRencanaPembelajaran)
-		r.With(auth.Authorize("admin", "teacher")).Put("/rencana/reorder", pembelajaranHandler.UpdateRencanaUrutan)
-		r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
-		r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
-		r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
-		r.With(auth.Authorize("admin", "teacher")).Post("/ujian", pembelajaranHandler.CreateUjian)
-		r.With(auth.Authorize("admin", "teacher")).Put("/ujian/{id}", pembelajaranHandler.UpdateUjian)
-		r.With(auth.Authorize("admin", "teacher")).Delete("/ujian/{id}", pembelajaranHandler.DeleteUjian)
-		r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
-		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
-		r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
-		r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/reorder", pembelajaranHandler.UpdateUrutanTujuan)
-	})
+			r.Route("/history", func(r chi.Router) {
+				r.With(auth.Authorize("admin")).Get("/{studentID}", studentHistoryHandler.GetByStudentID)
+				r.With(auth.Authorize("admin")).Post("/{studentID}", studentHistoryHandler.Create)
+				r.With(auth.Authorize("admin")).Put("/{historyID}", studentHistoryHandler.Update)
+				r.With(auth.Authorize("admin")).Delete("/{historyID}", studentHistoryHandler.Delete)
+			})
+			r.With(auth.Authorize("admin", "teacher")).Get("/", studentHandler.GetAll)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{studentID}", studentHandler.GetByID)
+			r.With(auth.Authorize("admin")).Post("/", studentHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{studentID}", studentHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{studentID}", studentHandler.Delete)
+		})
 
-	r.Route("/penilaian", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		// --- PERUBAHAN RUTE DI SINI ---
-		r.With(auth.Authorize("admin", "teacher")).Get("/kelas/{kelasID}/pengajar/{pengajarKelasID}", penilaianHandler.GetPenilaianLengkap)
-		r.With(auth.Authorize("admin", "teacher")).Post("/batch-upsert", penilaianHandler.UpsertNilaiBulk)
-	})
+		r.Route("/profile", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", profileHandler.GetProfile)
+			r.With(auth.Authorize("admin")).Put("/", profileHandler.UpdateProfile)
+		})
 
-	r.Route("/penilaian-sumatif", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianSumatifHandler.GetByTujuanPembelajaranID)
-		r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianSumatifHandler.Create)
-		r.With(auth.Authorize("admin", "teacher")).Put("/{id}", penilaianSumatifHandler.Update)
-		r.With(auth.Authorize("admin", "teacher")).Delete("/{id}", penilaianSumatifHandler.Delete)
-	})
+		r.Route("/jenjang", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", jenjangHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", jenjangHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", jenjangHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", jenjangHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
+		})
 
-	r.Route("/jenis-ujian", func(r chi.Router) {
-		r.Use(authMiddleware.AuthMiddleware)
-		r.With(auth.Authorize("admin")).Get("/", jenisUjianHandler.GetAll)
-		r.With(auth.Authorize("admin")).Post("/", jenisUjianHandler.Create)
-		r.With(auth.Authorize("admin")).Get("/{id}", jenisUjianHandler.GetByID)
-		r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
-		r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
+		r.Route("/jabatan", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", jabatanHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", jabatanHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", jabatanHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", jabatanHandler.Delete)
+		})
+
+		r.Route("/tingkatan", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", tingkatanHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", tingkatanHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", tingkatanHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", tingkatanHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", tingkatanHandler.Delete)
+		})
+
+		r.Route("/tahun-ajaran", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", tahunAjaranHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", tahunAjaranHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", tahunAjaranHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", tahunAjaranHandler.Delete)
+		})
+
+		r.Route("/mata-pelajaran", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Put("/reorder", mataPelajaranHandler.UpdateUrutan)
+			r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
+			r.With(auth.Authorize("admin")).Get("/taught", mataPelajaranHandler.GetAllTaught)
+			r.With(auth.Authorize("admin")).Post("/", mataPelajaranHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", mataPelajaranHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
+		})
+
+		r.Route("/kelompok-mapel", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", kelompokMapelHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{id}", kelompokMapelHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", kelompokMapelHandler.Delete)
+		})
+
+		r.Route("/kurikulum", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)
+			r.With(auth.Authorize("admin")).Get("/by-tahun-ajaran", kurikulumHandler.GetByTahunAjaran)
+			r.With(auth.Authorize("admin")).Post("/", kurikulumHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{id}", kurikulumHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", kurikulumHandler.Delete)
+			r.With(auth.Authorize("admin")).Post("/add-to-tahun-ajaran", kurikulumHandler.AddKurikulumToTahunAjaran)
+			r.With(auth.Authorize("admin")).Get("/fase", kurikulumHandler.GetAllFase)
+			r.With(auth.Authorize("admin")).Post("/fase", kurikulumHandler.CreateFase)
+			r.With(auth.Authorize("admin")).Get("/tingkatan", kurikulumHandler.GetAllTingkatan)
+			r.With(auth.Authorize("admin")).Get("/pemetaan", kurikulumHandler.GetFaseTingkatan)
+			r.With(auth.Authorize("admin")).Post("/pemetaan", kurikulumHandler.CreatePemetaan)
+			r.With(auth.Authorize("admin")).Delete("/pemetaan/ta/{tahunAjaranID}/k/{kurikulumID}/t/{tingkatanID}", kurikulumHandler.DeletePemetaan)
+		})
+
+		r.Route("/rombel", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", rombelHandler.GetAllKelasByTahunAjaran)
+			r.With(auth.Authorize("admin")).Post("/", rombelHandler.CreateKelas)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}", rombelHandler.GetKelasByID)
+			r.With(auth.Authorize("admin")).Put("/{kelasID}", rombelHandler.UpdateKelas)
+			r.With(auth.Authorize("admin")).Delete("/{kelasID}", rombelHandler.DeleteKelas)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/anggota", rombelHandler.GetAllAnggotaByKelas)
+			r.With(auth.Authorize("admin")).Post("/{kelasID}/anggota", rombelHandler.AddAnggotaKelas)
+			r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaID}", rombelHandler.RemoveAnggotaKelas)
+			r.With(auth.Authorize("admin")).Put("/anggota/reorder", rombelHandler.UpdateAnggotaKelasUrutan)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{kelasID}/pengajar", rombelHandler.GetAllPengajarByKelas)
+			r.With(auth.Authorize("admin")).Post("/{kelasID}/pengajar", rombelHandler.CreatePengajarKelas)
+			r.With(auth.Authorize("admin")).Delete("/pengajar/{pengajarID}", rombelHandler.RemovePengajarKelas)
+		})
+
+		r.Route("/pembelajaran", func(r chi.Router) {
+			r.With(auth.Authorize("admin", "teacher")).Get("/rencana/by-pengajar/{pengajarKelasID}", pembelajaranHandler.GetAllRencanaPembelajaran)
+			r.With(auth.Authorize("admin", "teacher")).Put("/rencana/reorder", pembelajaranHandler.UpdateRencanaUrutan)
+			r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
+			r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
+			r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
+			r.With(auth.Authorize("admin", "teacher")).Post("/ujian", pembelajaranHandler.CreateUjian)
+			r.With(auth.Authorize("admin", "teacher")).Put("/ujian/{id}", pembelajaranHandler.UpdateUjian)
+			r.With(auth.Authorize("admin", "teacher")).Delete("/ujian/{id}", pembelajaranHandler.DeleteUjian)
+			r.With(auth.Authorize("admin", "teacher")).Post("/tujuan", pembelajaranHandler.CreateTujuan)
+			r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/{tujuanID}", pembelajaranHandler.UpdateTujuan)
+			r.With(auth.Authorize("admin", "teacher")).Delete("/tujuan/{tujuanID}", pembelajaranHandler.DeleteTujuan)
+			r.With(auth.Authorize("admin", "teacher")).Put("/tujuan/reorder", pembelajaranHandler.UpdateUrutanTujuan)
+		})
+
+		r.Route("/penilaian", func(r chi.Router) {
+			r.With(auth.Authorize("admin", "teacher")).Get("/kelas/{kelasID}/pengajar/{pengajarKelasID}", penilaianHandler.GetPenilaianLengkap)
+			r.With(auth.Authorize("admin", "teacher")).Post("/batch-upsert", penilaianHandler.UpsertNilaiBulk)
+		})
+
+		r.Route("/penilaian-sumatif", func(r chi.Router) {
+			r.With(auth.Authorize("admin", "teacher")).Get("/", penilaianSumatifHandler.GetByTujuanPembelajaranID)
+			r.With(auth.Authorize("admin", "teacher")).Post("/", penilaianSumatifHandler.Create)
+			r.With(auth.Authorize("admin", "teacher")).Put("/{id}", penilaianSumatifHandler.Update)
+			r.With(auth.Authorize("admin", "teacher")).Delete("/{id}", penilaianSumatifHandler.Delete)
+		})
+
+		r.Route("/jenis-ujian", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", jenisUjianHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", jenisUjianHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/{id}", jenisUjianHandler.GetByID)
+			r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
+		})
 	})
 
 	port := os.Getenv("SERVER_PORT")

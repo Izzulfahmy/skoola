@@ -1,13 +1,18 @@
--- backend/db/migrations/003_add_teacher_details.sql
+-- file: backend/db/migrations/003_add_teacher_details.sql
 
--- 1. Buat tipe ENUM kustom untuk jenis_kelamin dan status_guru
---    Menambahkan 'IF NOT EXISTS' untuk mencegah error jika migrasi dijalankan ulang.
-CREATE TYPE "jenis_kelamin_enum" AS ENUM ('Laki-laki', 'Perempuan');
-CREATE TYPE "status_guru_enum" AS ENUM ('Aktif', 'NonAktif', 'Pindah');
+-- 1. Buat tipe ENUM kustom yang dibutuhkan jika belum ada.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'jenis_kelamin_enum') THEN
+        CREATE TYPE "jenis_kelamin_enum" AS ENUM ('Laki-laki', 'Perempuan');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_guru_enum') THEN
+        CREATE TYPE "status_guru_enum" AS ENUM ('Aktif', 'NonAktif', 'Pindah');
+    END IF;
+END$$;
 
 -- 2. Ubah tabel 'teachers' yang ada
 ALTER TABLE "teachers"
-    -- Ubah nama kolom yang sudah ada agar lebih deskriptif
     RENAME COLUMN "nip" TO "nip_nuptk";
 ALTER TABLE "teachers"
     RENAME COLUMN "nomor_telepon" TO "no_hp";
@@ -28,10 +33,9 @@ ALTER TABLE "teachers"
     ADD COLUMN "kecamatan" VARCHAR(100),
     ADD COLUMN "desa_kelurahan" VARCHAR(100),
     ADD COLUMN "kode_pos" VARCHAR(10),
-    -- --- PERUBAHAN UTAMA ADA DI BARIS INI ---
     ADD COLUMN "status_guru" status_guru_enum DEFAULT 'Aktif';
 
--- 3. Ubah tipe data beberapa kolom jika diperlukan (opsional, menyesuaikan)
+-- 3. Ubah tipe data beberapa kolom jika diperlukan
 ALTER TABLE "teachers"
     ALTER COLUMN "nip_nuptk" TYPE VARCHAR(30),
     ALTER COLUMN "no_hp" TYPE VARCHAR(20);

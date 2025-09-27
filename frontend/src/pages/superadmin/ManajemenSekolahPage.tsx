@@ -1,6 +1,6 @@
 // file: frontend/src/pages/superadmin/ManajemenSekolahPage.tsx
 import { useState, useEffect } from 'react';
-import { Button, Typography, message, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space, Row, Col, Breadcrumb } from 'antd';
+import { App as AntApp, Button, Typography, Modal, Table, Alert, Tag, Form, Input, Dropdown, Space, Row, Col, Breadcrumb } from 'antd';
 import type { TableColumnsType, MenuProps } from 'antd';
 import {
   PlusOutlined,
@@ -31,6 +31,7 @@ const { Title, Text, Paragraph } = Typography;
 type ModalType = 'register' | 'editEmail' | 'resetPassword' | 'deleteConfirm' | null;
 
 const ManajemenSekolahPage = () => {
+  const { message } = AntApp.useApp(); // <-- Gunakan hook dari AntApp
   const [form] = Form.useForm();
   const { naunganId } = useParams<{ naunganId: string }>();
 
@@ -48,7 +49,6 @@ const ManajemenSekolahPage = () => {
     setTableLoading(true);
     try {
       if (naunganId) {
-        // Jika ada naunganId, ambil semua tenant dan filter, serta data naungan
         const [allTenants, naunganData] = await Promise.all([
             getTenants(),
             getNaunganById(naunganId)
@@ -57,7 +57,6 @@ const ManajemenSekolahPage = () => {
         const filteredTenants = (allTenants || []).filter(t => t.naungan_id === naunganId);
         setTenants(filteredTenants);
       } else {
-        // Jika tidak ada naunganId, ambil hanya sekolah tanpa naungan
         const tenantsWithoutNaungan = await getTenantsWithoutNaungan();
         setTenants(tenantsWithoutNaungan || []);
         setNaungan(null);
@@ -268,4 +267,12 @@ const ManajemenSekolahPage = () => {
   );
 };
 
-export default ManajemenSekolahPage;
+// Bungkus komponen utama dengan AntApp Provider
+const WrappedManajemenSekolahPage = () => (
+  <AntApp>
+    <ManajemenSekolahPage />
+  </AntApp>
+);
+
+
+export default WrappedManajemenSekolahPage;
