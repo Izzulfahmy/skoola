@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     // Tambahkan URL ngrok Anda ke dalam daftar host yang diizinkan
     allowedHosts: [
-      '1ad60cfe8fe7.ngrok-free.app'
+      'skoola.my.id'
     ],
     proxy: {
       '/api': {
