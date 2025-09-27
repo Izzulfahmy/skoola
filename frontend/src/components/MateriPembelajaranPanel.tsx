@@ -25,7 +25,6 @@ import { format, parseISO } from 'date-fns';
 const { TextArea } = Input;
 const { Text } = Typography;
 
-// --- PERBAIKAN BUG KURSOR: Komponen terpisah untuk input editing ---
 interface EditableTitleProps {
   initialValue: string;
   isTextArea?: boolean;
@@ -75,8 +74,6 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ initialValue, isTextArea 
   );
 };
 
-// --- Komponen Utama ---
-
 interface MateriPembelajaranPanelProps {
   pengajarKelasId: string;
 }
@@ -123,26 +120,26 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   useEffect(() => {
     fetchData();
   }, [pengajarKelasId]);
-
-  const handleAddMateri = async () => {
-    try {
-      await createMateri({ pengajar_kelas_id: pengajarKelasId, nama_materi: "Materi Baru" });
-      message.success("Materi baru berhasil ditambahkan.");
-      fetchData();
-    } catch (error) {
-      message.error("Gagal menambahkan materi baru.");
-    }
-  };
-
-  const handleAddUjian = async () => {
-      try {
-          await createUjian({ pengajar_kelas_id: pengajarKelasId, nama_ujian: "Ujian Baru" });
-          message.success("Ujian baru berhasil ditambahkan.");
-          fetchData();
-      } catch (error) {
-          message.error("Gagal menambahkan ujian baru.");
-      }
-  };
+  
+    const handleAddMateri = async () => {
+        try {
+            await createMateri({ pengajar_kelas_id: pengajarKelasId, nama_materi: "Materi Baru" });
+            message.success("Materi baru berhasil ditambahkan.");
+            fetchData();
+        } catch (error) {
+            message.error("Gagal menambahkan materi baru.");
+        }
+    };
+  
+    const handleAddUjian = async () => {
+        try {
+            await createUjian({ pengajar_kelas_id: pengajarKelasId, nama_ujian: "Ujian Baru" });
+            message.success("Ujian baru berhasil ditambahkan.");
+            fetchData();
+        } catch (error) {
+            message.error("Gagal menambahkan ujian baru.");
+        }
+    };
 
   const handleAddTujuan = async (materiId: number) => {
     try {
@@ -271,7 +268,31 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                         </Space>
                     </div>
                 ),
-                isLeaf: true, // Ujian tidak punya anak
+                // --- PERBAIKAN DI SINI ---
+                children: (item.penilaian_sumatif || []).map(penilaian => {
+                  const penilaianKey = `penilaian_${penilaian.id}_${item.id}`;
+                  return {
+                    key: penilaianKey,
+                    title: (
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <div style={{ flex: 1, marginRight: '8px' }}>
+                          <Space>
+                              <Tag color="purple">{penilaian.kode_jenis_ujian}</Tag>
+                              <Text>{penilaian.nama_penilaian}</Text>
+                              {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                          </Space>
+                        </div>
+                        <Space>
+                          <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, penilaian)} />
+                          <Popconfirm title="Hapus rincian ini?" onConfirm={() => handleDelete(penilaianKey)}>
+                              <Button icon={<DeleteOutlined />} size="small" type="text" danger />
+                          </Popconfirm>
+                        </Space>
+                      </div>
+                    ),
+                    isLeaf: true
+                  }
+                })
             };
         }
 

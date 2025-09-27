@@ -1,10 +1,10 @@
 // file: frontend/src/api/penilaian.ts
 import apiClient from './axiosInstance';
-import type { FullPenilaianData, MateriPembelajaran, BulkUpsertNilaiInput } from '../types';
+import type { FullPenilaianData, RencanaPembelajaranItem, BulkUpsertNilaiInput } from '../types';
 
 interface PenilaianLengkapResponse {
   penilaian: FullPenilaianData;
-  materi: MateriPembelajaran[];
+  rencana: RencanaPembelajaranItem[];
 }
 
 export const getPenilaianLengkap = async (kelasId: string, pengajarKelasId: string): Promise<PenilaianLengkapResponse> => {

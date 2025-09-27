@@ -32,7 +32,7 @@ func (s *service) GetPenilaianLengkap(ctx context.Context, schemaName string, ke
 		return nil, errors.New("kelasID dan pengajarKelasID tidak boleh kosong")
 	}
 
-	penilaianData, materiData, err := s.repo.GetPenilaianLengkap(ctx, schemaName, kelasID, pengajarKelasID)
+	penilaianData, rencanaData, err := s.repo.GetPenilaianLengkap(ctx, schemaName, kelasID, pengajarKelasID)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (s *service) GetPenilaianLengkap(ctx context.Context, schemaName string, ke
 	// Gabungkan kedua hasil ke dalam satu map untuk dikirim sebagai JSON
 	response := map[string]interface{}{
 		"penilaian": penilaianData,
-		"materi":    materiData,
+		"rencana":   rencanaData, // <-- PERBAIKAN: Mengganti "materi" menjadi "rencana"
 	}
 
 	return response, nil
