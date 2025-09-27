@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 29kht5IirhlVHdoC51QORboCN2E3nvPWN56aE5OdA8SEgA9vO3hWlD2MpEin5ra
+\restrict 3yKVQJXPzbfdeQa3nRTQ9wxYwhPw7f5zYhNCOOA6gR9kfgNkIjWWgsYkp7kAtwg
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -979,7 +979,8 @@ ALTER TABLE ONLY "20554021".ujian ALTER COLUMN id SET DEFAULT nextval('"20554021
 --
 
 COPY "20554021".anggota_kelas (id, kelas_id, student_id, created_at, urutan) FROM stdin;
-bbb5aef8-50d7-47c1-9a63-2e9060c16fcf	2fd766d6-a0da-4b25-add4-ffbe5c8a7dea	b37a0306-df35-4bd7-9983-aca2cb34e804	2025-09-27 14:27:06.070066+07	1
+ff365a12-6999-4c82-9156-1db85298693e	2fd766d6-a0da-4b25-add4-ffbe5c8a7dea	c9953b7d-6b83-4d44-a22b-f7209e25996c	2025-09-27 17:35:13.574122+07	1
+bbb5aef8-50d7-47c1-9a63-2e9060c16fcf	2fd766d6-a0da-4b25-add4-ffbe5c8a7dea	b37a0306-df35-4bd7-9983-aca2cb34e804	2025-09-27 14:27:06.070066+07	2
 \.
 
 
@@ -1015,6 +1016,7 @@ COPY "20554021".jenis_ujian (id, kode_ujian, nama_ujian, created_at, updated_at)
 4	PRA	Praktik	2025-09-27 14:26:03.065381+07	2025-09-27 14:26:03.065381+07
 5	STS	Sumatif Tengah Semester	2025-09-27 14:26:03.065381+07	2025-09-27 14:26:03.065381+07
 6	SAS	Sumatif Akhir Semester	2025-09-27 14:26:03.065381+07	2025-09-27 14:26:03.065381+07
+7	RMD	Remidial	2025-09-27 14:46:33.502762+07	2025-09-27 14:46:33.502762+07
 \.
 
 
@@ -1071,7 +1073,8 @@ acbf9233-6567-429c-97c5-0cc8ae3e4b87	MTK	Matematika	2025-09-27 14:26:34.862668+0
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
-1	1922577a-3ca5-4d4e-81f9-eb8ccbecb207	Materi Baru	\N	1	2025-09-27 14:27:18.50156+07	2025-09-27 14:27:18.50156+07
+3	1922577a-3ca5-4d4e-81f9-eb8ccbecb207	Pytagoras	\N	2	2025-09-27 17:32:17.79403+07	2025-09-27 17:32:26.011462+07
+1	1922577a-3ca5-4d4e-81f9-eb8ccbecb207	Bangun Ruang	\N	1	2025-09-27 14:27:18.50156+07	2025-09-28 00:08:17.299225+07
 \.
 
 
@@ -1080,6 +1083,13 @@ COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskrip
 --
 
 COPY "20554021".nilai_sumatif_siswa (id, penilaian_sumatif_id, anggota_kelas_id, nilai, created_at, updated_at) FROM stdin;
+1	252c7dc6-dd09-48fc-a98a-5b988979e957	bbb5aef8-50d7-47c1-9a63-2e9060c16fcf	80.00	2025-09-27 14:51:11.925372+07	2025-09-27 14:51:11.925372+07
+2	2fef4b1e-6754-43e8-9e67-f9ec937e191e	bbb5aef8-50d7-47c1-9a63-2e9060c16fcf	90.00	2025-09-27 14:51:11.925372+07	2025-09-27 14:51:11.925372+07
+4	0520a6f7-15de-4d15-9270-65151e96088c	ff365a12-6999-4c82-9156-1db85298693e	70.00	2025-09-28 00:47:42.525899+07	2025-09-28 00:47:42.525899+07
+3	0520a6f7-15de-4d15-9270-65151e96088c	bbb5aef8-50d7-47c1-9a63-2e9060c16fcf	89.00	2025-09-27 15:55:23.794192+07	2025-09-28 00:47:49.725881+07
+6	252c7dc6-dd09-48fc-a98a-5b988979e957	ff365a12-6999-4c82-9156-1db85298693e	78.00	2025-09-28 00:47:59.880021+07	2025-09-28 00:47:59.880021+07
+7	2fef4b1e-6754-43e8-9e67-f9ec937e191e	ff365a12-6999-4c82-9156-1db85298693e	56.00	2025-09-28 00:47:59.880021+07	2025-09-28 00:47:59.880021+07
+8	c1aff93d-5e72-420f-836f-a1af0a0b511e	ff365a12-6999-4c82-9156-1db85298693e	56.00	2025-09-28 00:48:46.422414+07	2025-09-28 00:48:46.422414+07
 \.
 
 
@@ -1113,7 +1123,11 @@ COPY "20554021".penilaian (id, anggota_kelas_id, tujuan_pembelajaran_id, nilai, 
 --
 
 COPY "20554021".penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, nama_penilaian, tanggal_pelaksanaan, keterangan, created_at, updated_at, ujian_id) FROM stdin;
-252c7dc6-dd09-48fc-a98a-5b988979e957	\N	6	Penilaian Ujian Sekolah	2025-09-29	\N	2025-09-27 14:28:00.634927+07	2025-09-27 14:28:00.634927+07	1
+0520a6f7-15de-4d15-9270-65151e96088c	1	2	Buku Tulis	2025-09-24	\N	2025-09-27 14:36:16.206388+07	2025-09-27 14:36:16.206388+07	\N
+252c7dc6-dd09-48fc-a98a-5b988979e957	\N	5	Penilaian Ujian Sekolah	2025-09-29	\N	2025-09-27 14:28:00.634927+07	2025-09-27 14:42:18.323146+07	1
+2fef4b1e-6754-43e8-9e67-f9ec937e191e	\N	7	Buku Tulis	2025-10-07	\N	2025-09-27 14:46:52.841866+07	2025-09-27 14:46:52.841866+07	1
+a5edcda6-c5dd-414b-a567-ac250d26fbe7	3	3	Buku Tulis	2025-10-01	\N	2025-09-27 17:32:47.573817+07	2025-09-27 17:32:47.573817+07	\N
+c1aff93d-5e72-420f-836f-a1af0a0b511e	1	4	Menggambar	2025-10-01	\N	2025-09-28 00:48:35.158128+07	2025-09-28 00:48:35.158128+07	\N
 \.
 
 
@@ -1132,6 +1146,7 @@ COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurah
 
 COPY "20554021".riwayat_akademik (id, student_id, status, tanggal_kejadian, kelas_tingkat, keterangan, created_at, updated_at) FROM stdin;
 d9aae507-5d96-4b78-a960-63391714e719	b37a0306-df35-4bd7-9983-aca2cb34e804	Aktif	2025-09-27	\N	Siswa baru	2025-09-27 14:26:52.195338+07	2025-09-27 14:26:52.195338+07
+b8a5ae3a-6c8e-42c4-9b89-4773ad44e722	c9953b7d-6b83-4d44-a22b-f7209e25996c	Aktif	2025-09-27	\N	Siswa baru	2025-09-27 17:35:05.681862+07	2025-09-27 17:35:05.681862+07
 \.
 
 
@@ -1151,6 +1166,7 @@ COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tang
 
 COPY "20554021".students (id, created_at, updated_at, nis, nisn, nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali, pekerjaan_ayah, alamat_ayah, pekerjaan_ibu, alamat_ibu, pekerjaan_wali, alamat_wali) FROM stdin;
 b37a0306-df35-4bd7-9983-aca2cb34e804	2025-09-27 14:26:52.195338+07	2025-09-27 14:26:52.195338+07	\N	\N	Jokowi	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+c9953b7d-6b83-4d44-a22b-f7209e25996c	2025-09-27 17:35:05.681862+07	2025-09-27 17:35:05.681862+07	\N	\N	Prabowo	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -1200,7 +1216,10 @@ COPY "20554021".tingkatan (id, nama_tingkatan, urutan, created_at, updated_at) F
 --
 
 COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujuan, urutan, created_at, updated_at) FROM stdin;
-1	1	Tujuan pembelajaran baru.	1	2025-09-27 14:28:10.562184+07	2025-09-27 14:28:10.562184+07
+1	1	Pengertian	1	2025-09-27 14:28:10.562184+07	2025-09-27 16:43:51.239488+07
+3	3	Pengertian	1	2025-09-27 17:32:27.594048+07	2025-09-27 17:32:36.23908+07
+4	3	Contoh Permasalahan	2	2025-09-27 17:33:13.515057+07	2025-09-27 17:33:24.589304+07
+5	1	Rumus	2	2025-09-28 00:49:04.792695+07	2025-09-28 00:49:16.934139+07
 \.
 
 
@@ -1209,7 +1228,7 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at) FROM stdin;
-1	1922577a-3ca5-4d4e-81f9-eb8ccbecb207	Ujian Baru	2	2025-09-27 14:27:21.330674+07	2025-09-27 14:27:21.330674+07
+1	1922577a-3ca5-4d4e-81f9-eb8ccbecb207	Ujian	2	2025-09-27 14:27:21.330674+07	2025-09-27 16:48:52.963348+07
 \.
 
 
@@ -1268,7 +1287,7 @@ SELECT pg_catalog.setval('"20554021".jabatan_id_seq', 5, true);
 -- Name: jenis_ujian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".jenis_ujian_id_seq', 6, true);
+SELECT pg_catalog.setval('"20554021".jenis_ujian_id_seq', 7, true);
 
 
 --
@@ -1296,14 +1315,14 @@ SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 1, false);
 -- Name: materi_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 3, true);
 
 
 --
 -- Name: nilai_sumatif_siswa_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 8, true);
 
 
 --
@@ -1324,7 +1343,7 @@ SELECT pg_catalog.setval('"20554021".tingkatan_id_seq', 6, true);
 -- Name: tujuan_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 5, true);
 
 
 --
@@ -2132,5 +2151,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 29kht5IirhlVHdoC51QORboCN2E3nvPWN56aE5OdA8SEgA9vO3hWlD2MpEin5ra
+\unrestrict 3yKVQJXPzbfdeQa3nRTQ9wxYwhPw7f5zYhNCOOA6gR9kfgNkIjWWgsYkp7kAtwg
 
