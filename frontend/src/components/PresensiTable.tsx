@@ -6,6 +6,9 @@ import { CommentOutlined, DeleteOutlined, CheckSquareOutlined } from '@ant-desig
 import { getPresensiBulanan, upsertPresensi, deletePresensi } from '../api/presensi';
 import type { PresensiSiswa, UpsertPresensiInput, PresensiData } from '../types';
 import dayjs from 'dayjs';
+import 'dayjs/locale/id';
+
+dayjs.locale('id');
 
 interface PresensiTableProps {
   kelasId: string;
@@ -18,7 +21,7 @@ const { TextArea } = Input;
 
 type StatusPresensi = 'H' | 'S' | 'I' | 'A';
 
-// Komponen kontrol di dalam Popover
+// Komponen kontrol di dalam Popover (tidak ada perubahan)
 const PresensiInputControl: React.FC<{
   value: Omit<PresensiData, 'anggota_kelas_id'>;
   onSave: (newValue: Omit<PresensiData, 'anggota_kelas_id'>) => void;
@@ -151,13 +154,11 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
     }
   };
 
-  // --- FUNGSI 'HADIR SEMUA' YANG DIPERBARUI ---
   const handleMarkAllPresent = async (day: number) => {
     const tanggal = dayjs(`${year}-${month}-${day}`).format('YYYY-MM-DD');
     const key = `present-all-${tanggal}`;
     message.loading({ content: `Menandai semua hadir tgl ${day}...`, key });
 
-    // Optimistic UI Update
     setDataSource(prev => prev.map(siswa => {
         const newPresensi = { ...siswa.presensi_per_hari, [day]: { status: 'H' as const }};
         return { ...siswa, presensi_per_hari: newPresensi };
@@ -179,7 +180,7 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
         message.success({ content: `Semua siswa berhasil ditandai hadir!`, key, duration: 2 });
     } catch (error) {
         message.error({ content: 'Gagal menyimpan data!', key, duration: 2 });
-        fetchData(); // Rollback jika gagal
+        fetchData();
     }
   };
 
@@ -188,7 +189,7 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
     const dynamicColumns: TableColumnsType<PresensiSiswa> = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
       const date = dayjs(`${year}-${month}-${day}`);
-      const isWeekend = date.day() === 0 || date.day() === 6;
+      const dayOfWeek = date.day(); // 0 = Minggu, 5 = Jumat, 6 = Sabtu
 
       const renderStatusTag = (status?: StatusPresensi, catatan?: string) => {
         if (!status) return <Tag style={{ cursor: 'pointer', minWidth: '28px', textAlign: 'center' }}>-</Tag>;
@@ -204,24 +205,39 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
       };
       
       return {
-        title: () => (
-            <Space direction="vertical" align="center" size={0}>
-              <Text>{day}</Text>
-              {!isWeekend && (
-                <Tooltip title={`Hadir Semua Tgl ${day}`}>
-                    <Button 
-                        type="text" 
-                        size="small" 
-                        icon={<CheckSquareOutlined />}
-                        onClick={() => handleMarkAllPresent(day)}
-                        style={{ padding: 0, height: 'auto', lineHeight: 1 }}
-                    />
-                </Tooltip>
-              )}
-            </Space>
-        ),
+        title: () => {
+            const dayName = date.format('ddd');
+            return (
+                <Space direction="vertical" align="center" size={0}>
+                    <Text type="secondary" style={{ fontSize: '11px', textTransform: 'capitalize' }}>
+                        {dayName}
+                    </Text>
+                    <Text style={{ fontWeight: 500 }}>{day}</Text>
+                    <Tooltip title={`Hadir Semua Tgl ${day}`}>
+                        <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<CheckSquareOutlined />}
+                            onClick={() => handleMarkAllPresent(day)}
+                            style={{ padding: 0, height: 'auto', lineHeight: 1, marginTop: '2px' }}
+                        />
+                    </Tooltip>
+                </Space>
+            );
+        },
+        // --- PERUBAHAN UTAMA UNTUK WARNA SEL HEADER & BODY ---
+        onHeaderCell: () => {
+            let backgroundColor = '#fff'; // Default
+            if (dayOfWeek === 5) backgroundColor = '#f6ffed'; // Hijau muda untuk Jumat
+            if (dayOfWeek === 0) backgroundColor = '#fff1f0'; // Merah muda untuk Minggu
+            return { style: { backgroundColor } };
+        },
+        onCell: () => {
+            let backgroundColor = '#fff'; // Default
+            if (dayOfWeek === 6 || dayOfWeek === 0) backgroundColor = '#fafafa'; // Abu-abu untuk Sabtu & Minggu
+            return { style: { backgroundColor, padding: '4px' } };
+        },
         dataIndex: 'presensi_per_hari', key: `day-${day}`, align: 'center', width: 60,
-        onCell: () => ({ style: { backgroundColor: isWeekend ? '#fafafa' : undefined, padding: '4px' } }),
         render: (presensi: Record<number, { status: StatusPresensi, catatan?: string }>, record: PresensiSiswa) => {
           const dataHari = presensi?.[day];
           const popoverKey = `${record.anggota_kelas_id}-${day}`;
