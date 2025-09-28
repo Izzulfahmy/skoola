@@ -20,6 +20,7 @@ import (
 	"skoola/internal/pembelajaran"
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
+	"skoola/internal/presensi" // <-- 1. IMPOR BARU
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -92,6 +93,7 @@ func main() {
 
 	validate := validator.New()
 
+	// Repositories
 	naunganRepo := foundation.NewRepository(db)
 	teacherRepo := teacher.NewRepository(db)
 	studentRepo := student.NewRepository(db)
@@ -110,7 +112,9 @@ func main() {
 	kelompokMapelRepo := kelompokmapel.NewRepository(db)
 	jenisUjianRepo := jenisujian.NewRepository(db)
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
+	presensiRepo := presensi.NewRepository(db) // <-- 2. REPO BARU
 
+	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
 	naunganService := foundation.NewService(naunganRepo, validate)
 	teacherService := teacher.NewService(teacherRepo, tahunAjaranRepo, validate, db)
@@ -130,7 +134,9 @@ func main() {
 	penilaianService := penilaian.NewService(penilaianRepo, validate)
 	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
+	presensiService := presensi.NewService(presensiRepo, validate) // <-- 3. SERVICE BARU
 
+	// Handlers
 	authHandler := auth.NewHandler(authService)
 	authMiddleware := auth.NewMiddleware(jwtSecret)
 	naunganHandler := foundation.NewHandler(naunganService)
@@ -151,10 +157,10 @@ func main() {
 	penilaianHandler := penilaian.NewHandler(penilaianService)
 	jenisUjianHandler := jenisujian.NewHandler(jenisUjianService)
 	penilaianSumatifHandler := penilaiansumatif.NewHandler(penilaianSumatifService)
+	presensiHandler := presensi.NewHandler(presensiService) // <-- 4. HANDLER BARU
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
-		// --- PERBAIKAN CORS ---
 		AllowedOrigins:   []string{"http://localhost:5173", "https://skoola.my.id"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
@@ -166,7 +172,6 @@ func main() {
 
 	// --- RUTE PUBLIK (TIDAK PERLU TOKEN) ---
 	r.Post("/login", authHandler.Login)
-	// Rute registrasi tenant dipindah ke sini, memerlukan otentikasi dan otorisasi superadmin
 	r.With(authMiddleware.AuthMiddleware, auth.AuthorizeSuperadmin).Post("/tenants/register", tenantHandler.Register)
 
 	// --- RUTE YANG MEMBUTUHKAN AUTENTIKASI ---
@@ -184,7 +189,6 @@ func main() {
 		r.Route("/tenants", func(r chi.Router) {
 			r.With(auth.AuthorizeSuperadmin).Get("/", tenantHandler.GetAll)
 			r.With(auth.AuthorizeSuperadmin).Get("/without-naungan", tenantHandler.GetTenantsWithoutNaungan)
-			// Rute /register telah dipindahkan
 			r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-email", tenantHandler.UpdateAdminEmail)
 			r.With(auth.AuthorizeSuperadmin).Put("/{schemaName}/admin-password", tenantHandler.ResetAdminPassword)
 			r.With(auth.AuthorizeSuperadmin).Delete("/{schemaName}", tenantHandler.DeleteTenant)
@@ -343,6 +347,12 @@ func main() {
 			r.With(auth.Authorize("admin")).Get("/{id}", jenisUjianHandler.GetByID)
 			r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
+		})
+
+		r.Route("/presensi", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
+			r.With(auth.Authorize("admin")).Post("/", presensiHandler.UpsertPresensi)
+			r.With(auth.Authorize("admin")).Delete("/", presensiHandler.DeletePresensi) // <-- RUTE INI DITAMBAHKAN
 		})
 	})
 

@@ -13,6 +13,7 @@ import {
   BookOutlined,
   ProjectOutlined,
   ApartmentOutlined,
+  SolutionOutlined, // <-- 1. Pastikan ikon ini diimpor
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
 import type { MenuProps } from 'antd';
@@ -74,6 +75,8 @@ const AdminLayout = () => {
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
     { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombongan Belajar</Link> },
+    // --- 2. Pastikan menu item ini ada ---
+    { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
     { type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
   ];
@@ -108,21 +111,16 @@ const AdminLayout = () => {
   );
 
   const siderWidth = 200;
-  const siderCollapsedWidth = 60; // Lebar saat diciutkan
+  const siderCollapsedWidth = 60;
 
   return (
     <ConfigProvider
       theme={{
         components: {
           Menu: {
-            // --- DESAIN LATAR HALUS & FOKUS WARNA ---
-            // Latar belakang item aktif: semi-transparan putih
             itemSelectedBg: 'rgba(255, 255, 255, 0.15)',
-            // Warna teks & ikon item aktif: putih cerah
             itemSelectedColor: '#FFFFFF',
-            // Sedikit radius sudut untuk melembutkan
             itemBorderRadius: 6,
-            // Beri sedikit margin agar tidak menempel ke tepi
             itemMarginInline: 8,
           },
         },
@@ -147,7 +145,6 @@ const AdminLayout = () => {
               flexDirection: 'column',
             }}
           >
-            {/* Style untuk mengatur padding saat diciutkan agar ikon tetap di tengah */}
              <style>
               {`
                 .ant-menu-inline-collapsed > .ant-menu-item {

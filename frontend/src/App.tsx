@@ -21,6 +21,7 @@ import TahunAjaranPage from './pages/TahunAjaranPage';
 import MataPelajaranPage from './pages/MataPelajaranPage';
 import KurikulumPage from './pages/KurikulumPage';
 import RombelPage from './pages/RombelPage';
+import PresensiPage from './pages/PresensiPage'; // <-- Impor Halaman Baru
 
 // Superadmin Pages
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
@@ -56,6 +57,7 @@ function App() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="rombel" element={<RombelPage />} />
             <Route path="rombel/:kelasId" element={<RombelPage />} />
+            <Route path="presensi" element={<PresensiPage />} /> {/* <-- Tambahkan Rute Ini */}
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

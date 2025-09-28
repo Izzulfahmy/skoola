@@ -23,6 +23,32 @@ export interface UpsertPenilaianSumatifInput {
 }
 // ------------------------------------
 
+// --- TIPE BARU UNTUK PRESENSI ---
+export interface PresensiHari {
+  status: 'H' | 'S' | 'I' | 'A';
+  catatan?: string;
+}
+
+export interface PresensiSiswa {
+  anggota_kelas_id: string;
+  nama_siswa: string;
+  nis?: string;
+  presensi_per_hari: Record<number, PresensiHari>; // map[tanggal]PresensiHari
+}
+
+export interface PresensiData {
+  anggota_kelas_id: string;
+  status: 'H' | 'S' | 'I' | 'A';
+  catatan?: string;
+}
+
+export interface UpsertPresensiInput {
+  kelas_id: string;
+  tanggal: string; // YYYY-MM-DD
+  data: PresensiData[];
+}
+// ------------------------------------
+
 export interface Ujian {
   id: number;
   pengajar_kelas_id: string;
