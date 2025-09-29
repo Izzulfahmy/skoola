@@ -1,4 +1,3 @@
-// file: src/layouts/AdminLayout.tsx
 import { useState, useEffect } from 'react';
 import {
   DesktopOutlined,
@@ -13,7 +12,7 @@ import {
   BookOutlined,
   ProjectOutlined,
   ApartmentOutlined,
-  SolutionOutlined, // <-- 1. Pastikan ikon ini diimpor
+  SolutionOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
 import type { MenuProps } from 'antd';
@@ -75,7 +74,6 @@ const AdminLayout = () => {
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
     { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombongan Belajar</Link> },
-    // --- 2. Pastikan menu item ini ada ---
     { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
     { type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
@@ -92,8 +90,9 @@ const AdminLayout = () => {
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* --- PERUBAHAN 1: Mengurangi tinggi logo agar sesuai header --- */}
       <div style={{
-        height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
         {isMobile || !collapsed ? 'Admin Panel' : ''}
@@ -157,12 +156,14 @@ const AdminLayout = () => {
         )}
 
         <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
-          <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          {/* --- PERUBAHAN 2: Menambahkan properti height dan lineHeight pada Header --- */}
+          <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 48, lineHeight: '48px' }}>
             <Button
               type="text"
               icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
-              style={{ fontSize: '16px', width: 64, height: 64 }}
+              // --- PERUBAHAN 3: Mengurangi ukuran tombol agar pas ---
+              style={{ fontSize: '16px', width: 48, height: 48 }}
             />
             <Space align="center">
               {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, Admin!</Text>}
