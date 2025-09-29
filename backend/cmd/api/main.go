@@ -162,13 +162,18 @@ func main() {
 	connectionHandler := connection.NewHandler() // <-- PERUBAHAN 2: HANDLER BARU
 
 	r := chi.NewRouter()
+
+	// --- SECTION MODIFIED ---
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "https://skoola.my.id"},
+		// Changed AllowedOrigins to allow any origin
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	// --- END OF MODIFICATION ---
+
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
