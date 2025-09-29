@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"skoola/internal/auth"
+	"skoola/internal/connection" // <-- PERUBAHAN 1: IMPOR BARU
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
 	"skoola/internal/jenisujian"
@@ -20,7 +21,7 @@ import (
 	"skoola/internal/pembelajaran"
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
-	"skoola/internal/presensi" // <-- 1. IMPOR BARU
+	"skoola/internal/presensi"
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -112,7 +113,7 @@ func main() {
 	kelompokMapelRepo := kelompokmapel.NewRepository(db)
 	jenisUjianRepo := jenisujian.NewRepository(db)
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
-	presensiRepo := presensi.NewRepository(db) // <-- 2. REPO BARU
+	presensiRepo := presensi.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -134,7 +135,7 @@ func main() {
 	penilaianService := penilaian.NewService(penilaianRepo, validate)
 	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
-	presensiService := presensi.NewService(presensiRepo, validate) // <-- 3. SERVICE BARU
+	presensiService := presensi.NewService(presensiRepo, validate)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -157,7 +158,8 @@ func main() {
 	penilaianHandler := penilaian.NewHandler(penilaianService)
 	jenisUjianHandler := jenisujian.NewHandler(jenisUjianService)
 	penilaianSumatifHandler := penilaiansumatif.NewHandler(penilaianSumatifService)
-	presensiHandler := presensi.NewHandler(presensiService) // <-- 4. HANDLER BARU
+	presensiHandler := presensi.NewHandler(presensiService)
+	connectionHandler := connection.NewHandler() // <-- PERUBAHAN 2: HANDLER BARU
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
@@ -173,6 +175,10 @@ func main() {
 	// --- RUTE PUBLIK (TIDAK PERLU TOKEN) ---
 	r.Post("/login", authHandler.Login)
 	r.With(authMiddleware.AuthMiddleware, auth.AuthorizeSuperadmin).Post("/tenants/register", tenantHandler.Register)
+
+	// --- RUTE TES KONEKSI (PUBLIK) ---
+	r.Get("/livez", connectionHandler.Livez)          // <-- PERUBAHAN 3: RUTE BARU
+	r.Get("/connection-test", connectionHandler.Test) // <-- PERUBAHAN 3: RUTE BARU
 
 	// --- RUTE YANG MEMBUTUHKAN AUTENTIKASI ---
 	r.Route("/", func(r chi.Router) {
@@ -352,7 +358,7 @@ func main() {
 		r.Route("/presensi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
 			r.With(auth.Authorize("admin")).Post("/", presensiHandler.UpsertPresensi)
-			r.With(auth.Authorize("admin")).Delete("/", presensiHandler.DeletePresensi) // <-- RUTE INI DITAMBAHKAN
+			r.With(auth.Authorize("admin")).Delete("/", presensiHandler.DeletePresensi)
 		})
 	})
 

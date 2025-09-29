@@ -1,13 +1,27 @@
 // file: frontend/src/pages/SettingsPage.tsx
+import { useState, useEffect } from 'react';
 import { Card, Tabs, Typography } from 'antd';
 import type { TabsProps } from 'antd';
 import AdminSettingsTab from '../components/AdminSettingsTab';
 import JenjangPendidikanTab from '../components/JenjangPendidikanTab';
 import JabatanTab from '../components/JabatanTab';
 import TingkatanTab from '../components/TingkatanTab';
-import JenisUjianTab from '../components/JenisUjianTab'; // <-- Impor komponen baru
+import JenisUjianTab from '../components/JenisUjianTab';
+import ConnectionTestTab from '../components/ConnectionTestTab';
 
 const { Title } = Typography;
+
+// Hook untuk mendeteksi ukuran layar
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
 
 const items: TabsProps['items'] = [
   {
@@ -35,15 +49,28 @@ const items: TabsProps['items'] = [
     label: 'Pengaturan Admin',
     children: <AdminSettingsTab />,
   },
+  {
+    key: '5',
+    label: 'Tes Koneksi',
+    children: <ConnectionTestTab />,
+  },
 ];
 
 const SettingsPage = () => {
+  const { width } = useWindowSize();
+  const isMobile = width < 768; // Tentukan breakpoint untuk mobile
+
   return (
     <Card>
       <Title level={3} style={{ marginBottom: '24px' }}>
         Pengaturan Sekolah
       </Title>
-      <Tabs defaultActiveKey="0" items={items} />
+      <Tabs 
+        defaultActiveKey="0" 
+        items={items} 
+        // Ubah posisi tab secara dinamis berdasarkan ukuran layar
+        tabPosition={isMobile ? 'top' : 'right'} 
+      />
     </Card>
   );
 };
