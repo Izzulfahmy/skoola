@@ -1,4 +1,3 @@
-// file: frontend/src/components/MateriPembelajaranPanel.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, Tag, Tooltip, Typography } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
@@ -14,7 +13,7 @@ import {
   createTujuan,
   updateTujuan,
   deleteTujuan,
-  updateRencanaUrutan, // <-- Gunakan ini
+  updateRencanaUrutan,
   updateUrutanTujuan,
 } from '../api/pembelajaran';
 import { getAllJenisUjian } from '../api/jenisUjian';
@@ -53,10 +52,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ initialValue, isTextArea 
             value={text}
             onChange={(e) => setText(e.target.value)}
             autoSize={{ minRows: 1, maxRows: 4 }}
-            onPressEnter={(e) => {
-              e.preventDefault();
-              handleSave();
-            }}
+            onPressEnter={(e) => { e.preventDefault(); handleSave(); }}
             autoFocus
           />
         ) : (
@@ -103,7 +99,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const [editingPenilaian, setEditingPenilaian] = useState<PenilaianSumatif | null>(null);
   const [penilaianForm] = Form.useForm();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [rencanaData, jenisUjianData] = await Promise.all([
@@ -117,11 +113,11 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [pengajarKelasId]);
 
   useEffect(() => {
     fetchData();
-  }, [pengajarKelasId]);
+  }, [fetchData]);
   
     const handleAddMateri = async () => {
         try {
@@ -153,41 +149,49 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     }
   };
   
+  // --- FUNGSI HANDLE SAVE YANG DIPERBARUI ---
   const handleSave = async (newValue: string) => {
     if (!editingKey) return;
     const { type, id, parentId } = parseKey(editingKey);
+    const originalList = JSON.parse(JSON.stringify(rencanaList)); // Deep copy untuk revert
+    
+    // Optimistic UI Update
+    const newList = JSON.parse(JSON.stringify(rencanaList));
+    if (type === 'materi' || type === 'ujian') {
+      const item = newList.find((item: RencanaPembelajaranItem) => `${item.type}_${item.id}` === editingKey);
+      if (item) item.nama = newValue;
+    } else if (type === 'tp' && parentId) {
+      const materi = newList.find((item: RencanaPembelajaranItem) => item.id === parentId);
+      const tp = materi?.tujuan_pembelajaran?.find((t: TujuanPembelajaran) => t.id === id);
+      if (tp) tp.deskripsi_tujuan = newValue;
+    }
+    setRencanaList(newList);
+    setEditingKey(null);
 
+    // API Call
     try {
         if (type === 'materi') {
             await updateMateri(id as number, { nama_materi: newValue, pengajar_kelas_id: pengajarKelasId });
         } else if (type === 'ujian') {
             await updateUjian(id as number, { nama_ujian: newValue, pengajar_kelas_id: pengajarKelasId });
-        } else if (type === 'tp') {
-            const tp = rencanaList.flatMap(m => m.tujuan_pembelajaran || []).find(t => t.id === id);
-            if (tp && parentId) {
-                await updateTujuan(id as number, { ...tp, deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
-            }
+        } else if (type === 'tp' && parentId) {
+            await updateTujuan(id as number, { deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
         }
         message.success("Perubahan berhasil disimpan.");
-        setEditingKey(null);
-        fetchData();
     } catch (error) {
-        message.error("Gagal menyimpan perubahan.");
+        message.error("Gagal menyimpan perubahan. Mengembalikan data semula.");
+        setRencanaList(originalList); // Revert on error
     }
   };
+
 
   const handleDelete = async (key: string) => {
     const { type, id } = parseKey(key);
     try {
-      if (type === 'materi') {
-        await deleteMateri(id as number);
-      } else if (type === 'ujian') {
-        await deleteUjian(id as number);
-      } else if (type === 'tp') {
-        await deleteTujuan(id as number);
-      } else if (type === 'penilaian') {
-        await deletePenilaian(String(id));
-      }
+      if (type === 'materi') await deleteMateri(id as number);
+      else if (type === 'ujian') await deleteUjian(id as number);
+      else if (type === 'tp') await deleteTujuan(id as number);
+      else if (type === 'penilaian') await deletePenilaian(String(id));
       message.success("Data berhasil dihapus.");
       fetchData();
     } catch (error) {
@@ -209,18 +213,16 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
 
   const handleFinishPenilaian = async (values: any) => {
     if (!currentItem) return;
-
     const payload: UpsertPenilaianSumatifInput = {
       ...values,
       tanggal_pelaksanaan: values.tanggal_pelaksanaan ? values.tanggal_pelaksanaan.format('YYYY-MM-DD') : undefined,
     };
     
-    if ('deskripsi_tujuan' in currentItem) { // Cek apakah ini TujuanPembelajaran
+    if ('deskripsi_tujuan' in currentItem) {
         payload.tujuan_pembelajaran_id = currentItem.id;
-    } else { // Ini adalah Ujian
+    } else {
         payload.ujian_id = currentItem.id;
     }
-
 
     try {
       if (isEditingPenilaian && editingPenilaian) {
@@ -251,77 +253,42 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
         return;
     }
     
-    // Logic for reordering main items (materi & ujian)
     if ((dragNodeData.type === 'materi' || dragNodeData.type === 'ujian') && (dropNodeData.type === 'materi' || dropNodeData.type === 'ujian')) {
         const reorderedList = [...rencanaList];
         const dragIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dragKey);
-        const dropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
-
-        if (dragIndex === -1 || dropIndex === -1) return;
-
         const [draggedItem] = reorderedList.splice(dragIndex, 1);
-        
-        // Recalculate drop index after splice
-        const newDropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
-
-        if (dropPosition === -1 || dropPosition === 0) {
-            reorderedList.splice(newDropIndex, 0, draggedItem);
-        } else {
-            reorderedList.splice(newDropIndex + 1, 0, draggedItem);
-        }
-        
-        setRencanaList(reorderedList); // Optimistic UI update
-
+        const dropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
+        reorderedList.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
+        setRencanaList(reorderedList);
         const orderedItems = reorderedList.map(item => ({ id: item.id, type: item.type as 'materi' | 'ujian' }));
-        
         try {
             await updateRencanaUrutan({ ordered_items: orderedItems });
             message.success('Urutan berhasil diperbarui.');
-            fetchData();
         } catch (error) {
-            message.error('Gagal menyimpan urutan baru.');
-            fetchData(); // Revert to original order on error
+            message.error('Gagal menyimpan urutan baru. Memuat ulang data...');
+            fetchData();
         }
     } 
-    // Logic for reordering Tujuan Pembelajaran (TP)
     else if (dragNodeData.type === 'tp' && dropNodeData.type === 'tp' && dragNodeData.parentId === dropNodeData.parentId) {
         const parentMateri = rencanaList.find(m => m.id === dragNodeData.parentId);
         if (!parentMateri || !parentMateri.tujuan_pembelajaran) return;
-        
         const reorderedTPs = [...parentMateri.tujuan_pembelajaran];
         const dragIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dragKey);
-        const dropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
-        
-        if (dragIndex === -1 || dropIndex === -1) return;
-
         const [draggedItem] = reorderedTPs.splice(dragIndex, 1);
-        
-        // Recalculate drop index after splice
-        const newDropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
-
-        if (dropPosition === -1 || dropPosition === 0) {
-            reorderedTPs.splice(newDropIndex, 0, draggedItem);
-        } else {
-            reorderedTPs.splice(newDropIndex + 1, 0, draggedItem);
-        }
-
-        const updatedRencanaList = rencanaList.map(m => 
-            m.id === dragNodeData.parentId ? { ...m, tujuan_pembelajaran: reorderedTPs } : m
-        );
+        const dropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
+        reorderedTPs.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
+        const updatedRencanaList = rencanaList.map(m => m.id === dragNodeData.parentId ? { ...m, tujuan_pembelajaran: reorderedTPs } : m);
         setRencanaList(updatedRencanaList);
-
         const orderedIds = reorderedTPs.map(tp => tp.id);
-
         try {
             await updateUrutanTujuan({ ordered_ids: orderedIds });
             message.success('Urutan tujuan pembelajaran berhasil diperbarui.');
-            fetchData();
         } catch (error) {
-            message.error('Gagal menyimpan urutan baru.');
+            message.error('Gagal menyimpan urutan baru. Memuat ulang data...');
             fetchData();
         }
     } else {
-        message.warning("Drag and drop hanya didukung untuk item pada level yang sama (contoh: materi dengan materi, atau tujuan dengan tujuan).");
+        message.warning("Drag and drop hanya didukung untuk item pada level yang sama.");
     }
   };
 
@@ -334,44 +301,31 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 key: key,
                 icon: <FileTextOutlined />,
                 title: editingKey === key ? (
-                    <EditableTitle 
-                        initialValue={item.nama} 
-                        onSave={handleSave} 
-                        onCancel={() => setEditingKey(null)}
-                    />
+                    <EditableTitle initialValue={item.nama} onSave={handleSave} onCancel={() => setEditingKey(null)} />
                 ) : (
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                         <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{item.nama}</span>
                         <Space>
-                            <Tooltip title="Tambah Rincian Ujian">
-                                <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, null)}/>
-                            </Tooltip>
+                            <Tooltip title="Tambah Rincian Ujian"><Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, null)}/></Tooltip>
                             <Button icon={<EditOutlined />} onClick={() => setEditingKey(key)} size="small" type="text" />
-                            <Popconfirm title="Hapus ujian ini?" onConfirm={() => handleDelete(key)}>
-                                <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                            </Popconfirm>
+                            <Popconfirm title="Hapus ujian ini?" onConfirm={() => handleDelete(key)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                         </Space>
                     </div>
                 ),
-                // --- PERBAIKAN DI SINI ---
                 children: (item.penilaian_sumatif || []).map(penilaian => {
                   const penilaianKey = `penilaian_${penilaian.id}_${item.id}`;
                   return {
                     key: penilaianKey,
                     title: (
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <div style={{ flex: 1, marginRight: '8px' }}>
-                          <Space>
-                              <Tag color="purple">{penilaian.kode_jenis_ujian}</Tag>
-                              <Text>{penilaian.nama_penilaian}</Text>
-                              {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
-                          </Space>
-                        </div>
+                        <div style={{ flex: 1, marginRight: '8px' }}><Space>
+                            <Tag color="purple">{penilaian.kode_jenis_ujian}</Tag>
+                            <Text>{penilaian.nama_penilaian}</Text>
+                            {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                        </Space></div>
                         <Space>
                           <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, penilaian)} />
-                          <Popconfirm title="Hapus rincian ini?" onConfirm={() => handleDelete(penilaianKey)}>
-                              <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                          </Popconfirm>
+                          <Popconfirm title="Hapus rincian ini?" onConfirm={() => handleDelete(penilaianKey)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                         </Space>
                       </div>
                     ),
@@ -381,25 +335,18 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
             };
         }
 
-        // Jika item.type === 'materi'
         const key = `materi_${item.id}`;
         return {
             key: key,
             title: editingKey === key ? (
-              <EditableTitle 
-                initialValue={item.nama} 
-                onSave={handleSave} 
-                onCancel={() => setEditingKey(null)}
-              />
+              <EditableTitle initialValue={item.nama} onSave={handleSave} onCancel={() => setEditingKey(null)} />
             ) : (
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                     <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{item.nama}</span>
                     <Space>
                         <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(item.id)} size="small" type="text" />
                         <Button icon={<EditOutlined />} onClick={() => setEditingKey(key)} size="small" type="text" />
-                        <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}>
-                            <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                        </Popconfirm>
+                        <Popconfirm title="Hapus materi & semua tujuannya?" onConfirm={() => handleDelete(key)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                     </Space>
                 </div>
             ),
@@ -408,23 +355,14 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 return {
                     key: tpKey,
                     title: editingKey === tpKey ? (
-                        <EditableTitle 
-                            initialValue={tp.deskripsi_tujuan}
-                            isTextArea
-                            onSave={handleSave}
-                            onCancel={() => setEditingKey(null)}
-                        />
+                        <EditableTitle initialValue={tp.deskripsi_tujuan} isTextArea onSave={handleSave} onCancel={() => setEditingKey(null)} />
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                         <Text style={{ flex: 1, marginRight: '8px' }}>{tp.deskripsi_tujuan}</Text>
                         <Space>
-                          <Tooltip title="Tambah Penilaian">
-                            <Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/>
-                          </Tooltip>
+                          <Tooltip title="Tambah Penilaian"><Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, null)}/></Tooltip>
                           <Button icon={<EditOutlined />} onClick={() => setEditingKey(tpKey)} size="small" type="text" />
-                          <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}>
-                            <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                          </Popconfirm>
+                          <Popconfirm title="Hapus tujuan ini?" onConfirm={() => handleDelete(tpKey)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                         </Space>
                       </div>
                     ),
@@ -434,18 +372,14 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                         key: penilaianKey,
                         title: (
                           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                            <div style={{ flex: 1, marginRight: '8px' }}>
-                              <Space>
-                                  <Tag color="blue">{penilaian.kode_jenis_ujian}</Tag>
-                                  <Text>{penilaian.nama_penilaian}</Text>
-                                  {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
-                              </Space>
-                            </div>
+                            <div style={{ flex: 1, marginRight: '8px' }}><Space>
+                                <Tag color="blue">{penilaian.kode_jenis_ujian}</Tag>
+                                <Text>{penilaian.nama_penilaian}</Text>
+                                {penilaian.tanggal_pelaksanaan && <Tag icon={<CalendarOutlined />}>{format(parseISO(penilaian.tanggal_pelaksanaan), 'dd MMM')}</Tag>}
+                            </Space></div>
                             <Space>
                               <Button icon={<EditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(tp, penilaian)} />
-                              <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDelete(penilaianKey)}>
-                                  <Button icon={<DeleteOutlined />} size="small" type="text" danger />
-                              </Popconfirm>
+                              <Popconfirm title="Hapus penilaian ini?" onConfirm={() => handleDelete(penilaianKey)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                             </Space>
                           </div>
                         ),
@@ -456,58 +390,27 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
             })
         };
     });
-  }, [rencanaList, editingKey]);
+  }, [rencanaList, editingKey, handleSave]);
   
   if (loading) return <Spin />;
 
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<PlusOutlined />} onClick={handleAddMateri}>
-          Tambah Materi
-        </Button>
-        <Button icon={<PlusOutlined />} onClick={handleAddUjian}>
-          Tambah Ujian
-        </Button>
+        <Button icon={<PlusOutlined />} onClick={handleAddMateri}>Tambah Materi</Button>
+        <Button icon={<PlusOutlined />} onClick={handleAddUjian}>Tambah Ujian</Button>
       </Space>
       {rencanaList.length > 0 ? (
-        <Tree
-          showLine={{ showLeafIcon: false }}
-          draggable={{ icon: false }}
-          blockNode
-          onDrop={onDrop}
-          treeData={generateTreeData()}
-          defaultExpandAll
-        />
+        <Tree showLine={{ showLeafIcon: false }} draggable={{ icon: false }} blockNode onDrop={onDrop} treeData={generateTreeData()} defaultExpandAll />
       ) : (
         <Empty description="Belum ada materi atau ujian untuk mata pelajaran ini." />
       )}
-      <Modal
-        title={isEditingPenilaian ? "Edit Rencana Penilaian" : "Tambah Rencana Penilaian"}
-        open={penilaianModalVisible}
-        onCancel={() => setPenilaianModalVisible(false)}
-        footer={null}
-        destroyOnClose
-      >
+      <Modal title={isEditingPenilaian ? "Edit Rencana Penilaian" : "Tambah Rencana Penilaian"} open={penilaianModalVisible} onCancel={() => setPenilaianModalVisible(false)} footer={null} destroyOnClose >
         <Form form={penilaianForm} layout="vertical" onFinish={handleFinishPenilaian} style={{ marginTop: 24 }}>
-          <Form.Item name="jenis_ujian_id" label="Jenis Ujian" rules={[{ required: true }]}>
-            <Select
-              placeholder="Pilih jenis ujian"
-              options={jenisUjianList.map(ju => ({
-                value: ju.id,
-                label: `${ju.nama_ujian} (${ju.kode_ujian})`
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="nama_penilaian" label="Nama Penilaian" rules={[{ required: true }]}>
-            <Input placeholder="Contoh: Ulangan Harian Bab 1" />
-          </Form.Item>
-          <Form.Item name="tanggal_pelaksanaan" label="Tanggal Pelaksanaan (Opsional)">
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
-          </Form.Item>
-          <Form.Item name="keterangan" label="Keterangan (Opsional)">
-            <TextArea rows={3} />
-          </Form.Item>
+          <Form.Item name="jenis_ujian_id" label="Jenis Ujian" rules={[{ required: true }]}><Select placeholder="Pilih jenis ujian" options={jenisUjianList.map(ju => ({ value: ju.id, label: `${ju.nama_ujian} (${ju.kode_ujian})` }))} /></Form.Item>
+          <Form.Item name="nama_penilaian" label="Nama Penilaian" rules={[{ required: true }]}><Input placeholder="Contoh: Ulangan Harian Bab 1" /></Form.Item>
+          <Form.Item name="tanggal_pelaksanaan" label="Tanggal Pelaksanaan (Opsional)"><DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" /></Form.Item>
+          <Form.Item name="keterangan" label="Keterangan (Opsional)"><TextArea rows={3} /></Form.Item>
           <Form.Item style={{ textAlign: 'right', marginTop: 24, marginBottom: 0 }}>
             <Button onClick={() => setPenilaianModalVisible(false)} style={{ marginRight: 8 }}>Batal</Button>
             <Button type="primary" htmlType="submit">Simpan</Button>
