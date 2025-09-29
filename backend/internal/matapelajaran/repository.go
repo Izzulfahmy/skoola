@@ -93,7 +93,7 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, inpu
 }
 
 // ... sisa file tetap sama ...
-// GetAll, GetByID, Update, Delete, dll tidak perlu diubah
+// GetAll, GetByID, Update, dll tidak perlu diubah
 func (r *postgresRepository) UpdateUrutan(ctx context.Context, schemaName string, orderedIDs []string) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -211,12 +211,19 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, id s
 }
 
 func (r *postgresRepository) Delete(ctx context.Context, schemaName string, id string) error {
-	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
-	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
-		return fmt.Errorf("gagal mengatur skema tenant: %w", err)
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
 	}
 
-	query := `DELETE FROM mata_pelajaran WHERE id = $1`
+	query := `
+		WITH RECURSIVE sub_mapel AS (
+			SELECT id FROM mata_pelajaran WHERE id = $1
+			UNION ALL
+			SELECT m.id FROM mata_pelajaran m
+			INNER JOIN sub_mapel sm ON m.parent_id = sm.id
+		)
+		DELETE FROM mata_pelajaran WHERE id IN (SELECT id FROM sub_mapel)
+	`
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("gagal mengeksekusi query delete: %w", err)
