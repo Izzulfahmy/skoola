@@ -10,18 +10,28 @@ import 'dayjs/locale/id';
 
 dayjs.locale('id');
 
+const { Text } = Typography;
+const { TextArea } = Input;
+
+type StatusPresensi = 'H' | 'S' | 'I' | 'A';
+
 interface PresensiTableProps {
   kelasId: string;
   year: number;
   month: number;
 }
 
-const { Text } = Typography;
-const { TextArea } = Input;
+// Hook untuk mendeteksi ukuran layar
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
 
-type StatusPresensi = 'H' | 'S' | 'I' | 'A';
-
-// Komponen kontrol di dalam Popover (tidak ada perubahan)
 const PresensiInputControl: React.FC<{
   value: Omit<PresensiData, 'anggota_kelas_id'>;
   onSave: (newValue: Omit<PresensiData, 'anggota_kelas_id'>) => void;
@@ -80,6 +90,9 @@ const PresensiInputControl: React.FC<{
 };
 
 const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<PresensiSiswa[]>([]);
   const [openPopoverKey, setOpenPopoverKey] = useState<string | null>(null);
@@ -209,6 +222,7 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
             const dayName = date.format('ddd');
             return (
                 <Space direction="vertical" align="center" size={0}>
+                    {/* --- PERBAIKAN DI SINI --- */}
                     <Text type="secondary" style={{ fontSize: '11px', textTransform: 'capitalize' }}>
                         {dayName}
                     </Text>
@@ -225,19 +239,18 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
                 </Space>
             );
         },
-        // --- PERUBAHAN UTAMA UNTUK WARNA SEL HEADER & BODY ---
         onHeaderCell: () => {
-            let backgroundColor = '#fff'; // Default
-            if (dayOfWeek === 5) backgroundColor = '#f6ffed'; // Hijau muda untuk Jumat
-            if (dayOfWeek === 0) backgroundColor = '#fff1f0'; // Merah muda untuk Minggu
+            let backgroundColor = '#fff';
+            if (dayOfWeek === 5) backgroundColor = '#f6ffed';
+            if (dayOfWeek === 0) backgroundColor = '#fff1f0';
             return { style: { backgroundColor } };
         },
         onCell: () => {
-            let backgroundColor = '#fff'; // Default
-            if (dayOfWeek === 6 || dayOfWeek === 0) backgroundColor = '#fafafa'; // Abu-abu untuk Sabtu & Minggu
+            let backgroundColor = '#fff';
+            if (dayOfWeek === 6 || dayOfWeek === 0) backgroundColor = '#fafafa';
             return { style: { backgroundColor, padding: '4px' } };
         },
-        dataIndex: 'presensi_per_hari', key: `day-${day}`, align: 'center', width: 60,
+        dataIndex: 'presensi_per_hari', key: `day-${day}`, align: 'center', width: isMobile ? 55 : 60,
         render: (presensi: Record<number, { status: StatusPresensi, catatan?: string }>, record: PresensiSiswa) => {
           const dataHari = presensi?.[day];
           const popoverKey = `${record.anggota_kelas_id}-${day}`;
@@ -268,14 +281,14 @@ const PresensiTable = ({ kelasId, year, month }: PresensiTableProps) => {
     ];
 
     const finalColumns: TableColumnsType<PresensiSiswa> = [
-      { title: 'Nama Siswa', dataIndex: 'nama_siswa', key: 'nama', width: 200, fixed: 'left', render: (text: string, record: PresensiSiswa) => (<Tooltip title={record.nis || 'NIS tidak ada'}><Text>{text}</Text></Tooltip>) },
+      { title: 'Nama Siswa', dataIndex: 'nama_siswa', key: 'nama', width: isMobile ? 150 : 200, fixed: 'left', render: (text: string, record: PresensiSiswa) => (<Tooltip title={record.nis || 'NIS tidak ada'}><Text>{text}</Text></Tooltip>) },
       ...dynamicColumns,
-      { title: 'Jumlah', key: 'summary', fixed: 'right', children: summaryColumns }
+      { title: 'Jumlah', key: 'summary', children: summaryColumns }
     ];
 
     return finalColumns;
 
-  }, [year, month, dataSource, openPopoverKey]);
+  }, [year, month, dataSource, openPopoverKey, isMobile]);
 
   if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}><Spin /></div>;
   if (dataSource.length === 0) return <Empty description="Tidak ada siswa dalam rombel ini." style={{ marginTop: 32 }} />;

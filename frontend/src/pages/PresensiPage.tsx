@@ -6,12 +6,26 @@ import { getAllTahunAjaran } from '../api/tahunAjaran';
 import { getAllKelasByTahunAjaran } from '../api/rombel';
 import type { TahunAjaran, Kelas } from '../types';
 import dayjs from 'dayjs';
-import PresensiTable from '../components/PresensiTable'; // Kita akan buat file ini selanjutnya
+import PresensiTable from '../components/PresensiTable';
 
 const { Title, Text } = Typography;
 
+// Hook untuk mendeteksi ukuran layar
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
+
 const PresensiPage = () => {
   const { message } = AntApp.useApp();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +99,7 @@ const PresensiPage = () => {
     ),
   }));
 
-  if (loading) {
+  if (loading && tahunAjaranList.length === 0) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <Spin size="large" />
@@ -99,46 +113,51 @@ const PresensiPage = () => {
       <Text type="secondary">Kelola data kehadiran siswa per kelas dalam rentang bulanan.</Text>
 
       <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 24 }}>
-        <Col xs={24} sm={12}>
-          <Text strong>Tahun Pelajaran: </Text>
-          <Select
-            style={{ width: '100%' }}
-            value={selectedTahunAjaran}
-            onChange={setSelectedTahunAjaran}
-            placeholder="Pilih Tahun Ajaran"
-            options={tahunAjaranList.map(ta => ({
-              value: ta.id,
-              label: `${ta.nama_tahun_ajaran} - ${ta.semester}${ta.status === 'Aktif' ? ' (Aktif)' : ''}`,
-            }))}
-          />
+        <Col xs={24} md={12}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 4 : 8 }}>
+            <Text strong style={{ flexShrink: 0 }}>Tahun Pelajaran:</Text>
+            <Select
+              style={{ width: '100%' }}
+              value={selectedTahunAjaran}
+              onChange={setSelectedTahunAjaran}
+              placeholder="Pilih Tahun Ajaran"
+              options={tahunAjaranList.map(ta => ({
+                value: ta.id,
+                label: `${ta.nama_tahun_ajaran} - ${ta.semester}${ta.status === 'Aktif' ? ' (Aktif)' : ''}`,
+              }))}
+            />
+          </div>
         </Col>
-        <Col xs={24} sm={12}>
-          <Text strong>Bulan Presensi: </Text>
-          <Select
-            style={{ width: '100%' }}
-            value={selectedDate.format('YYYY-MM')}
-            onChange={(value) => setSelectedDate(dayjs(value))}
-            placeholder="Pilih Bulan"
-          >
-            {Array.from({ length: 12 }).map((_, i) => {
-              const date = dayjs().subtract(i, 'month');
-              return (
-                <Select.Option key={date.format('YYYY-MM')} value={date.format('YYYY-MM')}>
-                  {date.format('MMMM YYYY')}
-                </Select.Option>
-              );
-            })}
-          </Select>
+        <Col xs={24} md={12}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 4 : 8 }}>
+            <Text strong style={{ flexShrink: 0 }}>Bulan Presensi:</Text>
+            <Select
+              style={{ width: '100%' }}
+              value={selectedDate.format('YYYY-MM')}
+              onChange={(value) => setSelectedDate(dayjs(value))}
+              placeholder="Pilih Bulan"
+            >
+              {Array.from({ length: 12 }).map((_, i) => {
+                const date = dayjs().subtract(i, 'month');
+                return (
+                  <Select.Option key={date.format('YYYY-MM')} value={date.format('YYYY-MM')}>
+                    {date.format('MMMM YYYY')}
+                  </Select.Option>
+                );
+              })}
+            </Select>
+          </div>
         </Col>
       </Row>
 
       {error && <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} />}
 
-      {rombelList.length > 0 ? (
+      {loading ? <Spin /> : rombelList.length > 0 ? (
         <Tabs
           activeKey={selectedRombel || undefined}
           items={items}
           onChange={setSelectedRombel}
+          tabBarGutter={isMobile ? 8 : undefined} // Mengurangi jarak antar tab di mobile
         />
       ) : (
         <Alert
@@ -152,7 +171,6 @@ const PresensiPage = () => {
   );
 };
 
-// Bungkus komponen utama dengan AntApp Provider
 const WrappedPresensiPage = () => (
   <AntApp>
     <PresensiPage />
