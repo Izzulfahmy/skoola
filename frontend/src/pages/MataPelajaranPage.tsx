@@ -1,13 +1,24 @@
 // file: frontend/src/pages/MataPelajaranPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm, Row, Col, Typography, Tooltip, Collapse, InputNumber, Spin } from 'antd';
+import { App, Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm, Typography, Tooltip, Collapse, InputNumber, Spin, Flex, Tag } from 'antd';
 import type { TableProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { createMataPelajaran, updateMataPelajaran, deleteMataPelajaran, updateUrutanMataPelajaran } from '../api/mataPelajaran';
 import { getAllKelompokMapel, createKelompokMapel, updateKelompokMapel, deleteKelompokMapel } from '../api/kelompokMapel';
 import type { MataPelajaran, KelompokMataPelajaran, UpsertKelompokMataPelajaranInput } from '../types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+// Custom hook to get window size
+const useWindowSize = () => {
+  const [size, setSize] = useState({ width: window.innerWidth });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return size;
+};
 
 interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
 	'data-row-key': string;
@@ -18,9 +29,11 @@ const DraggableRow = ({ className, ...props }: DraggableRowProps) => {
 };
 
 
-const MataPelajaranPage = () => {
+const MataPelajaranPageContent = () => {
   const [mapelForm] = Form.useForm();
   const [kelompokForm] = Form.useForm();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
   
   const [kelompokList, setKelompokList] = useState<KelompokMataPelajaran[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,17 +69,16 @@ const MataPelajaranPage = () => {
     fetchData();
   }, []);
 
-  const handleDragEnd = useCallback(async (list: MataPelajaran[]) => {
+  const handleDragEnd = useCallback(async (list: MataPelajaran[], originalList: KelompokMataPelajaran[]) => {
     try {
       const orderedIds = list.map(item => item.id);
       await updateUrutanMataPelajaran({ ordered_ids: orderedIds });
       message.success('Urutan berhasil disimpan!');
-	  fetchData();
     } catch {
       message.error('Gagal menyimpan urutan baru.');
-      fetchData(); 
+      setKelompokList(originalList); // Rollback on error
     }
-  }, [fetchData]);
+  }, []);
 
   const onRow = (record: MataPelajaran): React.HTMLAttributes<HTMLElement> => ({
     draggable: true,
@@ -113,6 +125,8 @@ const MataPelajaranPage = () => {
         return;
       }
 
+      const originalList = [...kelompokList];
+
       const reorder = (list: MataPelajaran[]): MataPelajaran[] => {
 		let dragIndex = list.findIndex(item => item.id === dragId);
 		let dropIndex = list.findIndex(item => item.id === dropId);
@@ -128,7 +142,7 @@ const MataPelajaranPage = () => {
 			newList.splice(dropIndex + 1, 0, reorderedItem);
 		}
         
-        handleDragEnd(newList);
+        handleDragEnd(newList, originalList);
         return newList;
       }
       
@@ -174,17 +188,83 @@ const MataPelajaranPage = () => {
 
     const payload = { ...values, parent_id, kelompok_id };
 
+    const originalKelompokList = [...kelompokList];
+
     try {
       if (editingMapel) {
+        // Optimistic UI Update for editing
+        setKelompokList(prevList => prevList.map(kelompok => ({
+          ...kelompok,
+          mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
+            if (mp.id === editingMapel.id) {
+              return { ...mp, ...values };
+            }
+            if (mp.children) {
+              return {
+                ...mp,
+                children: mp.children.map(child => child.id === editingMapel.id ? { ...child, ...values } : child)
+              };
+            }
+            return mp;
+          })
+        })));
+
         await updateMataPelajaran(editingMapel.id, payload);
         message.success('Mata pelajaran berhasil diperbarui!');
       } else {
-        await createMataPelajaran(payload);
+        const tempId = `temp-${Date.now()}`;
+        const newMapel: MataPelajaran = {
+          id: tempId,
+          ...values,
+          parent_id,
+          kelompok_id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        // Optimistic UI Update for adding
+        setKelompokList(prevList => prevList.map(kelompok => {
+          if (kelompok.id === currentKelompok?.id) {
+            if (parentMapel) {
+              return {
+                ...kelompok,
+                mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
+                  if (mp.id === parentMapel.id) {
+                    return { ...mp, children: [...(mp.children || []), newMapel] };
+                  }
+                  return mp;
+                })
+              };
+            } else {
+              return { ...kelompok, mata_pelajaran: [...kelompok.mata_pelajaran, newMapel] };
+            }
+          }
+          return kelompok;
+        }));
+
+        const createdMapel = await createMataPelajaran(payload);
+        // Replace temporary data with actual data from server
+        setKelompokList(prevList => prevList.map(kelompok => ({
+          ...kelompok,
+          mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
+            if (mp.id === tempId) {
+              return createdMapel;
+            }
+            if (mp.children) {
+              return {
+                ...mp,
+                children: mp.children.map(child => child.id === tempId ? createdMapel : child)
+              };
+            }
+            return mp;
+          })
+        })));
         message.success('Mata pelajaran baru berhasil ditambahkan!');
       }
       handleMapelCancel();
-      fetchData();
     } catch (err: any) {
+      // Rollback on error
+      setKelompokList(originalKelompokList);
       message.error(err.response?.data || 'Gagal menyimpan data.');
     } finally {
       setIsMapelSubmitting(false);
@@ -210,17 +290,23 @@ const MataPelajaranPage = () => {
 
   const handleKelompokFinish = async (values: UpsertKelompokMataPelajaranInput) => {
 	setIsKelompokSubmitting(true);
+    const originalKelompokList = [...kelompokList];
 	try {
 		if (editingKelompok) {
+            setKelompokList(prevList => prevList.map(k => k.id === editingKelompok.id ? { ...k, ...values } : k));
 			await updateKelompokMapel(editingKelompok.id, values);
 			message.success('Kelompok berhasil diperbarui!');
 		} else {
-			await createKelompokMapel(values);
+            const tempId = 0 - Date.now();
+            const newKelompok = { id: tempId, ...values, mata_pelajaran: [] };
+            setKelompokList(prevList => [...prevList, newKelompok] as KelompokMataPelajaran[]);
+			const createdKelompok = await createKelompokMapel(values);
+            setKelompokList(prevList => prevList.map(k => k.id === tempId ? { ...createdKelompok, mata_pelajaran: [] } : k));
 			message.success('Kelompok baru berhasil ditambahkan!');
 		}
 		handleKelompokCancel();
-		fetchData();
 	} catch (error) {
+        setKelompokList(originalKelompokList);
 		message.error('Gagal menyimpan kelompok.');
 	} finally {
 		setIsKelompokSubmitting(false);
@@ -228,21 +314,34 @@ const MataPelajaranPage = () => {
   }
 
   const handleDelete = async (id: string) => {
+    const originalKelompokList = [...kelompokList];
+    setKelompokList(prevList => prevList.map(kelompok => ({
+      ...kelompok,
+      mata_pelajaran: kelompok.mata_pelajaran.filter(mp => {
+        if (mp.children) {
+          mp.children = mp.children.filter(child => child.id !== id);
+        }
+        return mp.id !== id;
+      })
+    })));
+
     try {
       await deleteMataPelajaran(id);
       message.success('Mata pelajaran berhasil dihapus!');
-      fetchData();
     } catch (err: any) {
+      setKelompokList(originalKelompokList);
       message.error(err.response?.data || 'Gagal menghapus data.');
     }
   };
 
   const handleDeleteKelompok = async (id: number) => {
+    const originalKelompokList = [...kelompokList];
+    setKelompokList(prevList => prevList.filter(k => k.id !== id));
 	try {
 		await deleteKelompokMapel(id);
 		message.success('Kelompok berhasil dihapus!');
-		fetchData();
 	  } catch (err: any) {
+        setKelompokList(originalKelompokList);
 		message.error(err.response?.data || 'Gagal menghapus kelompok.');
 	  }
   }
@@ -253,17 +352,26 @@ const MataPelajaranPage = () => {
 		  title: 'Nama Mata Pelajaran',
 		  dataIndex: 'nama_mapel',
 		  key: 'nama_mapel',
+		  render: (text) => (
+			<Flex>
+				<Text>{text}</Text>
+			</Flex>
+		  ),
 		},
 		{
 		  title: 'Kode',
 		  dataIndex: 'kode_mapel',
 		  key: 'kode_mapel',
+		  width: 100,
+		  align: 'center',
+          responsive: ['sm'],
+		  render: (text) => <Tag>{text}</Tag>
 		},
 		{
 		  title: 'Aksi',
 		  key: 'action',
 		  align: 'center',
-		  width: 150,
+		  width: isMobile ? 120 : 150,
 		  render: (_, record) => (
 			<Space>
 			  {!record.parent_id && (
@@ -311,49 +419,40 @@ const MataPelajaranPage = () => {
 	)
   }
 
+  const collapseItems = kelompokList.map(kelompok => ({
+	key: kelompok.id,
+	label: <Title level={5}>{kelompok.nama_kelompok}</Title>,
+	children: renderMapelTable(kelompok.mata_pelajaran, kelompok),
+	extra: (
+		<Space onClick={(e) => e.stopPropagation()}>
+			<Tooltip title="Tambah Mata Pelajaran ke Kelompok Ini">
+				<Button size="small" type="primary" shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, undefined, kelompok)} />
+			</Tooltip>
+			{kelompok.id !== 0 && (
+				<>
+					<Button size="small" type="text" icon={<EditOutlined />} onClick={() => showKelompokModal(kelompok)} />
+					<Popconfirm title="Hapus Kelompok?" onConfirm={() => handleDeleteKelompok(kelompok.id)}>
+						<Button size="small" type="text" danger icon={<DeleteOutlined />} />
+					</Popconfirm>
+				</>
+			)}
+		</Space>
+	),
+  }));
+
   if (error) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
 
   return (
     <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col>
+      <Flex justify="space-between" align="start" gap="middle" vertical={isMobile} style={{ marginBottom: 16 }}>
           <Title level={3} style={{ margin: 0 }}>Manajemen Mata Pelajaran</Title>
-        </Col>
-        <Col>
-			<Space>
-				<Button type="primary" onClick={() => showKelompokModal(null)}>Tambah Kelompok</Button>
-			</Space>
-        </Col>
-      </Row>
+          <Button type="primary" onClick={() => showKelompokModal(null)}>Tambah Kelompok</Button>
+      </Flex>
 
 	  {loading ? <Spin /> : (
-		<Collapse ghost defaultActiveKey={kelompokList.map(k => k.id)}>
-			{kelompokList.map(kelompok => (
-				<Collapse.Panel
-					header={<Title level={5}>{kelompok.nama_kelompok}</Title>}
-					key={kelompok.id}
-					extra={
-						<Space onClick={(e) => e.stopPropagation()}>
-							<Tooltip title="Tambah Mata Pelajaran ke Kelompok Ini">
-								<Button size="small" type="primary" shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, undefined, kelompok)} />
-							</Tooltip>
-							{kelompok.id !== 0 && (
-								<>
-									<Button size="small" type="text" icon={<EditOutlined />} onClick={() => showKelompokModal(kelompok)} />
-									<Popconfirm title="Hapus Kelompok?" onConfirm={() => handleDeleteKelompok(kelompok.id)}>
-										<Button size="small" type="text" danger icon={<DeleteOutlined />} />
-									</Popconfirm>
-								</>
-							)}
-						</Space>
-					}
-				>
-					{renderMapelTable(kelompok.mata_pelajaran, kelompok)}
-				</Collapse.Panel>
-			))}
-		</Collapse>
+		<Collapse ghost defaultActiveKey={kelompokList.map(k => k.id)} items={collapseItems} />
 	  )}
 
       <Modal
@@ -405,5 +504,11 @@ const MataPelajaranPage = () => {
     </div>
   );
 };
+
+const MataPelajaranPage = () => (
+    <App>
+        <MataPelajaranPageContent />
+    </App>
+);
 
 export default MataPelajaranPage;
