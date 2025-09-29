@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings" // <-- Impor paket strings
 )
 
 type Repository interface {
@@ -68,20 +67,57 @@ func (r *postgresRepository) GetTenantsWithoutNaungan(ctx context.Context) ([]Te
 }
 
 func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx, input RegisterTenantInput) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name, naungan_id) VALUES ($1, $2, $3)`, input.NamaSekolah, input.SchemaName, input.NaunganID)
+	// Check if schema already exists
+	var exists bool
+	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = $1)", input.SchemaName).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa keberadaan schema: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("schema %s sudah ada", input.SchemaName)
+	}
+
+	// Insert into tenants table
+	_, err = tx.ExecContext(ctx, `INSERT INTO public.tenants (nama_sekolah, schema_name, naungan_id) VALUES ($1, $2, $3)`, input.NamaSekolah, input.SchemaName, input.NaunganID)
 	if err != nil {
 		return fmt.Errorf("gagal insert ke tabel public.tenants: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA %q", input.SchemaName))
+
+	// Create new schema
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %q", input.SchemaName))
 	if err != nil {
 		return fmt.Errorf("gagal membuat schema baru: %w", err)
 	}
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", input.SchemaName))
 	if err != nil {
-		return fmt.Errorf("gagal mengatur search_path untuk schema baru: %w", err)
+		return fmt.Errorf("gagal mengatur search_path ke schema baru: %w", err)
 	}
 
+	// Create the enum type in public schema first
+	_, err = tx.ExecContext(ctx, `DO $$ 
+	BEGIN 
+		CREATE TYPE status_presensi_enum AS ENUM ('H', 'S', 'I', 'A');
+	EXCEPTION
+		WHEN duplicate_object THEN null;
+	END $$;`)
+	if err != nil {
+		return fmt.Errorf("gagal membuat tipe enum status_presensi_enum: %w", err)
+	}
+
+	// Set search path to include both the tenant schema and public
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q, public", input.SchemaName))
+	if err != nil {
+		return fmt.Errorf("gagal mengatur search_path ke schema baru: %w", err)
+	}
+
+	// Set search path back to tenant schema
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q, public", input.SchemaName))
+	if err != nil {
+		return fmt.Errorf("gagal mengatur search_path ke schema baru: %w", err)
+	}
+
+	// Now run tenant-specific migrations
 	migrationPaths := []string{
 		"./db/migrations/001_initial_schema.sql",
 		"./db/migrations/002_add_school_profile.sql",
@@ -108,11 +144,10 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/024_add_nilai_sumatif.sql",
 		"./db/migrations/025_add_ujian.sql",
 		"./db/migrations/026_alter_penilaian_sumatif_for_ujian.sql",
-		"./db/migrations/027_add_presensi.sql", // <-- TAMBAHKAN INI
+		"./db/migrations/027_add_presensi.sql",
 	}
 
-	// --- PERUBAHAN UTAMA DI SINI ---
-	var allMigrations strings.Builder
+	// Jalankan migrasi satu per satu
 	for _, path := range migrationPaths {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
@@ -122,15 +157,12 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		if err != nil {
 			return fmt.Errorf("gagal membaca file migrasi %s: %w", path, err)
 		}
-		allMigrations.Write(migrationSQL)
-		allMigrations.WriteString("\n") // Tambahkan newline sebagai pemisah antar file
-	}
 
-	// Jalankan semua migrasi sebagai satu blok perintah
-	if _, err := tx.ExecContext(ctx, allMigrations.String()); err != nil {
-		return fmt.Errorf("gagal menjalankan blok migrasi gabungan: %w", err)
+		// Jalankan migrasi satu per satu
+		if _, err := tx.ExecContext(ctx, string(migrationSQL)); err != nil {
+			return fmt.Errorf("gagal menjalankan migrasi %s: %w", path, err)
+		}
 	}
-	// --- AKHIR PERUBAHAN ---
 
 	updateNameQuery := `UPDATE profil_sekolah SET nama_sekolah = $1 WHERE id = 1`
 	if _, err := tx.ExecContext(ctx, updateNameQuery, input.NamaSekolah); err != nil {

@@ -57,8 +57,8 @@ BEGIN
 END$$;
 
 
--- 2. Membuat tabel users untuk menyimpan data login
-CREATE TABLE users (
+-- 2. Membuat tabel users untuk menyimpan data login jika belum ada
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -67,8 +67,8 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Membuat tabel teachers yang terhubung dengan users
-CREATE TABLE teachers (
+-- 3. Membuat tabel teachers yang terhubung dengan users jika belum ada
+CREATE TABLE IF NOT EXISTS teachers (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     nama_lengkap VARCHAR(255) NOT NULL,
