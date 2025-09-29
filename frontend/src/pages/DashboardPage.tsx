@@ -44,14 +44,16 @@ const DashboardPage = () => {
           getAllTahunAjaran(),
         ]);
         
+        // --- PERBAIKAN DI SINI ---
+        // Memastikan `teachers` dan `students` adalah array sebelum mengakses length
         setStats(prev => ({
           ...prev,
-          teacherCount: teachers ? teachers.length : 0,
-          studentCount: students ? students.length : 0,
+          teacherCount: teachers?.length || 0,
+          studentCount: students?.length || 0,
         }));
         setSchoolName(profile.nama_sekolah);
         
-        const aktif = tahunAjaranList.find(ta => ta.status === 'Aktif');
+        const aktif = (tahunAjaranList || []).find(ta => ta.status === 'Aktif');
         setActiveTahunAjaran(aktif || null);
 
         if (aktif) {
@@ -59,10 +61,11 @@ const DashboardPage = () => {
             getAllKelasByTahunAjaran(aktif.id),
             getKurikulumByTahunAjaran(aktif.id),
           ]);
+          // Memastikan `rombelData` dan `kurikulumData` adalah array
           setStats(prev => ({
             ...prev,
-            rombelCount: rombelData.length,
-            kurikulumCount: kurikulumData.length,
+            rombelCount: rombelData?.length || 0,
+            kurikulumCount: kurikulumData?.length || 0,
           }));
         }
 
@@ -114,7 +117,7 @@ const DashboardPage = () => {
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
-        <Title level={2}>Selamat Datang di Dasboard</Title>
+        <Title level={2}>Selamat Datang di Dasbor</Title>
         <Text type="secondary">Ini adalah ringkasan untuk {schoolName}.</Text>
       </div>
 

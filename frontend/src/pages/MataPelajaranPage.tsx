@@ -56,7 +56,17 @@ const MataPelajaranPageContent = () => {
     setLoading(true);
     try {
       const data = await getAllKelompokMapel();
-      setKelompokList(data || []);
+      // --- PERBAIKAN UTAMA DI SINI ---
+      // Memastikan setiap kelompok dan mata pelajaran memiliki array `children` dan `mata_pelajaran`
+      // untuk mencegah error saat data kosong.
+      const sanitizedData = (data || []).map(kelompok => ({
+        ...kelompok,
+        mata_pelajaran: (kelompok.mata_pelajaran || []).map(mp => ({
+          ...mp,
+          children: mp.children || [],
+        })),
+      }));
+      setKelompokList(sanitizedData);
       setError(null);
     } catch (err) {
       setError('Gagal memuat data.');
@@ -188,83 +198,17 @@ const MataPelajaranPageContent = () => {
 
     const payload = { ...values, parent_id, kelompok_id };
 
-    const originalKelompokList = [...kelompokList];
-
     try {
       if (editingMapel) {
-        // Optimistic UI Update for editing
-        setKelompokList(prevList => prevList.map(kelompok => ({
-          ...kelompok,
-          mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
-            if (mp.id === editingMapel.id) {
-              return { ...mp, ...values };
-            }
-            if (mp.children) {
-              return {
-                ...mp,
-                children: mp.children.map(child => child.id === editingMapel.id ? { ...child, ...values } : child)
-              };
-            }
-            return mp;
-          })
-        })));
-
         await updateMataPelajaran(editingMapel.id, payload);
         message.success('Mata pelajaran berhasil diperbarui!');
       } else {
-        const tempId = `temp-${Date.now()}`;
-        const newMapel: MataPelajaran = {
-          id: tempId,
-          ...values,
-          parent_id,
-          kelompok_id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        // Optimistic UI Update for adding
-        setKelompokList(prevList => prevList.map(kelompok => {
-          if (kelompok.id === currentKelompok?.id) {
-            if (parentMapel) {
-              return {
-                ...kelompok,
-                mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
-                  if (mp.id === parentMapel.id) {
-                    return { ...mp, children: [...(mp.children || []), newMapel] };
-                  }
-                  return mp;
-                })
-              };
-            } else {
-              return { ...kelompok, mata_pelajaran: [...kelompok.mata_pelajaran, newMapel] };
-            }
-          }
-          return kelompok;
-        }));
-
-        const createdMapel = await createMataPelajaran(payload);
-        // Replace temporary data with actual data from server
-        setKelompokList(prevList => prevList.map(kelompok => ({
-          ...kelompok,
-          mata_pelajaran: kelompok.mata_pelajaran.map(mp => {
-            if (mp.id === tempId) {
-              return createdMapel;
-            }
-            if (mp.children) {
-              return {
-                ...mp,
-                children: mp.children.map(child => child.id === tempId ? createdMapel : child)
-              };
-            }
-            return mp;
-          })
-        })));
+        await createMataPelajaran(payload);
         message.success('Mata pelajaran baru berhasil ditambahkan!');
       }
       handleMapelCancel();
+      fetchData(); // Fetch data again to get the correct state from server
     } catch (err: any) {
-      // Rollback on error
-      setKelompokList(originalKelompokList);
       message.error(err.response?.data || 'Gagal menyimpan data.');
     } finally {
       setIsMapelSubmitting(false);
@@ -290,23 +234,17 @@ const MataPelajaranPageContent = () => {
 
   const handleKelompokFinish = async (values: UpsertKelompokMataPelajaranInput) => {
 	setIsKelompokSubmitting(true);
-    const originalKelompokList = [...kelompokList];
 	try {
 		if (editingKelompok) {
-            setKelompokList(prevList => prevList.map(k => k.id === editingKelompok.id ? { ...k, ...values } : k));
 			await updateKelompokMapel(editingKelompok.id, values);
 			message.success('Kelompok berhasil diperbarui!');
 		} else {
-            const tempId = 0 - Date.now();
-            const newKelompok = { id: tempId, ...values, mata_pelajaran: [] };
-            setKelompokList(prevList => [...prevList, newKelompok] as KelompokMataPelajaran[]);
-			const createdKelompok = await createKelompokMapel(values);
-            setKelompokList(prevList => prevList.map(k => k.id === tempId ? { ...createdKelompok, mata_pelajaran: [] } : k));
+			await createKelompokMapel(values);
 			message.success('Kelompok baru berhasil ditambahkan!');
 		}
 		handleKelompokCancel();
+        fetchData();
 	} catch (error) {
-        setKelompokList(originalKelompokList);
 		message.error('Gagal menyimpan kelompok.');
 	} finally {
 		setIsKelompokSubmitting(false);
@@ -314,34 +252,21 @@ const MataPelajaranPageContent = () => {
   }
 
   const handleDelete = async (id: string) => {
-    const originalKelompokList = [...kelompokList];
-    setKelompokList(prevList => prevList.map(kelompok => ({
-      ...kelompok,
-      mata_pelajaran: kelompok.mata_pelajaran.filter(mp => {
-        if (mp.children) {
-          mp.children = mp.children.filter(child => child.id !== id);
-        }
-        return mp.id !== id;
-      })
-    })));
-
     try {
       await deleteMataPelajaran(id);
       message.success('Mata pelajaran berhasil dihapus!');
+      fetchData();
     } catch (err: any) {
-      setKelompokList(originalKelompokList);
       message.error(err.response?.data || 'Gagal menghapus data.');
     }
   };
 
   const handleDeleteKelompok = async (id: number) => {
-    const originalKelompokList = [...kelompokList];
-    setKelompokList(prevList => prevList.filter(k => k.id !== id));
 	try {
 		await deleteKelompokMapel(id);
 		message.success('Kelompok berhasil dihapus!');
+        fetchData();
 	  } catch (err: any) {
-        setKelompokList(originalKelompokList);
 		message.error(err.response?.data || 'Gagal menghapus kelompok.');
 	  }
   }
