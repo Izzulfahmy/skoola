@@ -16,7 +16,7 @@ export const getAllKelasByTahunAjaran = async (tahunAjaranId: string): Promise<K
     const response = await apiClient.get('/rombel', {
       params: { tahun_ajaran_id: tahunAjaranId },
     });
-    return response.data;
+    return response.data || []; // <-- PERBAIKAN DI SINI
   } catch (error) {
     throw error;
   }

@@ -30,7 +30,7 @@ const AddAnggotaModal = ({ open, onClose, onAdd, existingAnggotaIds, tahunAjaran
       const fetchRombels = async () => {
         try {
           const data = await getAllKelasByTahunAjaran(tahunAjaranId);
-          setRombels(data);
+          setRombels(data || []); // <-- PERBAIKAN DI SINI
         } catch (err) {
           setError('Gagal memuat daftar rombel.');
         }
@@ -98,7 +98,7 @@ const AddAnggotaModal = ({ open, onClose, onAdd, existingAnggotaIds, tahunAjaran
         style={{ width: '100%', marginBottom: 16 }}
         onChange={(value) => setSelectedRombelId(value)}
         value={selectedRombelId}
-        options={rombels.map(r => ({ value: r.id, label: r.nama_kelas }))}
+        options={(rombels || []).map(r => ({ value: r.id, label: r.nama_kelas }))} // <-- PERBAIKAN DI SINI
         showSearch
         optionFilterProp="label"
         disabled={!tahunAjaranId}

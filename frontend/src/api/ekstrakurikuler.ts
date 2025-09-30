@@ -46,7 +46,7 @@ export const updateSesiDetail = async (sesiId: number, data: UpdateSesiDetailInp
 
 export const getAnggotaBySesiId = async (sesiId: number): Promise<EkstrakurikulerAnggota[]> => {
   const response = await apiClient.get(`/ekstrakurikuler/sesi/${sesiId}/anggota`);
-  return response.data;
+  return response.data || []; // Pastikan selalu mengembalikan array
 };
 
 export const addAnggotaToSesi = async (sesiId: number, data: AddAnggotaInput): Promise<void> => {

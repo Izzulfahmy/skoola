@@ -8,7 +8,7 @@ import AddAnggotaModal from './AddAnggotaModal';
 
 interface AnggotaTabProps {
   sesi: EkstrakurikulerSesi;
-  tahunAjaranId: string | null; // ADD: Prop baru
+  tahunAjaranId: string | null;
   onAnggotaUpdate: () => void;
 }
 
@@ -22,7 +22,7 @@ const EkstrakurikulerAnggotaTab = ({ sesi, tahunAjaranId, onAnggotaUpdate }: Ang
     setLoading(true);
     try {
       const data = await getAnggotaBySesiId(sesi.id);
-      setAnggota(data);
+      setAnggota(data || []); // Pastikan data selalu array
     } catch (err) {
       message.error('Gagal memuat daftar anggota.');
     } finally {
@@ -94,7 +94,7 @@ const EkstrakurikulerAnggotaTab = ({ sesi, tahunAjaranId, onAnggotaUpdate }: Ang
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddAnggota}
         existingAnggotaIds={anggota.map(a => a.student_id)}
-        tahunAjaranId={tahunAjaranId} // PASS: Meneruskan prop
+        tahunAjaranId={tahunAjaranId}
       />
     </div>
   );
