@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"skoola/internal/auth"
 	"skoola/internal/connection"
-	"skoola/internal/ekstrakurikuler" // <-- PERUBAHAN 1: IMPOR BARU
+	"skoola/internal/ekstrakurikuler"
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
 	"skoola/internal/jenisujian"
@@ -115,7 +115,7 @@ func main() {
 	jenisUjianRepo := jenisujian.NewRepository(db)
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
 	presensiRepo := presensi.NewRepository(db)
-	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db) // <-- PERUBAHAN 2: REPO BARU
+	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -138,7 +138,7 @@ func main() {
 	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
 	presensiService := presensi.NewService(presensiRepo, validate)
-	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate) // <-- PERUBAHAN 3: SERVICE BARU
+	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -163,7 +163,7 @@ func main() {
 	penilaianSumatifHandler := penilaiansumatif.NewHandler(penilaianSumatifService)
 	presensiHandler := presensi.NewHandler(presensiService)
 	connectionHandler := connection.NewHandler()
-	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService) // <-- PERUBAHAN 4: HANDLER BARU
+	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
 
 	r := chi.NewRouter()
 
@@ -252,12 +252,22 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
 		})
 
-		// <-- PERUBAHAN 5: RUTE BARU DITAMBAHKAN DI SINI -->
+		// --- PERUBAHAN DAN PENAMBAHAN ADA DI BAWAH INI ---
 		r.Route("/ekstrakurikuler", func(r chi.Router) {
+			// Rute untuk Master Data (di menu Pengaturan)
 			r.With(auth.Authorize("admin")).Get("/", ekstrakurikulerHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", ekstrakurikulerHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ekstrakurikulerHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ekstrakurikulerHandler.Delete)
+
+			// Rute untuk Sesi (di menu baru Manajemen Ekstrakurikuler)
+			r.With(auth.Authorize("admin")).Get("/sesi", ekstrakurikulerHandler.GetSesi) // GET /ekstrakurikuler/sesi?ekskulId=1&tahunAjaranId=2
+			r.With(auth.Authorize("admin")).Put("/sesi/{sesiId}", ekstrakurikulerHandler.UpdateSesiDetail)
+
+			// Rute untuk Anggota
+			r.With(auth.Authorize("admin")).Get("/sesi/{sesiId}/anggota", ekstrakurikulerHandler.GetAnggota)
+			r.With(auth.Authorize("admin")).Post("/sesi/{sesiId}/anggota", ekstrakurikulerHandler.AddAnggota)
+			r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaId}", ekstrakurikulerHandler.RemoveAnggota)
 		})
 		// --------------------------------------------------
 

@@ -11,12 +11,22 @@ import (
 
 var ErrValidation = errors.New("validation failed")
 
-// Service mendefinisikan interface untuk logika bisnis.
 type Service interface {
+	// Master Ekstrakurikuler
 	Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error)
 	GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error)
 	Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error
 	Delete(ctx context.Context, schemaName string, id int) error
+
+	// Sesi
+	// FIX: Mengubah tahunAjaranID dari int menjadi string
+	GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error)
+	UpdateSesiDetail(ctx context.Context, schemaName string, sesiID int, input UpdateSesiDetailInput) error
+
+	// Anggota
+	GetAnggotaBySesiID(ctx context.Context, schemaName string, sesiID int) ([]EkstrakurikulerAnggota, error)
+	AddAnggota(ctx context.Context, schemaName string, sesiID int, input AddAnggotaInput) error
+	RemoveAnggota(ctx context.Context, schemaName string, anggotaID int) error
 }
 
 type service struct {
@@ -24,29 +34,55 @@ type service struct {
 	validate *validator.Validate
 }
 
-// NewService membuat instance baru dari service.
 func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
+// ... (Fungsi Master tidak berubah) ...
 func (s *service) Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 	return s.repo.Create(ctx, schemaName, input)
 }
-
 func (s *service) GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error) {
 	return s.repo.GetAll(ctx, schemaName)
 }
-
 func (s *service) Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 	return s.repo.Update(ctx, schemaName, id, input)
 }
-
 func (s *service) Delete(ctx context.Context, schemaName string, id int) error {
 	return s.repo.Delete(ctx, schemaName, id)
+}
+
+// --- Sesi ---
+// FIX: Mengubah tahunAjaranID dari int menjadi string
+func (s *service) GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error) {
+	return s.repo.GetOrCreateSesi(ctx, schemaName, ekskulID, tahunAjaranID)
+}
+
+func (s *service) UpdateSesiDetail(ctx context.Context, schemaName string, sesiID int, input UpdateSesiDetailInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.UpdateSesiDetail(ctx, schemaName, sesiID, input)
+}
+
+// --- Anggota ---
+func (s *service) GetAnggotaBySesiID(ctx context.Context, schemaName string, sesiID int) ([]EkstrakurikulerAnggota, error) {
+	return s.repo.GetAnggotaBySesiID(ctx, schemaName, sesiID)
+}
+
+func (s *service) AddAnggota(ctx context.Context, schemaName string, sesiID int, input AddAnggotaInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+	return s.repo.AddAnggota(ctx, schemaName, sesiID, input.StudentIDs)
+}
+
+func (s *service) RemoveAnggota(ctx context.Context, schemaName string, anggotaID int) error {
+	return s.repo.RemoveAnggota(ctx, schemaName, anggotaID)
 }

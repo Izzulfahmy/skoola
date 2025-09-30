@@ -20,6 +20,7 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+// --- Master Ekstrakurikuler Handlers (from settings) ---
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	var input UpsertEkstrakurikulerInput
@@ -27,7 +28,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
-
 	result, err := h.service.Create(r.Context(), schemaName, input)
 	if err != nil {
 		http.Error(w, "Gagal membuat ekstrakurikuler: "+err.Error(), http.StatusInternalServerError)
@@ -79,6 +79,97 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "Gagal menghapus data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Sesi & Anggota Handlers (from new menu) ---
+
+func (h *Handler) GetSesi(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ekskulID, errEkskul := strconv.Atoi(r.URL.Query().Get("ekskulId"))
+	tahunAjaranID := r.URL.Query().Get("tahunAjaranId") // FIX: Langsung ambil sebagai string
+
+	// FIX: Hapus pengecekan error untuk tahunAjaranID dan periksa string kosong
+	if errEkskul != nil || tahunAjaranID == "" {
+		http.Error(w, "Parameter 'ekskulId' (int) dan 'tahunAjaranId' (string) wajib ada", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.service.GetOrCreateSesi(r.Context(), schemaName, ekskulID, tahunAjaranID)
+	if err != nil {
+		http.Error(w, "Gagal mendapatkan atau membuat sesi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) UpdateSesiDetail(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	sesiID, _ := strconv.Atoi(chi.URLParam(r, "sesiId"))
+
+	var input UpdateSesiDetailInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.UpdateSesiDetail(r.Context(), schemaName, sesiID, input)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Sesi tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Gagal memperbarui detail sesi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetAnggota(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	sesiID, _ := strconv.Atoi(chi.URLParam(r, "sesiId"))
+
+	result, err := h.service.GetAnggotaBySesiID(r.Context(), schemaName, sesiID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data anggota: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) AddAnggota(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	sesiID, _ := strconv.Atoi(chi.URLParam(r, "sesiId"))
+
+	var input AddAnggotaInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.AddAnggota(r.Context(), schemaName, sesiID, input)
+	if err != nil {
+		http.Error(w, "Gagal menambah anggota: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *Handler) RemoveAnggota(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	anggotaID, _ := strconv.Atoi(chi.URLParam(r, "anggotaId"))
+
+	err := h.service.RemoveAnggota(r.Context(), schemaName, anggotaID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Anggota tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Gagal menghapus anggota: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

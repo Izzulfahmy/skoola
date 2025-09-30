@@ -28,13 +28,13 @@ func NewRepository(db *sql.DB) Repository {
 
 func (r *postgresRepository) GetTenantsWithoutNaungan(ctx context.Context) ([]Tenant, error) {
 	query := `
-		SELECT 
-			t.id, t.nama_sekolah, t.schema_name, t.naungan_id, n.nama_naungan, t.created_at, t.updated_at 
-		FROM public.tenants t
-		LEFT JOIN public.naungan n ON t.naungan_id = n.id
-		WHERE t.naungan_id IS NULL
-		ORDER BY t.created_at DESC
-	`
+        SELECT 
+            t.id, t.nama_sekolah, t.schema_name, t.naungan_id, n.nama_naungan, t.created_at, t.updated_at 
+        FROM public.tenants t
+        LEFT JOIN public.naungan n ON t.naungan_id = n.id
+        WHERE t.naungan_id IS NULL
+        ORDER BY t.created_at DESC
+    `
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("gagal query get all tenants without naungan: %w", err)
@@ -96,11 +96,11 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 
 	// Create the enum type in public schema first
 	_, err = tx.ExecContext(ctx, `DO $$ 
-	BEGIN 
-		CREATE TYPE status_presensi_enum AS ENUM ('H', 'S', 'I', 'A');
-	EXCEPTION
-		WHEN duplicate_object THEN null;
-	END $$;`)
+    BEGIN 
+        CREATE TYPE status_presensi_enum AS ENUM ('H', 'S', 'I', 'A');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;`)
 	if err != nil {
 		return fmt.Errorf("gagal membuat tipe enum status_presensi_enum: %w", err)
 	}
@@ -146,6 +146,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/026_alter_penilaian_sumatif_for_ujian.sql",
 		"./db/migrations/027_add_presensi.sql",
 		"./db/migrations/028_add_extracurricular.sql",
+		"./db/migrations/029_add_extracurricular_sessions.sql",
 	}
 
 	// Jalankan migrasi satu per satu
@@ -180,12 +181,12 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 
 func (r *postgresRepository) GetAll(ctx context.Context) ([]Tenant, error) {
 	query := `
-		SELECT 
-			t.id, t.nama_sekolah, t.schema_name, t.naungan_id, n.nama_naungan, t.created_at, t.updated_at 
-		FROM public.tenants t
-		LEFT JOIN public.naungan n ON t.naungan_id = n.id
-		ORDER BY t.created_at DESC
-	`
+        SELECT 
+            t.id, t.nama_sekolah, t.schema_name, t.naungan_id, n.nama_naungan, t.created_at, t.updated_at 
+        FROM public.tenants t
+        LEFT JOIN public.naungan n ON t.naungan_id = n.id
+        ORDER BY t.created_at DESC
+    `
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("gagal query get all tenants: %w", err)

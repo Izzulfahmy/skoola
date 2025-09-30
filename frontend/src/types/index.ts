@@ -212,6 +212,18 @@ export interface UpsertFaseInput {
     deskripsi?: string;
 }
 
+export interface Rombel {
+  id: number;
+  nama_rombel: string;
+  tahun_ajaran_id: number;
+  tingkatan_id: number;
+  wali_kelas_id: string;
+  kurikulum_id: number;
+  nama_wali_kelas?: string;
+  nama_kurikulum?: string;
+  nama_tingkatan?: string;
+}
+
 export interface Kelas {
   id: string;
   nama_kelas: string;
@@ -300,7 +312,6 @@ export interface UpsertTujuanInput {
   urutan?: number;
 }
 
-// --- TIPE BARU UNTUK UPDATE URUTAN ---
 export interface UpdateUrutanInput {
   ordered_ids: number[];
 }
@@ -313,9 +324,7 @@ export interface RencanaUrutanItem {
 export interface UpdateRencanaUrutanInput {
   ordered_items: RencanaUrutanItem[];
 }
-// ------------------------------------
 
-// --- TIPE BARU UNTUK PENILAIAN LENGKAP ---
 export interface NilaiSiswa {
   nilai: number | null;
   updated_at?: string;
@@ -330,8 +339,8 @@ export interface PenilaianSiswaData {
   anggota_kelas_id: string;
   nama_siswa: string;
   nis?: string;
-  nilai_formatif: Record<number, NilaiSiswa>; // map[tp_id]
-  nilai_sumatif: Record<string, NilaiSumatifSiswa>; // map[penilaian_sumatif_id]
+  nilai_formatif: Record<number, NilaiSiswa>; 
+  nilai_sumatif: Record<string, NilaiSumatifSiswa>; 
 }
 
 export interface FullPenilaianData {
@@ -339,7 +348,6 @@ export interface FullPenilaianData {
   last_updated?: string;
 }
 
-// DTO untuk mengirim data ke backend
 export interface UpsertNilaiInput {
   anggota_kelas_id: string;
   tujuan_pembelajaran_id: number;
@@ -356,7 +364,6 @@ export interface BulkUpsertNilaiInput {
   nilai_formatif: UpsertNilaiInput[];
   nilai_sumatif: UpsertNilaiSumatifSiswaInput[];
 }
-// ------------------------------------
 
 
 export interface SchoolProfile {
@@ -546,7 +553,6 @@ export interface UpsertAcademicHistoryInput {
   keterangan?: string;
 }
 
-// --- TIPE BARU UNTUK EKSTRAKURIKULER ---
 export interface Ekstrakurikuler {
   id: number;
   nama_kegiatan: string;
@@ -559,7 +565,41 @@ export interface UpsertEkstrakurikulerInput {
   nama_kegiatan: string;
   deskripsi?: string;
 }
-// ------------------------------------
+
+export interface EkstrakurikulerSesi {
+  id: number;
+  ekstrakurikuler_id: number;
+  tahun_ajaran_id: string;
+  pembina_id: string | null;
+  nama_pembina?: string | null;
+  jumlah_anggota: number;
+}
+
+export interface StudentSimple {
+  id: string;
+  nama_lengkap: string;
+  nis?: string;
+  nisn?: string;
+}
+
+export interface EkstrakurikulerAnggota {
+  id: number;
+  sesi_id: number;
+  student_id: string;
+  student_details: {
+    nis: string;
+    nisn: string;
+    nama_lengkap: string;
+  }
+}
+
+export interface UpdateSesiDetailInput {
+  pembina_id: string | null;
+}
+
+export interface AddAnggotaInput {
+  student_ids: string[];
+}
 
 export interface JenisUjian {
   id: number;

@@ -48,12 +48,12 @@ func (r *postgresRepository) GetActiveTahunAjaranID(ctx context.Context, schemaN
 }
 
 const selectQuery = `
-	SELECT 
-		ta.id, ta.nama_tahun_ajaran, ta.semester, ta.status, ta.metode_absensi,
-		ta.kepala_sekolah_id, t.nama_lengkap as nama_kepala_sekolah,
-		ta.created_at, ta.updated_at
-	FROM tahun_ajaran ta
-	LEFT JOIN teachers t ON ta.kepala_sekolah_id = t.id
+    SELECT 
+        ta.id, ta.nama_tahun_ajaran, ta.semester, ta.status, ta.metode_absensi,
+        ta.kepala_sekolah_id, t.nama_lengkap as nama_kepala_sekolah,
+        ta.created_at, ta.updated_at
+    FROM tahun_ajaran ta
+    LEFT JOIN teachers t ON ta.kepala_sekolah_id = t.id
 `
 
 func (r *postgresRepository) Create(ctx context.Context, schemaName string, ta *TahunAjaran) (*TahunAjaran, error) {
@@ -63,10 +63,10 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, ta *
 	}
 
 	query := `
-		INSERT INTO tahun_ajaran (id, nama_tahun_ajaran, semester, status, metode_absensi, kepala_sekolah_id) 
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id
-	`
+        INSERT INTO tahun_ajaran (id, nama_tahun_ajaran, semester, status, metode_absensi, kepala_sekolah_id) 
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+    `
 	err := r.db.QueryRowContext(ctx, query, ta.ID, ta.NamaTahunAjaran, ta.Semester, ta.Status, ta.MetodeAbsensi, ta.KepalaSekolahID).Scan(&ta.ID)
 	if err != nil {
 		return nil, fmt.Errorf("gagal insert tahun ajaran: %w", err)
@@ -88,7 +88,12 @@ func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]T
 	}
 	defer rows.Close()
 
-	var list []TahunAjaran
+	// --- PERBAIKAN DI SINI ---
+	// Menginisialisasi slice agar tidak pernah nil.
+	// Jika tidak ada data, ini akan mengembalikan array kosong `[]` bukan `null`.
+	list := make([]TahunAjaran, 0)
+	// -------------------------
+
 	for rows.Next() {
 		var t TahunAjaran
 		if err := rows.Scan(&t.ID, &t.NamaTahunAjaran, &t.Semester, &t.Status, &t.MetodeAbsensi, &t.KepalaSekolahID, &t.NamaKepalaSekolah, &t.CreatedAt, &t.UpdatedAt); err != nil {
@@ -126,10 +131,10 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, ta *
 	}
 
 	query := `
-		UPDATE tahun_ajaran SET 
-			nama_tahun_ajaran = $1, semester = $2, status = $3, metode_absensi = $4, kepala_sekolah_id = $5, updated_at = NOW() 
-		WHERE id = $6
-	`
+        UPDATE tahun_ajaran SET 
+            nama_tahun_ajaran = $1, semester = $2, status = $3, metode_absensi = $4, kepala_sekolah_id = $5, updated_at = NOW() 
+        WHERE id = $6
+    `
 	result, err := r.db.ExecContext(ctx, query, ta.NamaTahunAjaran, ta.Semester, ta.Status, ta.MetodeAbsensi, ta.KepalaSekolahID, ta.ID)
 	if err != nil {
 		return fmt.Errorf("gagal mengeksekusi query update: %w", err)
