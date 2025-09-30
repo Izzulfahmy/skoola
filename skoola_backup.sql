@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict aNOitblbNvGTo4p5Mt1jDqSsUwxaLcjqSBwi9CduwVZZbLp2zcvGB2GPJVTmVOy
+\restrict 8hf6MQoBvAJxxS4yyN1rzb9TcvX42y2QLizdHCtPQPv3L0nY1nUxtU6iYSJrQpV
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -1156,6 +1156,7 @@ ALTER TABLE ONLY "20554021".ujian ALTER COLUMN id SET DEFAULT nextval('"20554021
 --
 
 COPY "20554021".anggota_kelas (id, kelas_id, student_id, created_at, urutan) FROM stdin;
+a6689636-40c9-4d33-991a-bbf587848485	09476b72-a40b-4c98-be5f-761c7a56554f	8c654e45-17bc-4701-9c22-823e98d4d879	2025-09-30 14:26:29.787705+07	1
 \.
 
 
@@ -1165,6 +1166,7 @@ COPY "20554021".anggota_kelas (id, kelas_id, student_id, created_at, urutan) FRO
 
 COPY "20554021".ekstrakurikuler (id, nama_kegiatan, deskripsi, created_at, updated_at) FROM stdin;
 1	Pramuka		2025-09-30 14:00:10.55912+07	2025-09-30 14:00:10.55912+07
+2	Drumband		2025-09-30 14:24:40.739538+07	2025-09-30 14:24:40.739538+07
 \.
 
 
@@ -1173,6 +1175,7 @@ COPY "20554021".ekstrakurikuler (id, nama_kegiatan, deskripsi, created_at, updat
 --
 
 COPY "20554021".ekstrakurikuler_anggota (id, sesi_id, student_id, created_at) FROM stdin;
+1	1	8c654e45-17bc-4701-9c22-823e98d4d879	2025-09-30 14:26:41.83937+07
 \.
 
 
@@ -1182,6 +1185,7 @@ COPY "20554021".ekstrakurikuler_anggota (id, sesi_id, student_id, created_at) FR
 
 COPY "20554021".ekstrakurikuler_sesi (id, ekstrakurikuler_id, tahun_ajaran_id, pembina_id, created_at, updated_at) FROM stdin;
 1	1	3fca6a84-249c-470a-8c0e-99cf8a6f3445	4894168d-4952-49c7-8d13-6bc35867a7d4	2025-09-30 14:06:30.843163+07	2025-09-30 14:06:37.767373+07
+2	2	3fca6a84-249c-470a-8c0e-99cf8a6f3445	4894168d-4952-49c7-8d13-6bc35867a7d4	2025-09-30 14:24:44.805061+07	2025-09-30 14:26:07.173208+07
 \.
 
 
@@ -1237,6 +1241,7 @@ COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FR
 --
 
 COPY "20554021".kelas (id, nama_kelas, tahun_ajaran_id, tingkatan_id, wali_kelas_id, created_at, updated_at) FROM stdin;
+09476b72-a40b-4c98-be5f-761c7a56554f	Kelas 1A	3fca6a84-249c-470a-8c0e-99cf8a6f3445	1	4894168d-4952-49c7-8d13-6bc35867a7d4	2025-09-30 14:26:23.300991+07	2025-09-30 14:26:23.300991+07
 \.
 
 
@@ -1355,7 +1360,7 @@ faa189fa-980b-4a26-8933-641e2c7d71f1	4894168d-4952-49c7-8d13-6bc35867a7d4	Aktif	
 --
 
 COPY "20554021".students (id, created_at, updated_at, nis, nisn, nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali, pekerjaan_ayah, alamat_ayah, pekerjaan_ibu, alamat_ibu, pekerjaan_wali, alamat_wali) FROM stdin;
-8c654e45-17bc-4701-9c22-823e98d4d879	2025-09-30 14:06:27.518902+07	2025-09-30 14:06:27.518902+07	\N	\N	Jokowi	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+8c654e45-17bc-4701-9c22-823e98d4d879	2025-09-30 14:06:27.518902+07	2025-09-30 14:39:42.611775+07	\N	65545475	Jokowi	\N	Laki-laki	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -1457,21 +1462,21 @@ dad01df5-1937-48cf-829a-7c0446f4f760	superadmin@skoola.com	$2a$10$zyDKgGO5pqFHaD
 -- Name: ekstrakurikuler_anggota_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_anggota_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_anggota_id_seq', 1, true);
 
 
 --
 -- Name: ekstrakurikuler_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 2, true);
 
 
 --
 -- Name: ekstrakurikuler_sesi_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 2, true);
 
 
 --
@@ -2503,5 +2508,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict aNOitblbNvGTo4p5Mt1jDqSsUwxaLcjqSBwi9CduwVZZbLp2zcvGB2GPJVTmVOy
+\unrestrict 8hf6MQoBvAJxxS4yyN1rzb9TcvX42y2QLizdHCtPQPv3L0nY1nUxtU6iYSJrQpV
 
