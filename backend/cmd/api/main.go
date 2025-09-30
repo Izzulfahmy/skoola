@@ -10,7 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"skoola/internal/auth"
-	"skoola/internal/connection" // <-- PERUBAHAN 1: IMPOR BARU
+	"skoola/internal/connection"
+	"skoola/internal/ekstrakurikuler" // <-- PERUBAHAN 1: IMPOR BARU
 	"skoola/internal/foundation"
 	"skoola/internal/jabatan"
 	"skoola/internal/jenisujian"
@@ -114,6 +115,7 @@ func main() {
 	jenisUjianRepo := jenisujian.NewRepository(db)
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
 	presensiRepo := presensi.NewRepository(db)
+	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db) // <-- PERUBAHAN 2: REPO BARU
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -136,6 +138,7 @@ func main() {
 	jenisUjianService := jenisujian.NewService(jenisUjianRepo, validate)
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
 	presensiService := presensi.NewService(presensiRepo, validate)
+	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate) // <-- PERUBAHAN 3: SERVICE BARU
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -159,33 +162,28 @@ func main() {
 	jenisUjianHandler := jenisujian.NewHandler(jenisUjianService)
 	penilaianSumatifHandler := penilaiansumatif.NewHandler(penilaianSumatifService)
 	presensiHandler := presensi.NewHandler(presensiService)
-	connectionHandler := connection.NewHandler() // <-- PERUBAHAN 2: HANDLER BARU
+	connectionHandler := connection.NewHandler()
+	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService) // <-- PERUBAHAN 4: HANDLER BARU
 
 	r := chi.NewRouter()
 
-	// --- SECTION MODIFIED ---
 	r.Use(cors.Handler(cors.Options{
-		// Changed AllowedOrigins to allow any origin
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Tenant-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	// --- END OF MODIFICATION ---
 
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// --- RUTE PUBLIK (TIDAK PERLU TOKEN) ---
 	r.Post("/login", authHandler.Login)
 	r.With(authMiddleware.AuthMiddleware, auth.AuthorizeSuperadmin).Post("/tenants/register", tenantHandler.Register)
 
-	// --- RUTE TES KONEKSI (PUBLIK) ---
-	r.Get("/livez", connectionHandler.Livez)          // <-- PERUBAHAN 3: RUTE BARU
-	r.Get("/connection-test", connectionHandler.Test) // <-- PERUBAHAN 3: RUTE BARU
+	r.Get("/livez", connectionHandler.Livez)
+	r.Get("/connection-test", connectionHandler.Test)
 
-	// --- RUTE YANG MEMBUTUHKAN AUTENTIKASI ---
 	r.Route("/", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 
@@ -253,6 +251,15 @@ func main() {
 			r.With(auth.Authorize("admin")).Put("/{id}", jenjangHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
 		})
+
+		// <-- PERUBAHAN 5: RUTE BARU DITAMBAHKAN DI SINI -->
+		r.Route("/ekstrakurikuler", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", ekstrakurikulerHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", ekstrakurikulerHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{id}", ekstrakurikulerHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", ekstrakurikulerHandler.Delete)
+		})
+		// --------------------------------------------------
 
 		r.Route("/jabatan", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)

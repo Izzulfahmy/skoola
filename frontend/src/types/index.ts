@@ -546,6 +546,21 @@ export interface UpsertAcademicHistoryInput {
   keterangan?: string;
 }
 
+// --- TIPE BARU UNTUK EKSTRAKURIKULER ---
+export interface Ekstrakurikuler {
+  id: number;
+  nama_kegiatan: string;
+  deskripsi?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertEkstrakurikulerInput {
+  nama_kegiatan: string;
+  deskripsi?: string;
+}
+// ------------------------------------
+
 export interface JenisUjian {
   id: number;
   kode_ujian: string;

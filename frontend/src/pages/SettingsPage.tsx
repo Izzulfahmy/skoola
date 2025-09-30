@@ -8,6 +8,7 @@ import JabatanTab from '../components/JabatanTab';
 import TingkatanTab from '../components/TingkatanTab';
 import JenisUjianTab from '../components/JenisUjianTab';
 import ConnectionTestTab from '../components/ConnectionTestTab';
+import EkstrakurikulerTab from '../components/EkstrakurikulerTab'; // <-- 1. IMPOR BARU
 
 const { Title } = Typography;
 
@@ -34,23 +35,30 @@ const items: TabsProps['items'] = [
     label: 'Tingkatan Kelas',
     children: <TingkatanTab />,
   },
+  // --- 2. TAMBAHKAN ITEM BARU DI SINI ---
   {
     key: '2',
+    label: 'Ekstrakurikuler',
+    children: <EkstrakurikulerTab />,
+  },
+  // ------------------------------------
+  {
+    key: '3',
     label: 'Jabatan',
     children: <JabatanTab />,
   },
   {
-    key: '3',
+    key: '4',
     label: 'Jenjang Pendidikan',
     children: <JenjangPendidikanTab />,
   },
   {
-    key: '4',
+    key: '5',
     label: 'Pengaturan Admin',
     children: <AdminSettingsTab />,
   },
   {
-    key: '5',
+    key: '6',
     label: 'Tes Koneksi',
     children: <ConnectionTestTab />,
   },
@@ -68,7 +76,6 @@ const SettingsPage = () => {
       <Tabs 
         defaultActiveKey="0" 
         items={items} 
-        // Ubah posisi tab secara dinamis berdasarkan ukuran layar
         tabPosition={isMobile ? 'top' : 'right'} 
       />
     </Card>
