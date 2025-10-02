@@ -46,18 +46,24 @@ const UjianPage: React.FC = () => {
 
     rombelData.forEach(kelas => {
       
-      // PERBAIKAN: Gunakan flat fields yang baru dari backend (kelas.jenjang_id, kelas.nama_jenjang)
-      if (!kelas.jenjang_id || !kelas.nama_tingkatan || !kelas.nama_jenjang) { 
-          // Logik pengecekan baru yang sesuai dengan data flat
-          console.warn(`Kelas ID ${kelas.id} dilewati karena data jenjang atau tingkatan hilang.`);
+      // PERBAIKAN: Hapus/Ganti logika pengecekan yang bergantung pada jenjang_id dan nama_jenjang 
+      // yang kini bernilai null/undefined setelah perbaikan backend sebelumnya.
+      // Cukup pastikan nama_tingkatan ada, karena tingkatan_id harus selalu ada.
+      if (!kelas.nama_tingkatan) { 
+          console.warn(`Kelas ID ${kelas.id} dilewati karena data tingkatan hilang.`);
           return;
       }
       
+      // Menggunakan fallback value ('unknown') untuk jenjang_id dan nama_jenjang
+      // karena field tersebut tidak disertakan dalam query backend saat ini.
+      const jenjangId = kelas.jenjang_id || 'unknown'; 
+      const namaJenjang = kelas.nama_jenjang || 'Tingkat Pendidikan Lain';
+
+
       // Menggunakan tingkatan_id dan jenjang_id dari field flat
-      const key = `${kelas.jenjang_id}-${kelas.tingkatan_id}`;
-      const jenjangLabel = kelas.nama_jenjang;
+      const key = `${jenjangId}-${kelas.tingkatan_id}`;
       const tingkatanLabel = kelas.nama_tingkatan;
-      const groupLabel = `${jenjangLabel} - ${tingkatanLabel}`;
+      const groupLabel = `${namaJenjang} - ${tingkatanLabel}`; // Kelompok: [Jenjang] - [Tingkatan]
 
       if (!groups.has(key)) {
         groups.set(key, {
@@ -74,7 +80,7 @@ const UjianPage: React.FC = () => {
       });
     });
 
-    // Urutkan groups berdasarkan jenjang dan tingkatan
+    // Urutkan groups berdasarkan label (Jenjang - Tingkatan)
     return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [rombelData]);
 

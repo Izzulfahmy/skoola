@@ -99,14 +99,14 @@ func (r *postgresRepository) GetKelasByID(ctx context.Context, schemaName string
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// TOTAL 15 KOLOM
+	// TOTAL 13 KOLOM (t.jenjang_id dan j.nama_jenjang DIHAPUS)
 	query := `
         SELECT
             k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
             k.created_at, k.updated_at,
             t.nama_tingkatan,
-            t.jenjang_id, -- Kolom ke-9
-            j.nama_jenjang, -- Kolom ke-10
+            -- t.jenjang_id, -- DIHAPUS
+            -- j.nama_jenjang, -- DIHAPUS
             guru.nama_lengkap as nama_wali_kelas,
             ta.nama_tahun_ajaran,
             ta.semester,
@@ -114,20 +114,20 @@ func (r *postgresRepository) GetKelasByID(ctx context.Context, schemaName string
             (SELECT COUNT(*) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
         FROM kelas k
         LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
-        LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id
+        -- LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id -- DIHAPUS
         LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
         LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
         WHERE k.id = $1
     `
 	row := r.db.QueryRowContext(ctx, query, kelasID)
 	var k Kelas
-	// PASTIKAN JUMLAH SCAN SAMA DENGAN 15 VARIABEL
+	// PASTIKAN JUMLAH SCAN SAMA DENGAN 13 VARIABEL
 	err := row.Scan(
 		&k.ID, &k.NamaKelas, &k.TahunAjaranID, &k.TingkatanID, &k.WaliKelasID,
 		&k.CreatedAt, &k.UpdatedAt,
 		&k.NamaTingkatan,
-		&k.JenjangID,
-		&k.NamaJenjang,
+		// &k.JenjangID,    // DIHAPUS
+		// &k.NamaJenjang,  // DIHAPUS
 		&k.NamaWaliKelas,
 		&k.NamaTahunAjaran, &k.Semester,
 		&k.JumlahSiswa,
@@ -146,14 +146,14 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// TOTAL 15 KOLOM
+	// TOTAL 13 KOLOM (t.jenjang_id dan j.nama_jenjang DIHAPUS)
 	query := `
         SELECT
             k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
             k.created_at, k.updated_at,
             t.nama_tingkatan,
-            t.jenjang_id, -- Kolom ke-9
-            j.nama_jenjang, -- Kolom ke-10
+            -- t.jenjang_id, -- DIHAPUS
+            -- j.nama_jenjang, -- DIHAPUS
             guru.nama_lengkap as nama_wali_kelas,
             ta.nama_tahun_ajaran,
             ta.semester,
@@ -161,7 +161,7 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
             (SELECT COUNT(*) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
         FROM kelas k
         LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
-        LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id
+        -- LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id -- DIHAPUS
         LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
         LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
         WHERE k.tahun_ajaran_id = $1
@@ -176,13 +176,13 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
 	var list []Kelas
 	for rows.Next() {
 		var k Kelas
-		// PASTIKAN JUMLAH SCAN SAMA DENGAN 15 VARIABEL
+		// PASTIKAN JUMLAH SCAN SAMA DENGAN 13 VARIABEL
 		err := rows.Scan(
 			&k.ID, &k.NamaKelas, &k.TahunAjaranID, &k.TingkatanID, &k.WaliKelasID,
 			&k.CreatedAt, &k.UpdatedAt,
 			&k.NamaTingkatan,
-			&k.JenjangID,
-			&k.NamaJenjang,
+			// &k.JenjangID,    // DIHAPUS
+			// &k.NamaJenjang,  // DIHAPUS
 			&k.NamaWaliKelas,
 			&k.NamaTahunAjaran, &k.Semester,
 			&k.JumlahSiswa,
