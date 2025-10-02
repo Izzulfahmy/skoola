@@ -55,29 +55,26 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 	return nil
 }
 
-// --- Implementasi GetAllUjianMonitoringByTahunAjaran (BARU) ---
+// --- Implementasi GetAllUjianMonitoringByTahunAjaran (KODE YANG BENAR) ---
 func (r *postgresRepository) GetAllUjianMonitoringByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMonitoring, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
 
-	// Query untuk mengelompokkan ujian berdasarkan nama (yang sama dari bulk) dan tahun ajaran,
-	// dan menghitung kelas dan mapel yang terlibat.
+	// Query ini mengambil data dari tabel 'ujian', menggabungkannya dengan 'pengajar_kelas'
+	// untuk memfilter berdasarkan tahun ajaran. Ini adalah cara yang benar.
 	query := `
         SELECT
-            -- Mengambil ID ujian terkecil dalam grup (untuk representasi ID grup di frontend)
             MIN(u.id) AS id, 
             u.nama_ujian,
             $1 AS tahun_ajaran_id,
-            -- Hitung jumlah distinct kelas yang terlibat (lewat kelas_id di pengajar_kelas)
             COUNT(DISTINCT pk.kelas_id) AS jumlah_kelas, 
-            -- Hitung jumlah distinct mata pelajaran (mapel) yang terlibat
             COUNT(DISTINCT pk.mata_pelajaran_id) AS jumlah_mapel 
         FROM ujian u
         JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
         WHERE pk.tahun_ajaran_id = $1
         GROUP BY u.nama_ujian
-        ORDER BY MIN(u.urutan) ASC
+        ORDER BY MIN(u.created_at) DESC
     `
 
 	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
@@ -89,10 +86,10 @@ func (r *postgresRepository) GetAllUjianMonitoringByTahunAjaran(ctx context.Cont
 	var list []UjianMonitoring
 	for rows.Next() {
 		var um UjianMonitoring
-		var rawID int // ID DB adalah INT (serial)
+		var rawID int
 
 		err := rows.Scan(
-			&rawID, // Scan ID (INT)
+			&rawID,
 			&um.NamaUjian,
 			&um.TahunAjaranID,
 			&um.JumlahKelas,
@@ -102,9 +99,7 @@ func (r *postgresRepository) GetAllUjianMonitoringByTahunAjaran(ctx context.Cont
 			return nil, fmt.Errorf("gagal scan baris monitoring ujian: %w", err)
 		}
 
-		// Konversi ID INT menjadi string untuk sesuai dengan tipe frontend UjianMonitoring.ID
 		um.ID = fmt.Sprintf("%d", rawID)
-
 		list = append(list, um)
 	}
 
@@ -128,7 +123,7 @@ func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName strin
         WHERE id = $1
     `
 	var m MateriPembelajaran
-	var deskripsi sql.NullString // Digunakan untuk menampung kolom NULLABLE
+	var deskripsi sql.NullString
 
 	row := r.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
@@ -136,19 +131,18 @@ func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName strin
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil // Materi tidak ditemukan
+			return nil, nil
 		}
 		return nil, fmt.Errorf("gagal memindai materi ID %d: %w", id, err)
 	}
 
-	// FIX: Cek validitas dan inisialisasi pointer (*string) dengan benar
 	if deskripsi.Valid {
 		m.Deskripsi = new(string)
 		*m.Deskripsi = deskripsi.String
 	} else {
 		m.Deskripsi = nil
 	}
-	m.TujuanPembelajaran = []TujuanPembelajaran{} // Inisialisasi slice kosong
+	m.TujuanPembelajaran = []TujuanPembelajaran{}
 
 	return &m, nil
 }
@@ -166,7 +160,6 @@ func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName str
 	}
 	defer tx.Rollback()
 
-	// 1. Dapatkan semua ID pengajar_kelas yang relevan dari kelas yang dipilih
 	pengajarKelasQuery := `
         SELECT 
             id
@@ -195,7 +188,6 @@ func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName str
 		return &BulkUjianResult{SuccessCount: 0, TotalCount: 0}, nil
 	}
 
-	// 2. Tentukan urutan maksimum saat ini di antara semua pengajar_kelas yang terlibat
 	urutanQuery := `
         SELECT COALESCE(MAX(urutan), 0) FROM (
             SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = ANY($1)
@@ -208,15 +200,12 @@ func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName str
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
 	}
 
-	// 3. Bangun query INSERT BULK
 	var valueStrings []string
 	var valueArgs []interface{}
 	baseUrutan := int(maxUrutan.Int64)
 
-	// Setiap entri baru mendapat urutan yang berurutan setelah max urutan global
 	for i, pkID := range pengajarKelasIDs {
 		newUrutan := baseUrutan + i + 1
-		// Gunakan placeholder $N untuk menghindari SQL Injection
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", 3*i+1, 3*i+2, 3*i+3))
 		valueArgs = append(valueArgs, pkID, input.NamaUjian, newUrutan)
 	}
@@ -326,7 +315,6 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 		}
 	}
 
-	// Ambil tujuan pembelajaran untuk semua materi
 	if len(materiMap) > 0 {
 		materiIDs := make([]int, 0, len(materiMap))
 		for id := range materiMap {
@@ -357,7 +345,6 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 		}
 	}
 
-	// Ambil semua penilaian sumatif terkait (baik untuk TP maupun Ujian)
 	if len(tpIDs) > 0 || len(ujianIDs) > 0 {
 		penilaianSumatifQuery := `
             SELECT 
@@ -386,7 +373,6 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 			}
 
 			if ps.TujuanPembelajaranID != nil {
-				// Cari di semua materi -> tujuan
 				for _, materi := range materiMap {
 					for i, tp := range materi.TujuanPembelajaran {
 						if tp.ID == *ps.TujuanPembelajaranID {
@@ -462,12 +448,11 @@ func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string
 	row := tx.QueryRowContext(ctx, query, input.PengajarKelasID, input.NamaMateri, sql.NullString{String: input.Deskripsi, Valid: input.Deskripsi != ""}, nextUrutan)
 
 	var m MateriPembelajaran
-	var deskripsi sql.NullString // Digunakan untuk menampung kolom NULLABLE saat RETURNING
+	var deskripsi sql.NullString
 	if err := row.Scan(&m.ID, &m.PengajarKelasID, &m.NamaMateri, &deskripsi, &m.Urutan, &m.CreatedAt, &m.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("gagal memindai data materi setelah dibuat: %w", err)
 	}
 
-	// FIX: Cek validitas dan inisialisasi pointer (*string) dengan benar
 	if deskripsi.Valid {
 		m.Deskripsi = new(string)
 		*m.Deskripsi = deskripsi.String
@@ -690,7 +675,6 @@ func (r *postgresRepository) DeleteUjian(ctx context.Context, schemaName string,
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-	// Note: Penghapusan ujian tidak memerlukan reorder seperti Materi/Tujuan karena reorder Ujian/Materi dilakukan pada level rencana gabungan.
 	_, err := r.db.ExecContext(ctx, "DELETE FROM ujian WHERE id = $1", id)
 	return err
 }
