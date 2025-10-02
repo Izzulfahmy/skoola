@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict gOrNX3rLd8RXhHdMjZC1ipoE1k0RGpLCVtkfnqCWD31BiuOIS5tLcUu1ahyN8js
+\restrict bvbAvIHabshwYhC5XvLnrT08SMBi8SwHmsGy9rIKQNJsy6r8R0BfB7NvUCTakht
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -2339,7 +2339,8 @@ a56e3583-0e31-4cd8-99aa-6cd15e1833f5	c880314c-7462-49fd-937f-475ffdea87dc	ce2265
 --
 
 COPY "20554021".ekstrakurikuler (id, nama_kegiatan, deskripsi, created_at, updated_at) FROM stdin;
-1	Pramuka		2025-09-30 17:50:33.360816+07	2025-09-30 17:50:33.360816+07
+4	Pramuka		2025-10-02 10:57:58.322312+07	2025-10-02 10:57:58.322312+07
+5	Drumband		2025-10-02 16:24:41.459022+07	2025-10-02 16:24:41.459022+07
 \.
 
 
@@ -2348,6 +2349,7 @@ COPY "20554021".ekstrakurikuler (id, nama_kegiatan, deskripsi, created_at, updat
 --
 
 COPY "20554021".ekstrakurikuler_anggota (id, sesi_id, student_id, created_at) FROM stdin;
+3	4	ce226536-21e9-4b36-8cd1-e346b2f04791	2025-10-02 10:58:51.813709+07
 \.
 
 
@@ -2356,6 +2358,8 @@ COPY "20554021".ekstrakurikuler_anggota (id, sesi_id, student_id, created_at) FR
 --
 
 COPY "20554021".ekstrakurikuler_sesi (id, ekstrakurikuler_id, tahun_ajaran_id, pembina_id, created_at, updated_at) FROM stdin;
+4	4	00ca13bc-a572-40c2-8ca7-0569c2fe09d6	7edf93aa-8e44-452e-be17-08e2132dc3dc	2025-10-02 10:58:19.33124+07	2025-10-02 10:58:57.018202+07
+5	5	00ca13bc-a572-40c2-8ca7-0569c2fe09d6	7edf93aa-8e44-452e-be17-08e2132dc3dc	2025-10-02 16:24:43.331726+07	2025-10-02 16:24:48.219194+07
 \.
 
 
@@ -2438,6 +2442,7 @@ COPY "20554021".kurikulum (id, nama_kurikulum, deskripsi) FROM stdin;
 --
 
 COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_at, parent_id, urutan, kelompok_id) FROM stdin;
+9c05eed7-33d0-455e-b4c4-26a4c6c6dd74	MTK	Matematika	2025-10-02 16:27:31.627617+07	2025-10-02 16:27:31.627617+07	\N	1	1
 \.
 
 
@@ -2470,6 +2475,7 @@ COPY "20554021".pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id,
 --
 
 COPY "20554021".pengajar_kelas (id, kelas_id, teacher_id, mata_pelajaran_id, created_at) FROM stdin;
+93710d83-97f9-4a4e-8802-6dad91ceca99	c880314c-7462-49fd-937f-475ffdea87dc	7edf93aa-8e44-452e-be17-08e2132dc3dc	9c05eed7-33d0-455e-b4c4-26a4c6c6dd74	2025-10-02 16:27:43.294658+07
 \.
 
 
@@ -2597,6 +2603,8 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at) FROM stdin;
+3	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	1	2025-10-02 19:18:04.169417+07	2025-10-02 19:18:04.169417+07
+4	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	2	2025-10-02 19:27:34.530076+07	2025-10-02 19:27:34.530076+07
 \.
 
 
@@ -2918,21 +2926,21 @@ dad01df5-1937-48cf-829a-7c0446f4f760	superadmin@skoola.com	$2a$10$zyDKgGO5pqFHaD
 -- Name: ekstrakurikuler_anggota_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_anggota_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_anggota_id_seq', 3, true);
 
 
 --
 -- Name: ekstrakurikuler_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 5, true);
 
 
 --
 -- Name: ekstrakurikuler_sesi_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 5, true);
 
 
 --
@@ -3016,7 +3024,7 @@ SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, false);
 -- Name: ujian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ujian_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ujian_id_seq', 4, true);
 
 
 --
@@ -5031,5 +5039,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict gOrNX3rLd8RXhHdMjZC1ipoE1k0RGpLCVtkfnqCWD31BiuOIS5tLcUu1ahyN8js
+\unrestrict bvbAvIHabshwYhC5XvLnrT08SMBi8SwHmsGy9rIKQNJsy6r8R0BfB7NvUCTakht
 
