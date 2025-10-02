@@ -1,3 +1,4 @@
+// file: src/layouts/AdminLayout.tsx
 import { useState, useEffect } from 'react';
 import {
   DesktopOutlined,
@@ -13,7 +14,8 @@ import {
   ProjectOutlined,
   ApartmentOutlined,
   SolutionOutlined,
-  ExperimentOutlined, // <-- PERUBAHAN 1: Impor ikon baru
+  ExperimentOutlined,
+  TrophyOutlined, // <-- Impor ikon baru
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
 import type { MenuProps } from 'antd';
@@ -27,7 +29,7 @@ const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
+
   const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,6 +83,7 @@ const AdminLayout = () => {
       icon: <ExperimentOutlined />,
       label: <Link to="/ekstrakurikuler">Ekstrakurikuler</Link>,
     },
+    { key: '/prestasi', icon: <TrophyOutlined />, label: <Link to="/prestasi">Prestasi</Link> },
     { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
     { type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
@@ -88,14 +91,14 @@ const AdminLayout = () => {
   // ----------------------------------------------------
 
   const validMenuItems = allMenuItems.filter(
-    (item): item is { key: string; icon: React.ReactNode; label: React.ReactNode; } => 
+    (item): item is { key: string; icon: React.ReactNode; label: React.ReactNode; } =>
       item !== null && typeof item === 'object' && 'key' in item && typeof item.key === 'string'
   );
-  
+
   const activeKey = validMenuItems
     .sort((a, b) => b.key.length - a.key.length)
     .find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
-  
+
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{
@@ -104,7 +107,7 @@ const AdminLayout = () => {
       }}>
         {isMobile || !collapsed ? 'Admin Panel' : ''}
       </div>
-      
+
       <Menu
         theme="dark"
         mode="inline"
@@ -134,9 +137,9 @@ const AdminLayout = () => {
     >
       <Layout style={{ height: '100vh' }}>
         {!isMobile && (
-          <Sider 
-            trigger={null} 
-            collapsible 
+          <Sider
+            trigger={null}
+            collapsible
             collapsed={collapsed}
             width={siderWidth}
             collapsedWidth={siderCollapsedWidth}
@@ -192,7 +195,7 @@ const AdminLayout = () => {
         {isMobile && (
           <Drawer
             placement="left"
-            closable={false} 
+            closable={false}
             onClose={() => setDrawerVisible(false)}
             open={drawerVisible}
             bodyStyle={{ padding: 0, backgroundColor: '#001529' }}

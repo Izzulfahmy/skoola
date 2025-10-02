@@ -21,8 +21,9 @@ import TahunAjaranPage from './pages/TahunAjaranPage';
 import MataPelajaranPage from './pages/MataPelajaranPage';
 import KurikulumPage from './pages/KurikulumPage';
 import RombelPage from './pages/RombelPage';
-import EkstrakurikulerPage from './pages/EkstrakurikulerPage'; // <-- 1. IMPOR BARU
+import EkstrakurikulerPage from './pages/EkstrakurikulerPage';
 import PresensiPage from './pages/PresensiPage';
+import PrestasiPage from './pages/PrestasiPage'; // <-- Impor halaman baru
 
 // Superadmin Pages
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
@@ -45,7 +46,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          
+
           {/* Rute Induk Admin Sekolah */}
           <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -58,9 +59,10 @@ function App() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="rombel" element={<RombelPage />} />
             <Route path="rombel/:kelasId" element={<RombelPage />} />
-            
+
             {/* --- 2. RUTE BARU DI SINI --- */}
             <Route path="ekstrakurikuler" element={<EkstrakurikulerPage />} />
+            <Route path="prestasi" element={<PrestasiPage />} />
             {/* ------------------------- */}
 
             <Route path="presensi" element={<PresensiPage />} />
@@ -80,8 +82,8 @@ function App() {
           {/* Rute Superadmin */}
           <Route path="/superadmin" element={<ProtectedRoute><SuperAdminLayout /></ProtectedRoute>}>
             <Route index element={<SuperAdminDashboard />} />
-            <Route path="naungan" element={<ManajemenNaunganPage />} /> 
-            <Route path="naungan/:naunganId" element={<ManajemenSekolahPage />} /> 
+            <Route path="naungan" element={<ManajemenNaunganPage />} />
+            <Route path="naungan/:naunganId" element={<ManajemenSekolahPage />} />
             <Route path="sekolah" element={<ManajemenSekolahPage />} />
           </Route>
 

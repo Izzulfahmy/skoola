@@ -147,6 +147,7 @@ func (r *postgresRepository) CreateTenantSchema(ctx context.Context, tx *sql.Tx,
 		"./db/migrations/027_add_presensi.sql",
 		"./db/migrations/028_add_extracurricular.sql",
 		"./db/migrations/029_add_extracurricular_sessions.sql",
+		"./db/migrations/030_add_achievements.sql",
 	}
 
 	// Jalankan migrasi satu per satu

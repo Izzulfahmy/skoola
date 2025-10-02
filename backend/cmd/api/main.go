@@ -23,6 +23,7 @@ import (
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
 	"skoola/internal/presensi"
+	"skoola/internal/prestasi" // <-- Impor paket baru
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -116,6 +117,7 @@ func main() {
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
 	presensiRepo := presensi.NewRepository(db)
 	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
+	prestasiRepo := prestasi.NewRepository(db) // <-- Tambahkan repo baru
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -139,6 +141,7 @@ func main() {
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
+	prestasiService := prestasi.NewService(prestasiRepo, validate) // <-- Tambahkan service baru
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -164,6 +167,7 @@ func main() {
 	presensiHandler := presensi.NewHandler(presensiService)
 	connectionHandler := connection.NewHandler()
 	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
+	prestasiHandler := prestasi.NewHandler(prestasiService) // <-- Tambahkan handler baru
 
 	r := chi.NewRouter()
 
@@ -381,6 +385,13 @@ func main() {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
 			r.With(auth.Authorize("admin")).Post("/", presensiHandler.UpsertPresensi)
 			r.With(auth.Authorize("admin")).Delete("/", presensiHandler.DeletePresensi)
+		})
+
+		// <-- Rute baru untuk prestasi
+		r.Route("/prestasi", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", prestasiHandler.GetAllByTahunAjaran)
+			r.With(auth.Authorize("admin")).Post("/", prestasiHandler.Create)
+			r.With(auth.Authorize("admin")).Delete("/{id}", prestasiHandler.Delete)
 		})
 	})
 

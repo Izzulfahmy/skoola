@@ -1,5 +1,32 @@
 // file: src/types/index.ts
 
+// --- TIPE BARU UNTUK PRESTASI ---
+export interface Prestasi {
+  id: string;
+  tahun_ajaran_id: string;
+  anggota_kelas_id: string;
+  nama_prestasi: string;
+  tingkat: 'Sekolah' | 'Desa/Kelurahan' | 'Kecamatan' | 'Kabupaten/Kota' | 'Provinsi' | 'Nasional' | 'Internasional';
+  peringkat: 'Juara 1' | 'Juara 2' | 'Juara 3' | 'Harapan 1' | 'Harapan 2' | 'Harapan 3';
+  tanggal: string;
+  deskripsi?: string;
+  created_at: string;
+  updated_at: string;
+  nama_siswa: string;
+  nama_kelas: string;
+}
+
+export interface UpsertPrestasiInput {
+  tahun_ajaran_id: string;
+  anggota_kelas_id: string;
+  nama_prestasi: string;
+  tingkat: 'Sekolah' | 'Desa/Kelurahan' | 'Kecamatan' | 'Kabupaten/Kota' | 'Provinsi' | 'Nasional' | 'Internasional';
+  peringkat: 'Juara 1' | 'Juara 2' | 'Juara 3' | 'Harapan 1' | 'Harapan 2' | 'Harapan 3';
+  tanggal: string; // YYYY-MM-DD
+  deskripsi?: string;
+}
+// ------------------------------------
+
 // --- TIPE BARU UNTUK PENILAIAN SUMATIF ---
 export interface PenilaianSumatif {
   id: string;
