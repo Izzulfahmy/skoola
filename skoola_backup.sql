@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UOqSBfZHnTHeNWKvFKOWTZ8NJU4jNgd0K5i9U3aVgxtMdW5Z4MFTfzvochzTWs7
+\restrict PKo9QHr2dUPQHZROUTs3vwVEJRCONkjE4Ejf3VzqBDrFGOC1nDz8C4DhbP6QViP
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -2451,7 +2451,7 @@ COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
-1	93710d83-97f9-4a4e-8802-6dad91ceca99	Materi Baru	\N	1	2025-10-02 19:32:01.018616+07	2025-10-02 19:32:10.792168+07
+1	93710d83-97f9-4a4e-8802-6dad91ceca99	Materi Baru	\N	1	2025-10-02 19:32:01.018616+07	2025-10-03 03:00:19.055488+07
 \.
 
 
@@ -2609,7 +2609,8 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at) FROM stdin;
-4	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	2	2025-10-02 19:27:34.530076+07	2025-10-02 19:32:10.792168+07
+5	93710d83-97f9-4a4e-8802-6dad91ceca99	UAS	2	2025-10-03 02:55:30.325124+07	2025-10-03 03:00:19.055488+07
+4	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	3	2025-10-02 19:27:34.530076+07	2025-10-03 03:00:19.055488+07
 \.
 
 
@@ -3029,7 +3030,7 @@ SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, true);
 -- Name: ujian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ujian_id_seq', 4, true);
+SELECT pg_catalog.setval('"20554021".ujian_id_seq', 5, true);
 
 
 --
@@ -5044,5 +5045,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UOqSBfZHnTHeNWKvFKOWTZ8NJU4jNgd0K5i9U3aVgxtMdW5Z4MFTfzvochzTWs7
+\unrestrict PKo9QHr2dUPQHZROUTs3vwVEJRCONkjE4Ejf3VzqBDrFGOC1nDz8C4DhbP6QViP
 
