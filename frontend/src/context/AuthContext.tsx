@@ -1,61 +1,80 @@
-// file: src/context/AuthContext.tsx
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-// Import AuthUser type
-import type { AuthUser } from '../types'; 
+// frontend/src/context/AuthContext.tsx
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'; // <-- PERBAIKAN DI SINI
+import { jwtDecode } from 'jwt-decode';
+import type { AuthUser } from '../types';
 
-// 1. Definisikan "bentuk" dari data yang akan kita simpan di context
+// Definisikan tipe data yang ada di dalam token JWT Anda
+interface DecodedToken {
+  sub: string;
+  role: 'admin' | 'teacher' | 'superadmin';
+  sch?: string; // ID Sekolah/Tenant (opsional, untuk admin sekolah & guru)
+  name?: string;
+  email?: string;
+}
+
 interface AuthContextType {
-  token: string | null;
   isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
-  user: AuthUser | null; 
+  user: AuthUser | null;
 }
 
-// 2. Buat Context dengan bentuk yang sudah kita definisikan
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// 3. Buat "Provider", komponen yang akan menyediakan state ke seluruh aplikasi
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
-  const [user, setUser] = useState<AuthUser | null>(null); 
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('authToken'));
 
-  // Fungsi utilitas untuk mendapatkan data user dari token (minimal)
-  // Fix 6133: Variabel 't' dihapus dari parameter karena tidak digunakan.
-  const decodeAndSetUser = () => { 
-      // NOTE: Logic real-world harus meng-decode JWT
-      setUser({ 
-          id: 'dummy-id-from-token', 
-          email: 'admin@sekolah.com', 
-          name: 'Admin Sekolah', 
-          role: 'admin', 
-          username: 'admin' 
-      });
-  }
-
-  // Effect untuk menginisialisasi user dari token yang sudah ada
   useEffect(() => {
+    // Saat aplikasi dimuat, coba ambil token dari local storage
+    const token = localStorage.getItem('authToken');
     if (token) {
-        decodeAndSetUser(); 
+      try {
+        const decoded = jwtDecode<DecodedToken>(token);
+        setUser({
+          id: decoded.sub,
+          role: decoded.role,
+          name: decoded.name || 'Pengguna',
+          email: decoded.email || '',
+          username: decoded.email || '',
+        });
+        setIsAuthenticated(true);
+      } catch (error) {
+        // Jika token tidak valid, hapus
+        console.error("Token tidak valid, sesi dihapus:", error);
+        localStorage.removeItem('authToken');
+        setIsAuthenticated(false);
+      }
     }
-  }, [token]);
+  }, []);
 
-  const login = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem('authToken', newToken);
-    decodeAndSetUser();
+  const login = (token: string) => {
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      localStorage.setItem('authToken', token);
+      setUser({
+        id: decoded.sub,
+        role: decoded.role,
+        name: decoded.name || 'Pengguna',
+        email: decoded.email || '',
+        username: decoded.email || '',
+      });
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Gagal melakukan decode token saat login:", error);
+    }
   };
 
   const logout = () => {
-    setToken(null);
-    setUser(null); 
     localStorage.removeItem('authToken');
+    setUser(null);
+    setIsAuthenticated(false);
+    // Arahkan ke halaman login setelah logout untuk pengalaman pengguna yang lebih baik
+    window.location.href = '/login';
   };
   
   const value = {
-    token,
-    isAuthenticated: !!token, 
+    isAuthenticated,
     login,
     logout,
     user, 
@@ -64,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// 4. Buat custom hook untuk mempermudah penggunaan context ini
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

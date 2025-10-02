@@ -1,4 +1,4 @@
-// file: frontend/src/App.tsx
+// frontend/src/App.tsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -22,7 +22,7 @@ import RombelPage from './pages/RombelPage';
 import PresensiPage from './pages/PresensiPage';
 import EkstrakurikulerPage from './pages/EkstrakurikulerPage';
 import PrestasiPage from './pages/PrestasiPage';
-import UjianPage from './pages/UjianPage'; // <-- Import Halaman Baru
+import UjianPage from './pages/UjianPage';
 
 // Teacher Pages
 import TeacherLayout from './layouts/TeacherLayout';
@@ -67,7 +67,7 @@ const App: React.FC = () => {
           <Route path="presensi" element={<PresensiPage />} />
           <Route path="ekstrakurikuler" element={<EkstrakurikulerPage />} />
           <Route path="prestasi" element={<PrestasiPage />} />
-          <Route path="ujian" element={<UjianPage />} /> {/* <-- Rute Baru */}
+          <Route path="ujian" element={<UjianPage />} />
         </Route>
 
         {/* Teacher Routes */}

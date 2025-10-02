@@ -42,13 +42,13 @@ const LoginPage = () => {
       message.success('Login berhasil!');
       const role = getRoleFromToken(token);
 
-      // --- PERUBAHAN LOGIKA REDIRECT DI SINI ---
+      // --- LOGIKA REDIRECT YANG SUDAH DIPERBAIKI ---
       if (role === 'superadmin') {
         navigate('/superadmin');
       } else if (role === 'teacher') {
-        navigate('/teacher/dashboard');
+        navigate('/teacher'); // Diubah dari '/teacher/dashboard'
       } else {
-        navigate('/dashboard');
+        navigate('/'); // Diubah dari '/dashboard'
       }
     } catch (error: any) {
       const serverErrorMessage = error.response?.data || 'Email, password, atau ID Sekolah salah.';

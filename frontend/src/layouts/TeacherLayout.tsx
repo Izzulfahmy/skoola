@@ -7,13 +7,13 @@ import {
   LogoutOutlined,
   UserOutlined,
   IdcardOutlined,
-  ApartmentOutlined, // <-- Impor ikon baru
-  BookOutlined,       // <-- Impor ikon baru
-  EditOutlined,       // <-- Impor ikon baru
+  ApartmentOutlined,
+  BookOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
 import type { MenuProps } from 'antd';
-import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -24,7 +24,7 @@ const TeacherLayout = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,23 +53,44 @@ const TeacherLayout = () => {
     },
   ];
 
+  // --- MENU ITEMS (LABEL DIBUAT STRING BIASA, TANPA <Link>) ---
   const allMenuItems: MenuProps['items'] = [
-    { key: '/teacher/dashboard', icon: <DesktopOutlined />, label: <Link to="/teacher/dashboard">Dashboard</Link> },
-    { key: '/teacher/biodata', icon: <IdcardOutlined />, label: <Link to="/teacher/biodata">Biodata</Link> },
+    { key: '/teacher', icon: <DesktopOutlined />, label: 'Dashboard' },
+    { key: '/teacher/biodata', icon: <IdcardOutlined />, label: 'Biodata' },
     { type: 'divider' },
-    { key: '/teacher/my-classes', icon: <ApartmentOutlined />, label: <Link to="/teacher/my-classes">Kelas Saya</Link> },
-    { key: '/teacher/materials', icon: <BookOutlined />, label: <Link to="/teacher/materials">Materi Ajar</Link> },
-    { key: '/teacher/assessments', icon: <EditOutlined />, label: <Link to="/teacher/assessments">Penilaian Siswa</Link> },
+    { key: '/teacher/kelas-saya', icon: <ApartmentOutlined />, label: 'Kelas Saya' },
+    // Kita berikan key unik, navigasi akan diatur di handleMenuClick
+    { key: 'materi-ajar', icon: <BookOutlined />, label: 'Materi Ajar' },
+    { key: 'penilaian-siswa', icon: <EditOutlined />, label: 'Penilaian Siswa' },
   ];
   
-  const validMenuItems = allMenuItems.filter(
-    (item): item is { key: string; icon: React.ReactNode; label: React.ReactNode; } => 
-      item !== null && typeof item === 'object' && 'key' in item && typeof item.key === 'string'
-  );
-  
-  const activeKey = validMenuItems
-    .sort((a, b) => b.key.length - a.key.length)
-    .find(item => location.pathname.startsWith(item.key))?.key || '/teacher/dashboard';
+  // --- FUNGSI BARU UNTUK MENANGANI NAVIGASI SAAT MENU DIKLIK ---
+  const handleMenuClick: MenuProps['onClick'] = (e) => {
+    let path = e.key;
+
+    // Jika yang diklik adalah materi atau penilaian, arahkan ke kelas-saya
+    if (e.key === 'materi-ajar' || e.key === 'penilaian-siswa') {
+      path = '/teacher/kelas-saya';
+    }
+
+    navigate(path);
+
+    // Tutup drawer jika di mode mobile
+    if (isMobile) {
+      setDrawerVisible(false);
+    }
+  };
+
+  // Logika untuk menyorot menu yang aktif
+  let activeKey = '/teacher'; // Default
+  if (location.pathname.startsWith('/teacher/kelas-saya') || 
+      location.pathname.startsWith('/teacher/materi-ajar') || 
+      location.pathname.startsWith('/teacher/penilaian')) 
+  {
+    activeKey = '/teacher/kelas-saya';
+  } else if (location.pathname.startsWith('/teacher/biodata')) {
+    activeKey = '/teacher/biodata';
+  }
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -85,7 +106,7 @@ const TeacherLayout = () => {
         mode="inline"
         selectedKeys={[activeKey]}
         items={allMenuItems}
-        onClick={isMobile ? () => setDrawerVisible(false) : undefined}
+        onClick={handleMenuClick} // <-- Menggunakan fungsi onClick yang baru
         style={{ flex: 1, borderRight: 0 }}
       />
     </div>
@@ -149,7 +170,7 @@ const TeacherLayout = () => {
               style={{ fontSize: '16px', width: 64, height: 64 }}
             />
             <Space align="center">
-              {!isMobile && <Text style={{ marginRight: '8px' }}>Panel Guru</Text>}
+              <Text style={{ marginRight: '8px', fontWeight: 500 }}>{user?.name || 'Panel Guru'}</Text>
               <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
                 <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
                   <Avatar style={{ backgroundColor: '#52c41a' }} icon={<UserOutlined />} />
