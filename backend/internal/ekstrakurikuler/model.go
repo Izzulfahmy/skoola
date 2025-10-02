@@ -6,26 +6,29 @@ import (
 	"time"
 )
 
-// ... (struct Ekstrakurikuler tidak berubah) ...
+// Ekstrakurikuler (Diperluas untuk mencakup data sesi yang relevan dari JOIN)
 type Ekstrakurikuler struct {
 	ID           int       `json:"id"`
 	NamaKegiatan string    `json:"nama_kegiatan"`
 	Deskripsi    *string   `json:"deskripsi"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+
+	// FIX: Tambahkan field untuk data sesi yang akan diisi oleh JOIN
+	NamaPembina   *string `json:"nama_pembina,omitempty"`
+	JumlahAnggota *int    `json:"jumlah_anggota,omitempty"` // Menggunakan *int karena bisa NULL dari LEFT JOIN
 }
 
 // EkstrakurikulerSesi
 type EkstrakurikulerSesi struct {
 	ID                int     `json:"id"`
 	EkstrakurikulerID int     `json:"ekstrakurikuler_id"`
-	TahunAjaranID     string  `json:"tahun_ajaran_id"` // FIX: Diubah dari int menjadi string
+	TahunAjaranID     string  `json:"tahun_ajaran_id"`
 	PembinaID         *string `json:"pembina_id"`
 	NamaPembina       *string `json:"nama_pembina,omitempty"`
 	JumlahAnggota     int     `json:"jumlah_anggota"`
 }
 
-// ... (struct dan DTO lainnya tidak berubah) ...
 type EkstrakurikulerAnggota struct {
 	ID        int             `json:"id"`
 	SesiID    int             `json:"sesi_id"`

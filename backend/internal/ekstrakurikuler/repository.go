@@ -11,12 +11,11 @@ import (
 type Repository interface {
 	// Master Ekstrakurikuler
 	Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error)
-	GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error)
+	GetAll(ctx context.Context, schemaName string, tahunAjaranID string) ([]Ekstrakurikuler, error)
 	Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error
 	Delete(ctx context.Context, schemaName string, id int) error
 
 	// Sesi Ekstrakurikuler
-	// --- PERUBAHAN 1: Ubah tipe parameter tahunAjaranID di interface ---
 	GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error)
 	UpdateSesiDetail(ctx context.Context, schemaName string, sesiID int, input UpdateSesiDetailInput) error
 
@@ -39,7 +38,7 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 	return err
 }
 
-// --- Implementasi Master Ekstrakurikuler (Tetap sama seperti sebelumnya) ---
+// --- Implementasi Master Ekstrakurikuler ---
 func (r *postgresRepository) Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -52,26 +51,57 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, inpu
 	}
 	return &ekskul, nil
 }
-func (r *postgresRepository) GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error) {
+
+// FIX: Implementasi GetAll dengan JOIN
+func (r *postgresRepository) GetAll(ctx context.Context, schemaName string, tahunAjaranID string) ([]Ekstrakurikuler, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	query := `SELECT id, nama_kegiatan, deskripsi, created_at, updated_at FROM ekstrakurikuler ORDER BY nama_kegiatan ASC`
-	rows, err := r.db.QueryContext(ctx, query)
+
+	query := `
+		SELECT 
+			e.id, e.nama_kegiatan, e.deskripsi, e.created_at, e.updated_at,
+			t.nama_lengkap AS nama_pembina,
+			(SELECT COUNT(*) FROM ekstrakurikuler_anggota ea WHERE ea.sesi_id = es.id) AS jumlah_anggota
+		FROM ekstrakurikuler e
+		LEFT JOIN ekstrakurikuler_sesi es ON e.id = es.ekstrakurikuler_id AND es.tahun_ajaran_id = $1
+		LEFT JOIN teachers t ON es.pembina_id = t.id
+		ORDER BY e.nama_kegiatan ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	var list []Ekstrakurikuler
 	for rows.Next() {
 		var e Ekstrakurikuler
-		if err := rows.Scan(&e.ID, &e.NamaKegiatan, &e.Deskripsi, &e.CreatedAt, &e.UpdatedAt); err != nil {
+		var namaPembina sql.NullString
+		var jumlahAnggota sql.NullInt32
+
+		if err := rows.Scan(
+			&e.ID, &e.NamaKegiatan, &e.Deskripsi, &e.CreatedAt, &e.UpdatedAt,
+			&namaPembina,
+			&jumlahAnggota,
+		); err != nil {
 			return nil, err
 		}
+
+		// Map sql.NullString/Int ke *string/*int di model Ekstrakurikuler
+		if namaPembina.Valid {
+			e.NamaPembina = &namaPembina.String
+		}
+		if jumlahAnggota.Valid {
+			tempCount := int(jumlahAnggota.Int32)
+			e.JumlahAnggota = &tempCount
+		}
+
 		list = append(list, e)
 	}
 	return list, nil
 }
+
 func (r *postgresRepository) Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -103,11 +133,7 @@ func (r *postgresRepository) Delete(ctx context.Context, schemaName string, id i
 	return nil
 }
 
-// --- End of Master Ekstrakurikuler ---
-
-// --- Implementasi Sesi ---
-
-// --- PERUBAHAN 2: Ganti seluruh fungsi dengan versi yang sudah diperbaiki ---
+// --- Implementasi Sesi (Tetap sama, sudah benar dari sebelumnya) ---
 func (r *postgresRepository) GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -163,7 +189,7 @@ func (r *postgresRepository) UpdateSesiDetail(ctx context.Context, schemaName st
 	return nil
 }
 
-// --- Implementasi Anggota ---
+// --- Implementasi Anggota (Tetap sama) ---
 func (r *postgresRepository) GetAnggotaBySesiID(ctx context.Context, schemaName string, sesiID int) ([]EkstrakurikulerAnggota, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err

@@ -14,12 +14,11 @@ var ErrValidation = errors.New("validation failed")
 type Service interface {
 	// Master Ekstrakurikuler
 	Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error)
-	GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error)
+	GetAll(ctx context.Context, schemaName string, tahunAjaranID string) ([]Ekstrakurikuler, error)
 	Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error
 	Delete(ctx context.Context, schemaName string, id int) error
 
 	// Sesi
-	// FIX: Mengubah tahunAjaranID dari int menjadi string
 	GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error)
 	UpdateSesiDetail(ctx context.Context, schemaName string, sesiID int, input UpdateSesiDetailInput) error
 
@@ -38,15 +37,15 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
-// ... (Fungsi Master tidak berubah) ...
+// --- Master Ekstrakurikuler ---
 func (s *service) Create(ctx context.Context, schemaName string, input UpsertEkstrakurikulerInput) (*Ekstrakurikuler, error) {
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
 	return s.repo.Create(ctx, schemaName, input)
 }
-func (s *service) GetAll(ctx context.Context, schemaName string) ([]Ekstrakurikuler, error) {
-	return s.repo.GetAll(ctx, schemaName)
+func (s *service) GetAll(ctx context.Context, schemaName string, tahunAjaranID string) ([]Ekstrakurikuler, error) {
+	return s.repo.GetAll(ctx, schemaName, tahunAjaranID)
 }
 func (s *service) Update(ctx context.Context, schemaName string, id int, input UpsertEkstrakurikulerInput) error {
 	if err := s.validate.Struct(input); err != nil {
@@ -59,7 +58,6 @@ func (s *service) Delete(ctx context.Context, schemaName string, id int) error {
 }
 
 // --- Sesi ---
-// FIX: Mengubah tahunAjaranID dari int menjadi string
 func (s *service) GetOrCreateSesi(ctx context.Context, schemaName string, ekskulID int, tahunAjaranID string) (*EkstrakurikulerSesi, error) {
 	return s.repo.GetOrCreateSesi(ctx, schemaName, ekskulID, tahunAjaranID)
 }

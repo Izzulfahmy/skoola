@@ -40,7 +40,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	result, err := h.service.GetAll(r.Context(), schemaName)
+
+	// FIX: Ambil tahunAjaranID dari query parameter dan validasi
+	tahunAjaranID := r.URL.Query().Get("tahunAjaranId")
+	if tahunAjaranID == "" {
+		http.Error(w, "Parameter 'tahunAjaranId' wajib ada", http.StatusBadRequest)
+		return
+	}
+
+	// FIX: Gunakan service.GetAll yang baru dengan tahunAjaranID
+	result, err := h.service.GetAll(r.Context(), schemaName, tahunAjaranID)
 	if err != nil {
 		http.Error(w, "Gagal mengambil data: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -89,9 +98,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetSesi(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	ekskulID, errEkskul := strconv.Atoi(r.URL.Query().Get("ekskulId"))
-	tahunAjaranID := r.URL.Query().Get("tahunAjaranId") // FIX: Langsung ambil sebagai string
+	tahunAjaranID := r.URL.Query().Get("tahunAjaranId")
 
-	// FIX: Hapus pengecekan error untuk tahunAjaranID dan periksa string kosong
 	if errEkskul != nil || tahunAjaranID == "" {
 		http.Error(w, "Parameter 'ekskulId' (int) dan 'tahunAjaranId' (string) wajib ada", http.StatusBadRequest)
 		return

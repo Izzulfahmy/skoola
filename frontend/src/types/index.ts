@@ -586,6 +586,9 @@ export interface Ekstrakurikuler {
   deskripsi?: string;
   created_at: string;
   updated_at: string;
+  // FIX: Tambahkan properti dari backend yang diperbarui (Nama Pembina & Jumlah Anggota)
+  nama_pembina?: string | null; 
+  jumlah_anggota?: number | null;
 }
 
 export interface UpsertEkstrakurikulerInput {
@@ -598,7 +601,7 @@ export interface EkstrakurikulerSesi {
   ekstrakurikuler_id: number;
   tahun_ajaran_id: string;
   pembina_id: string | null;
-  nama_pembina?: string | null;
+  nama_pembina?: string | null; // Perubahan di sini
   jumlah_anggota: number;
 }
 

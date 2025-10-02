@@ -10,8 +10,11 @@ import type {
 } from '../types';
 
 // --- Master Ekstrakurikuler (dari Pengaturan) ---
-export const getAllEkstrakurikuler = async (): Promise<Ekstrakurikuler[]> => {
-  const response = await apiClient.get('/ekstrakurikuler');
+// FIX: Tambahkan parameter tahunAjaranId dan kirimkan ke backend
+export const getAllEkstrakurikuler = async (tahunAjaranId: string): Promise<Ekstrakurikuler[]> => {
+  const response = await apiClient.get('/ekstrakurikuler', {
+    params: { tahunAjaranId } 
+  });
   return response.data;
 };
 
@@ -30,9 +33,8 @@ export const deleteEkstrakurikuler = async (id: number): Promise<void> => {
 };
 
 
-// --- API BARU UNTUK MANAJEMEN SESI & ANGGOTA ---
+// --- API BARU UNTUK MANAJEMEN SESI & ANGGOTA (Tetap sama) ---
 
-// FIX: Pastikan tipe tahunAjaranId adalah string
 export const getOrCreateSesi = async (ekskulId: number, tahunAjaranId: string): Promise<EkstrakurikulerSesi> => {
   const response = await apiClient.get('/ekstrakurikuler/sesi', {
     params: { ekskulId, tahunAjaranId },
@@ -46,7 +48,7 @@ export const updateSesiDetail = async (sesiId: number, data: UpdateSesiDetailInp
 
 export const getAnggotaBySesiId = async (sesiId: number): Promise<EkstrakurikulerAnggota[]> => {
   const response = await apiClient.get(`/ekstrakurikuler/sesi/${sesiId}/anggota`);
-  return response.data || []; // Pastikan selalu mengembalikan array
+  return response.data || [];
 };
 
 export const addAnggotaToSesi = async (sesiId: number, data: AddAnggotaInput): Promise<void> => {
