@@ -9,7 +9,11 @@ import type {
   RencanaPembelajaranItem,
   Ujian,
   UpsertUjianInput,
-  UpdateRencanaUrutanInput, // <-- Impor tipe baru
+  UpdateRencanaUrutanInput,
+  // --- Import Tipe Baru ---
+  CreateBulkUjianPayload, 
+  BulkUjianResult, 
+  // -------------------------
 } from '../types';
 
 // --- API UNTUK RENCANA GABUNGAN ---
@@ -81,6 +85,17 @@ export const deleteUjian = async (ujianID: number): Promise<void> => {
     throw error;
   }
 };
+
+// --- API UNTUK BULK UJIAN ---
+export const createBulkUjian = async (payload: CreateBulkUjianPayload): Promise<BulkUjianResult> => {
+  try {
+    const response = await apiClient.post('/pembelajaran/ujian/bulk', payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+// ----------------------------
 
 
 // --- API UNTUK TUJUAN PEMBELAJARAN ---

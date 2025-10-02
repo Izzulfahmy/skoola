@@ -1,211 +1,248 @@
-// file: src/layouts/AdminLayout.tsx
-import { useState, useEffect } from 'react';
+// file: frontend/src/layouts/AdminLayout.tsx
+import { useState, useMemo } from 'react';
+import { Layout, Menu, theme, Dropdown, Button, Space, Typography, Select } from 'antd';
 import {
-  DesktopOutlined,
-  UserOutlined,
-  TeamOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BankOutlined,
-  LogoutOutlined,
+  UserOutlined,
+  HomeOutlined,
   SettingOutlined,
-  CalendarOutlined,
-  BookOutlined,
-  ProjectOutlined,
-  ApartmentOutlined,
   SolutionOutlined,
-  ExperimentOutlined,
-  TrophyOutlined, // <-- Impor ikon baru
+  TeamOutlined,
+  ReadOutlined,
+  BookOutlined,
+  CalendarOutlined,
+  CheckSquareOutlined,
+  StarOutlined,
+  FormOutlined, // <-- Import Icon Baru (FormOutlined untuk Ujian)
 } from '@ant-design/icons';
-import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd';
-import type { MenuProps } from 'antd';
-import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getInitials } from '../utils/auth';
+import { useTahunAjaran } from '../hooks/useTahunAjaran';
 
-const { Header, Sider, Content, Footer } = Layout;
+const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-const AdminLayout = () => {
-  const [collapsed, setCollapsed] = useState(true);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+interface MenuItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  path?: string;
+  children?: MenuItem[];
+  disabled?: boolean;
+}
 
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+// Fungsi untuk membuat item menu (untuk konsistensi)
+const getItem = (
+  label: string,
+  key: string,
+  icon: React.ReactNode,
+  path?: string,
+  children?: MenuItem[],
+  disabled?: boolean
+): MenuItem => {
+  return {
+    key,
+    icon,
+    label,
+    path,
+    children,
+    disabled,
+  };
+};
+
+const AdminLayout: React.FC = () => {
+  const [collapsed, setCollapsed] = useState(false);
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const {
+    tahunAjaranOptions,
+    activeTahunAjaran,
+    setActiveTahunAjaran,
+  } = useTahunAjaran();
 
-  const { token } = theme.useToken();
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleMenuClick = (e: { key: string }) => {
+    const item = menuItems.find(i => i.key === e.key);
+    if (item && item.path) {
+      navigate(item.path);
+    }
   };
 
-  const profileMenuItems: MenuProps['items'] = [
-    {
-      key: 'settings',
-      label: 'Pengaturan Akun',
-      icon: <SettingOutlined />,
-      onClick: () => navigate('/settings', { state: { openTab: '4' } }),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      label: 'Logout',
-      icon: <LogoutOutlined />,
-      onClick: handleLogout,
-      danger: true,
-    },
-  ];
+  const handleDropdownClick = (e: { key: string }) => {
+    if (e.key === 'logout') {
+      logout();
+      navigate('/login');
+    } else if (e.key === 'profile') {
+      navigate('/admin/profile');
+    }
+  };
 
-  // --- PERUBAHAN 2: Item menu baru ditambahkan di sini ---
-  const allMenuItems: MenuProps['items'] = [
-    { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
-    { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
-    { key: '/tahun-ajaran', icon: <CalendarOutlined />, label: <Link to="/tahun-ajaran">Tahun Pelajaran</Link> },
-    { key: '/kurikulum', icon: <ProjectOutlined />, label: <Link to="/kurikulum">Kurikulum</Link> },
-    { key: '/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/mata-pelajaran">Mata Pelajaran</Link> },
-    { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
-    { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
-    { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombongan Belajar</Link> },
-    {
-      key: '/ekstrakurikuler',
-      icon: <ExperimentOutlined />,
-      label: <Link to="/ekstrakurikuler">Ekstrakurikuler</Link>,
-    },
-    { key: '/prestasi', icon: <TrophyOutlined />, label: <Link to="/prestasi">Prestasi</Link> },
-    { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
-    { type: 'divider' },
-    { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
-  ];
-  // ----------------------------------------------------
-
-  const validMenuItems = allMenuItems.filter(
-    (item): item is { key: string; icon: React.ReactNode; label: React.ReactNode; } =>
-      item !== null && typeof item === 'object' && 'key' in item && typeof item.key === 'string'
+  const dropdownMenu = (
+    <Menu onClick={handleDropdownClick}>
+      <Menu.Item key="profile" icon={<UserOutlined />}>
+        Profil Sekolah
+      </Menu.Item>
+      <Menu.Item key="logout" icon={<SolutionOutlined />}>
+        Logout
+      </Menu.Item>
+    </Menu>
   );
 
-  const activeKey = validMenuItems
-    .sort((a, b) => b.key.length - a.key.length)
-    .find(item => location.pathname.startsWith(item.key))?.key || '/dashboard';
+  const menuItems: MenuItem[] = useMemo(() => {
+    return [
+      getItem('Dashboard', '/', <HomeOutlined />, '/'),
+      getItem('Guru & Pegawai', '/teachers', <UserOutlined />, '/teachers'),
+      getItem('Siswa', '/students', <TeamOutlined />, '/students'),
+      getItem('Rombel', '/rombel', <ReadOutlined />, '/rombel'),
+      // --- PENAMBAHAN MENU BARU DI SINI ---
+      getItem('Ujian', '/ujian', <FormOutlined />, '/ujian'),
+      // ------------------------------------
+      getItem('Presensi', '/presensi', <CheckSquareOutlined />, '/presensi'),
+      getItem('Prestasi', '/prestasi', <StarOutlined />, '/prestasi'),
+      getItem('Ekstrakurikuler', '/ekstrakurikuler', <BookOutlined />, '/ekstrakurikuler'),
+      getItem('Akademik', '/akademik', <CalendarOutlined />, undefined, [
+        getItem('Tahun Ajaran', '/tahun-ajaran', <CalendarOutlined />, '/tahun-ajaran'),
+        getItem('Kurikulum', '/kurikulum', <BookOutlined />, '/kurikulum'),
+        getItem('Mata Pelajaran', '/mata-pelajaran', <ReadOutlined />, '/mata-pelajaran'),
+      ]),
+      getItem('Pengaturan', '/settings', <SettingOutlined />, '/settings', [
+        getItem('Jenjang Pendidikan', '/settings/jenjang', <SettingOutlined />, '/settings/jenjang'),
+        getItem('Tingkatan', '/settings/tingkatan', <SettingOutlined />, '/settings/tingkatan'),
+        getItem('Jabatan', '/settings/jabatan', <SettingOutlined />, '/settings/jabatan'),
+        getItem('Jenis Ujian', '/settings/jenis-ujian', <SettingOutlined />, '/settings/jenis-ujian'),
+        getItem('Pengaturan Admin', '/settings/admin', <SettingOutlined />, '/settings/admin'),
+      ]),
+    ];
+  }, []);
 
-  const menuContent = (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{
-        height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
-      }}>
-        {isMobile || !collapsed ? 'Admin Panel' : ''}
-      </div>
+  const findOpenKeys = (items: MenuItem[], path: string, currentKeys: string[] = []): string[] => {
+    for (const item of items) {
+      if (item.path === path) {
+        return currentKeys;
+      }
+      if (item.children) {
+        const foundKeys = findOpenKeys(item.children, path, [...currentKeys, item.key]);
+        if (foundKeys.length > currentKeys.length) {
+          return foundKeys;
+        }
+      }
+    }
+    return [];
+  };
 
-      <Menu
-        theme="dark"
-        mode="inline"
-        selectedKeys={[activeKey]}
-        items={allMenuItems}
-        onClick={isMobile ? () => setDrawerVisible(false) : undefined}
-        style={{ flex: 1, borderRight: 0 }}
-      />
-    </div>
-  );
-
-  const siderWidth = 200;
-  const siderCollapsedWidth = 60;
+  const selectedKey = location.pathname;
+  const openKeys = useMemo(() => findOpenKeys(menuItems, selectedKey), [menuItems, selectedKey]);
 
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Menu: {
-            itemSelectedBg: 'rgba(255, 255, 255, 0.15)',
-            itemSelectedColor: '#FFFFFF',
-            itemBorderRadius: 6,
-            itemMarginInline: 8,
-          },
-        },
-      }}
-    >
-      <Layout style={{ height: '100vh' }}>
-        {!isMobile && (
-          <Sider
-            trigger={null}
-            collapsible
-            collapsed={collapsed}
-            width={siderWidth}
-            collapsedWidth={siderCollapsedWidth}
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider trigger={null} collapsible collapsed={collapsed}>
+        <div
+          className="logo-vertical"
+          style={{
+            height: 32,
+            margin: 16,
+            background: 'rgba(255, 255, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: 'bold',
+          }}
+        >
+          <Link to="/">SKOOLA</Link>
+        </div>
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          defaultOpenKeys={openKeys}
+          onClick={handleMenuClick}
+          items={menuItems}
+        />
+      </Sider>
+      <Layout>
+        <Header
+          style={{
+            padding: 0,
+            background: colorBgContainer,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingRight: 24,
+          }}
+        >
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
             style={{
-              height: '100vh',
-              position: 'fixed',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
+              fontSize: '16px',
+              width: 64,
+              height: 64,
             }}
-          >
-             <style>
-              {`
-                .ant-menu-inline-collapsed > .ant-menu-item {
-                  padding: 0 calc(50% - 16px) !important;
+          />
+          <Space>
+            {/* Pemilihan Tahun Ajaran Aktif */}
+            <Text style={{ marginRight: 8 }}>Tahun Ajaran Aktif:</Text>
+            <Select
+              value={activeTahunAjaran?.id}
+              style={{ width: 200 }}
+              options={tahunAjaranOptions.map(ta => ({
+                value: ta.id,
+                label: ta.nama,
+              }))}
+              onChange={(value) => {
+                const selectedTa = tahunAjaranOptions.find(ta => ta.id === value);
+                if (selectedTa) {
+                  setActiveTahunAjaran(selectedTa);
                 }
-              `}
-            </style>
-            {menuContent}
-          </Sider>
-        )}
-
-        <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
-          <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 48, lineHeight: '48px' }}>
-            <Button
-              type="text"
-              icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
-              style={{ fontSize: '16px', width: 48, height: 48 }}
+              }}
+              dropdownMatchSelectWidth={false}
             />
-            <Space align="center">
-              {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, Admin!</Text>}
-              <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
-                <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
-                  <Avatar style={{ backgroundColor: '#1890ff' }} icon={<UserOutlined />} />
-                </a>
-              </Dropdown>
-            </Space>
-          </Header>
-          <Content style={{ margin: isMobile ? '16px 8px' : '24px 16px', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: isMobile ? 12 : 24, background: token.colorBgContainer, borderRadius: token.borderRadiusLG, flex: 1 }}>
-              <Outlet />
-            </div>
-            <Footer style={{ textAlign: 'center', padding: '12px 24px', flexShrink: 0 }}>
-              Skoola Admin Panel ©{new Date().getFullYear()}
-            </Footer>
-          </Content>
-        </Layout>
 
-        {isMobile && (
-          <Drawer
-            placement="left"
-            closable={false}
-            onClose={() => setDrawerVisible(false)}
-            open={drawerVisible}
-            bodyStyle={{ padding: 0, backgroundColor: '#001529' }}
-            width={siderWidth}
-          >
-            {menuContent}
-          </Drawer>
-        )}
+            <Dropdown overlay={dropdownMenu} placement="bottomRight" arrow>
+              <Button type="text" style={{ padding: '0 10px' }}>
+                <Space>
+                  <Text strong>{user?.name || user?.username}</Text>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      backgroundColor: '#1890ff',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {getInitials(user?.name || user?.username || 'Admin')}
+                  </div>
+                </Space>
+              </Button>
+            </Dropdown>
+          </Space>
+        </Header>
+        <Content
+          style={{
+            margin: '24px 16px',
+            padding: 24,
+            minHeight: 280,
+            background: colorBgContainer,
+            borderRadius: borderRadiusLG,
+          }}
+        >
+          <Outlet />
+        </Content>
       </Layout>
-    </ConfigProvider>
+    </Layout>
   );
 };
 

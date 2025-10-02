@@ -96,6 +96,20 @@ export interface RencanaPembelajaranItem {
     penilaian_sumatif?: PenilaianSumatif[];
 }
 
+// --- TIPE BARU UNTUK BULK UJIAN ---
+export interface CreateBulkUjianPayload {
+  pengajar_kelas_id: string; // Tambahkan ini jika pengajar_kelas_id diperlukan untuk konteks
+  nama_ujian: string;
+  kelas_ids: string[]; // UUIDs dari kelas/rombel yang dipilih
+}
+
+export interface BulkUjianResult {
+  success_count: number;
+  total_count: number;
+}
+// ------------------------------------
+
+
 export interface KelompokMataPelajaran {
   id: number;
   nama_kelompok: string;

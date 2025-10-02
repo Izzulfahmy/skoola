@@ -26,6 +26,7 @@ type Service interface {
 	CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error)
 	UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error
 	DeleteUjian(ctx context.Context, schemaName string, id int) error
+	CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error) // <-- BARU
 
 	// Tujuan Pembelajaran
 	CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error)
@@ -44,11 +45,23 @@ func NewService(repo Repository, validate *validator.Validate) Service {
 	return &service{repo: repo, validate: validate}
 }
 
+// --- Implementasi CreateBulkUjian (BARU) ---
+
+func (s *service) CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error) {
+	if err := s.validate.Struct(input); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
+	}
+
+	return s.repo.CreateBulkUjian(ctx, schemaName, input)
+}
+
 func (s *service) GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error) {
+	// ... kode tidak berubah
 	return s.repo.GetAllRencanaPembelajaran(ctx, schemaName, pengajarKelasID)
 }
 
 func (s *service) UpdateRencanaUrutan(ctx context.Context, schemaName string, input UpdateRencanaUrutanInput) error {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -56,6 +69,7 @@ func (s *service) UpdateRencanaUrutan(ctx context.Context, schemaName string, in
 }
 
 func (s *service) UpdateUrutanTujuan(ctx context.Context, schemaName string, input UpdateUrutanInput) error {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -63,6 +77,7 @@ func (s *service) UpdateUrutanTujuan(ctx context.Context, schemaName string, inp
 }
 
 func (s *service) CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error) {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -70,6 +85,7 @@ func (s *service) CreateMateri(ctx context.Context, schemaName string, input Ups
 }
 
 func (s *service) UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -77,11 +93,13 @@ func (s *service) UpdateMateri(ctx context.Context, schemaName string, id int, i
 }
 
 func (s *service) DeleteMateri(ctx context.Context, schemaName string, id int) error {
+	// ... kode tidak berubah
 	return s.repo.DeleteMateri(ctx, schemaName, id)
 }
 
 // --- UJIAN ---
 func (s *service) CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error) {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -89,6 +107,7 @@ func (s *service) CreateUjian(ctx context.Context, schemaName string, input Upse
 }
 
 func (s *service) UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -96,11 +115,13 @@ func (s *service) UpdateUjian(ctx context.Context, schemaName string, id int, in
 }
 
 func (s *service) DeleteUjian(ctx context.Context, schemaName string, id int) error {
+	// ... kode tidak berubah
 	return s.repo.DeleteUjian(ctx, schemaName, id)
 }
 
 // --- TUJUAN ---
 func (s *service) CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error) {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -108,6 +129,7 @@ func (s *service) CreateTujuan(ctx context.Context, schemaName string, input Ups
 }
 
 func (s *service) UpdateTujuan(ctx context.Context, schemaName string, id int, input UpsertTujuanInput) error {
+	// ... kode tidak berubah
 	if err := s.validate.Struct(input); err != nil {
 		return fmt.Errorf("%w: %s", ErrValidation, err.Error())
 	}
@@ -115,5 +137,6 @@ func (s *service) UpdateTujuan(ctx context.Context, schemaName string, id int, i
 }
 
 func (s *service) DeleteTujuan(ctx context.Context, schemaName string, id int) error {
+	// ... kode tidak berubah
 	return s.repo.DeleteTujuan(ctx, schemaName, id)
 }

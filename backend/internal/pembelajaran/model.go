@@ -91,3 +91,15 @@ type RencanaUrutanItem struct {
 	ID   int    `json:"id" validate:"required"`
 	Type string `json:"type" validate:"required,oneof=materi ujian"`
 }
+
+// --- DTO BARU UNTUK BULK CREATION UJIAN ---
+type CreateBulkUjianInput struct {
+	NamaUjian     string   `json:"nama_ujian" validate:"required,min=3,max=255"`
+	TahunAjaranID string   `json:"tahun_ajaran_id" validate:"required,uuid"`
+	KelasIDs      []string `json:"kelas_ids" validate:"required,min=1,dive,uuid"`
+}
+
+type BulkUjianResult struct {
+	SuccessCount int `json:"success_count"`
+	TotalCount   int `json:"total_count"`
+}

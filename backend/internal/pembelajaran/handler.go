@@ -18,7 +18,27 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
-// --- HANDLER BARU ---
+// --- HANDLER BARU UNTUK BULK CREATION UJIAN ---
+func (h *Handler) CreateBulkUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input CreateBulkUjianInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.service.CreateBulkUjian(r.Context(), schemaName, input)
+	if err != nil {
+		http.Error(w, "Gagal membuat ujian massal: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(result)
+}
+
+// --- HANDLER LAMA (TIDAK BERUBAH) ---
 func (h *Handler) UpdateRencanaUrutan(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	var input UpdateRencanaUrutanInput
