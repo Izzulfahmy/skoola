@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bvbAvIHabshwYhC5XvLnrT08SMBi8SwHmsGy9rIKQNJsy6r8R0BfB7NvUCTakht
+\restrict UOqSBfZHnTHeNWKvFKOWTZ8NJU4jNgd0K5i9U3aVgxtMdW5Z4MFTfzvochzTWs7
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -2451,6 +2451,7 @@ COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
+1	93710d83-97f9-4a4e-8802-6dad91ceca99	Materi Baru	\N	1	2025-10-02 19:32:01.018616+07	2025-10-02 19:32:10.792168+07
 \.
 
 
@@ -2459,6 +2460,8 @@ COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskrip
 --
 
 COPY "20554021".nilai_sumatif_siswa (id, penilaian_sumatif_id, anggota_kelas_id, nilai, created_at, updated_at) FROM stdin;
+1	c0c063e8-b312-4db8-a276-ad9a9758a299	a56e3583-0e31-4cd8-99aa-6cd15e1833f5	80.00	2025-10-02 19:33:00.643631+07	2025-10-02 19:33:00.643631+07
+2	b3bf07de-264a-4a99-b1e6-43e9756d9680	a56e3583-0e31-4cd8-99aa-6cd15e1833f5	90.00	2025-10-02 19:33:00.643631+07	2025-10-02 19:33:00.643631+07
 \.
 
 
@@ -2492,6 +2495,8 @@ COPY "20554021".penilaian (id, anggota_kelas_id, tujuan_pembelajaran_id, nilai, 
 --
 
 COPY "20554021".penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, nama_penilaian, tanggal_pelaksanaan, keterangan, created_at, updated_at, ujian_id) FROM stdin;
+c0c063e8-b312-4db8-a276-ad9a9758a299	1	2	Buku Tulis	2025-10-02	\N	2025-10-02 19:32:24.155514+07	2025-10-02 19:32:24.155514+07	\N
+b3bf07de-264a-4a99-b1e6-43e9756d9680	\N	5	Menggambar	2025-10-02	\N	2025-10-02 19:32:44.414728+07	2025-10-02 19:32:44.414728+07	4
 \.
 
 
@@ -2595,6 +2600,7 @@ COPY "20554021".tingkatan (id, nama_tingkatan, urutan, created_at, updated_at) F
 --
 
 COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujuan, urutan, created_at, updated_at) FROM stdin;
+1	1	Tujuan pembelajaran baru.	1	2025-10-02 19:32:14.172117+07	2025-10-02 19:32:14.172117+07
 \.
 
 
@@ -2603,8 +2609,7 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at) FROM stdin;
-3	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	1	2025-10-02 19:18:04.169417+07	2025-10-02 19:18:04.169417+07
-4	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	2	2025-10-02 19:27:34.530076+07	2025-10-02 19:27:34.530076+07
+4	93710d83-97f9-4a4e-8802-6dad91ceca99	UTS	2	2025-10-02 19:27:34.530076+07	2025-10-02 19:32:10.792168+07
 \.
 
 
@@ -2989,14 +2994,14 @@ SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 1, false);
 -- Name: materi_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 1, true);
 
 
 --
 -- Name: nilai_sumatif_siswa_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".nilai_sumatif_siswa_id_seq', 2, true);
 
 
 --
@@ -3017,7 +3022,7 @@ SELECT pg_catalog.setval('"20554021".tingkatan_id_seq', 6, true);
 -- Name: tujuan_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, true);
 
 
 --
@@ -5039,5 +5044,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bvbAvIHabshwYhC5XvLnrT08SMBi8SwHmsGy9rIKQNJsy6r8R0BfB7NvUCTakht
+\unrestrict UOqSBfZHnTHeNWKvFKOWTZ8NJU4jNgd0K5i9U3aVgxtMdW5Z4MFTfzvochzTWs7
 

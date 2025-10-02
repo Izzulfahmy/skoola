@@ -83,10 +83,10 @@ const AdminLayout = () => {
     { key: '/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/mata-pelajaran">Mata Pelajaran</Link> },
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
-    { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombongan Belajar</Link> },
+    { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombel</Link> },
     
     // --- PENAMBAHAN MENU UJIAN ---
-    { key: '/ujian', icon: <FormOutlined />, label: <Link to="/ujian">Ujian & Penilaian</Link> }, 
+    { key: '/ujian', icon: <FormOutlined />, label: <Link to="/ujian">Ujian</Link> }, 
     
     {
       key: '/ekstrakurikuler',
