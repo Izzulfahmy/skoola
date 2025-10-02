@@ -96,6 +96,17 @@ export interface Ujian {
 }
 
 
+// --- TIPE BARU UNTUK MONITORING UJIAN (Tambahkan di sini) ---
+export interface UjianMonitoring {
+  id: string; // ID Ujian pertama atau ID Grouping untuk bulk
+  nama_ujian: string; // FIX: Menambahkan field nama_ujian
+  tahun_ajaran_id: string;
+  jumlah_kelas: number; // FIX: Menambahkan field agregasi
+  jumlah_mapel: number; // FIX: Menambahkan field agregasi
+}
+// ------------------------------------
+
+
 export interface RencanaPembelajaranItem {
     type: 'materi' | 'ujian';
     id: number;

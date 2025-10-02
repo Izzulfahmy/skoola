@@ -1,15 +1,14 @@
 // file: frontend/src/pages/UjianPage.tsx
 import React, { useState, useMemo } from 'react';
-import { Button, Typography, Card, Space, Modal, Form, Input, Cascader, Alert, notification, Tag } from 'antd';
-import { PlusOutlined, FormOutlined } from '@ant-design/icons';
-// Hapus useQueryClient karena tidak digunakan lagi
-import { useQuery, useMutation } from '@tanstack/react-query'; 
-// PERBAIKAN 1: Ganti nama impor dan panggilan fungsi API
+import { Button, Typography, Card, Space, Modal, Form, Input, Cascader, Alert, notification, Tag, Collapse } from 'antd';
+import { PlusOutlined, FormOutlined, EyeOutlined, DashboardOutlined, ScheduleOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; 
 import { getAllKelasByTahunAjaran } from '../api/rombel'; 
 import { useTahunAjaran } from '../hooks/useTahunAjaran';
-// Asumsi: Jenjang type sudah ada di types/index.ts untuk Cascader
-import type { Kelas, CreateBulkUjianPayload, Jenjang } from '../types'; 
-import { createBulkUjian } from '../api/pembelajaran';
+// FIX: Ganti Ujian menjadi UjianMonitoring untuk list monitoring
+import type { Kelas, CreateBulkUjianPayload, UjianMonitoring } from '../types'; 
+// FIX: Import getAllUjian
+import { createBulkUjian, getAllUjian } from '../api/pembelajaran'; 
 import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -22,9 +21,77 @@ interface CascaderOption {
   children?: CascaderOption[];
 }
 
+// --- Komponen Panel Monitoring Ujian ---
+interface UjianListPanelProps {
+    tahunAjaranId: string;
+}
+
+const UjianListPanel: React.FC<UjianListPanelProps> = ({ tahunAjaranId }) => {
+    // Query untuk mengambil daftar Ujian
+    // FIX: Gunakan tipe UjianMonitoring[]
+    const { data: ujianList, isLoading: isLoadingUjian } = useQuery<UjianMonitoring[]>({
+        queryKey: ['ujianList', tahunAjaranId],
+        queryFn: () => getAllUjian(tahunAjaranId), // Panggil API untuk mengambil semua ujian
+        enabled: !!tahunAjaranId,
+    });
+
+    if (isLoadingUjian) {
+        return <Text type="secondary">Memuat daftar ujian...</Text>;
+    }
+    
+    if (!ujianList || ujianList.length === 0) {
+        return <Alert message="Belum ada ujian yang dibuat untuk tahun ajaran ini." type="info" showIcon />;
+    }
+
+    const collapseItems = ujianList.map((ujian) => ({
+        key: ujian.id,
+        label: (
+            <Space direction="vertical" size={0}>
+                {/* FIX: Gunakan nama_ujian */}
+                <Title level={5} style={{ margin: 0 }}>{ujian.nama_ujian}</Title>
+                <Text type="secondary" style={{ fontSize: '0.85em' }}>
+                    {/* FIX: Gunakan jumlah_kelas dan jumlah_mapel */}
+                    Total: {ujian.jumlah_kelas || 0} Rombel | {ujian.jumlah_mapel || 0} Mata Pelajaran
+                </Text>
+            </Space>
+        ),
+        children: (
+            <Space direction="vertical" style={{ width: '100%' }}>
+                <Alert
+                    message="Detail Ujian"
+                    description="Klik link 'Lihat Penilaian' untuk mengelola detail rombel dan mata pelajaran."
+                    type="info"
+                    showIcon
+                />
+                <Button 
+                    type="link" 
+                    icon={<EyeOutlined />}
+                    onClick={() => console.log('Navigasi ke Detail Ujian:', ujian.id)}
+                >
+                    Lihat Detail Ujian (Rombel & Mapel)
+                </Button>
+            </Space>
+        ),
+        extra: (
+            <Link to={`/penilaian?ujian_id=${ujian.id}`} onClick={(e) => e.stopPropagation()}>
+                <Button size="small" icon={<DashboardOutlined />} type="default">Lihat Penilaian</Button>
+            </Link>
+        )
+    }));
+
+    return (
+        <Space direction="vertical" style={{ width: '100%' }}>
+            <Title level={4}><ScheduleOutlined /> Daftar Ujian Dibuat</Title>
+            <Collapse items={collapseItems} accordion style={{ width: '100%' }} />
+        </Space>
+    );
+}
+
+// --- Komponen Utama UjianPage ---
+
 const UjianPage: React.FC = () => {
   const [api, contextHolder] = useNotification();
-  // const queryClient = useQueryClient(); // Dihapus
+  const queryClient = useQueryClient(); 
   const [form] = Form.useForm();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { activeTahunAjaran } = useTahunAjaran();
@@ -32,38 +99,30 @@ const UjianPage: React.FC = () => {
   // 1. Fetch data Rombel berdasarkan Tahun Ajaran aktif
   const { data: rombelData, isLoading: isLoadingRombel } = useQuery<Kelas[]>({
     queryKey: ['rombelListByTahunAjaran', activeTahunAjaran?.id],
-    // PERBAIKAN 1: Panggil fungsi API dengan nama yang benar
     queryFn: () => getAllKelasByTahunAjaran(activeTahunAjaran!.id),
     enabled: !!activeTahunAjaran?.id,
   });
-
+  
   // 2. Transformasi data Rombel ke format Cascader
   const cascaderOptions: CascaderOption[] = useMemo(() => {
     if (!rombelData) return [];
 
-    // Grouping by Jenjang and Tingkatan
-    const groups = new Map<string, CascaderOption>(); // Key: JenjangID-TingkatanID
+    const groups = new Map<string, CascaderOption>();
 
     rombelData.forEach(kelas => {
       
-      // PERBAIKAN: Hapus/Ganti logika pengecekan yang bergantung pada jenjang_id dan nama_jenjang 
-      // yang kini bernilai null/undefined setelah perbaikan backend sebelumnya.
-      // Cukup pastikan nama_tingkatan ada, karena tingkatan_id harus selalu ada.
       if (!kelas.nama_tingkatan) { 
           console.warn(`Kelas ID ${kelas.id} dilewati karena data tingkatan hilang.`);
           return;
       }
       
-      // Menggunakan fallback value ('unknown') untuk jenjang_id dan nama_jenjang
-      // karena field tersebut tidak disertakan dalam query backend saat ini.
       const jenjangId = kelas.jenjang_id || 'unknown'; 
       const namaJenjang = kelas.nama_jenjang || 'Tingkat Pendidikan Lain';
 
 
-      // Menggunakan tingkatan_id dan jenjang_id dari field flat
       const key = `${jenjangId}-${kelas.tingkatan_id}`;
       const tingkatanLabel = kelas.nama_tingkatan;
-      const groupLabel = `${namaJenjang} - ${tingkatanLabel}`; // Kelompok: [Jenjang] - [Tingkatan]
+      const groupLabel = `${namaJenjang} - ${tingkatanLabel}`; 
 
       if (!groups.has(key)) {
         groups.set(key, {
@@ -73,27 +132,27 @@ const UjianPage: React.FC = () => {
         });
       }
 
-      // Tambahkan Rombel/Kelas sebagai checkbox di bawah group
       groups.get(key)!.children!.push({
-        value: kelas.id, // ID Kelas/Rombel (UUID)
+        value: kelas.id, 
         label: kelas.nama_kelas, 
       });
     });
 
-    // Urutkan groups berdasarkan label (Jenjang - Tingkatan)
     return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [rombelData]);
 
   // 3. Mutasi untuk membuat Bulk Ujian
   const createBulkUjianMutation = useMutation({
     mutationFn: createBulkUjian,
-    onSuccess: (result) => {
+    onSuccess: () => {
       api.success({
         message: 'Pembuatan Ujian Berhasil',
-        description: `Berhasil membuat ${result.success_count} ujian baru dari total ${result.total_count} mata pelajaran.`,
+        description: `Entri ujian baru telah berhasil dibuat. Silakan cek di panel monitoring.`,
       });
       setIsModalOpen(false);
       form.resetFields();
+      // Invalidasi query ujianList agar daftar ujian terbaru muncul
+      queryClient.invalidateQueries({ queryKey: ['ujianList'] }); 
     },
     onError: (error: any) => {
       api.error({
@@ -109,8 +168,6 @@ const UjianPage: React.FC = () => {
       return;
     }
 
-    // Ambil hanya UUID kelas dari Cascader (level 1 dari path, karena level 0 adalah Jenjang/Tingkatan group)
-    // Cascader path adalah [Jenjang-Tingkatan-Key, Kelas-ID]
     const kelasIDs: string[] = values.kelas.map((path: string[]) => path[1]);
 
     const uniqueKelasIDs = Array.from(new Set(kelasIDs));
@@ -149,42 +206,47 @@ const UjianPage: React.FC = () => {
             showIcon
           />
         ) : (
-          <Card
-            title={<Title level={5}>Tahun Ajaran Aktif: <Tag color="blue">{activeTahunAjaran.nama}</Tag></Title>}
-            extra={
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  form.resetFields();
-                  setIsModalOpen(true);
-                }}
-                loading={isLoadingRombel}
-                disabled={isLoadingRombel || !cascaderOptions.some(opt => opt.children && opt.children.length > 0)}
-              >
-                {buttonText}
-              </Button>
-            }
-          >
-            <Text>
-              Gunakan fitur ini untuk membuat entri ujian baru secara massal di **semua mata pelajaran** dari Rombel/Kelas yang Anda pilih dalam satu kali proses.
-            </Text>
-            <div style={{ marginTop: 16 }}>
-                <Text type="secondary">
-                    Untuk melihat, mengedit, dan menambah detail penilaian pada ujian, silakan menuju menu <Link to="/rombel">Rombel</Link>, pilih kelas, dan masuk ke menu <Link to="/teacher/materi-ajar/:pengajarKelasID">Materi Ajar</Link> pada mata pelajaran yang diinginkan.
-                </Text>
-            </div>
+          <>
+            <Card
+              title={<Title level={5}>Tahun Ajaran Aktif: <Tag color="blue">{activeTahunAjaran.nama}</Tag></Title>}
+              extra={
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    form.resetFields();
+                    setIsModalOpen(true);
+                  }}
+                  loading={isLoadingRombel}
+                  disabled={isLoadingRombel || !cascaderOptions.some(opt => opt.children && opt.children.length > 0)}
+                >
+                  {buttonText}
+                </Button>
+              }
+            >
+              <Text>
+                Gunakan fitur ini untuk membuat entri ujian baru secara massal di **semua mata pelajaran** dari Rombel/Kelas yang Anda pilih dalam satu kali proses.
+              </Text>
+              <div style={{ marginTop: 16 }}>
+                  <Text type="secondary">
+                      Untuk melihat, mengedit, dan menambah detail penilaian pada ujian, silakan menuju menu <Link to="/rombel">Rombel</Link>, pilih kelas, dan masuk ke menu <Link to="/teacher/materi-ajar/:pengajarKelasID">Materi Ajar</Link> pada mata pelajaran yang diinginkan.
+                  </Text>
+              </div>
 
-            {cascaderOptions.length === 0 && !isLoadingRombel && (
-                <Alert
-                    message="Tidak Ada Rombel/Kelas Tersedia"
-                    description="Pastikan Anda sudah membuat Rombel/Kelas untuk tahun ajaran aktif."
-                    type="info"
-                    showIcon
-                    style={{ marginTop: 16 }}
-                />
-            )}
-          </Card>
+              {cascaderOptions.length === 0 && !isLoadingRombel && (
+                  <Alert
+                      message="Tidak Ada Rombel/Kelas Tersedia"
+                      description="Pastikan Anda sudah membuat Rombel/Kelas untuk tahun ajaran aktif."
+                      type="info"
+                      showIcon
+                      style={{ marginTop: 16 }}
+                  />
+              )}
+            </Card>
+
+            {/* Tambahkan Panel Monitoring Ujian di sini */}
+            <UjianListPanel tahunAjaranId={activeTahunAjaran.id} />
+          </>
         )}
       </Space>
 
@@ -193,6 +255,7 @@ const UjianPage: React.FC = () => {
         title={buttonText}
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
+        destroyOnClose={true} 
         footer={[
           <Button key="back" onClick={() => setIsModalOpen(false)}>
             Batal

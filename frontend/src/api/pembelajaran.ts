@@ -13,6 +13,7 @@ import type {
   // --- Import Tipe Baru ---
   CreateBulkUjianPayload, 
   BulkUjianResult, 
+  UjianMonitoring, // NEW: Import UjianMonitoring
   // -------------------------
 } from '../types';
 
@@ -96,6 +97,18 @@ export const createBulkUjian = async (payload: CreateBulkUjianPayload): Promise<
   }
 };
 // ----------------------------
+
+// --- API BARU UNTUK MONITORING UJIAN (FIX: Tambahkan fungsi ini) ---
+export const getAllUjian = async (tahunAjaranID: string): Promise<UjianMonitoring[]> => {
+    try {
+        // ASUMSI: Endpoint untuk mengambil daftar ujian yang dibuat secara bulk
+        const response = await apiClient.get(`/pembelajaran/ujian/monitoring/by-tahun-ajaran/${tahunAjaranID}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+// ------------------------------------
 
 
 // --- API UNTUK TUJUAN PEMBELAJARAN ---

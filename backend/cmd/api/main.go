@@ -23,7 +23,7 @@ import (
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
 	"skoola/internal/presensi"
-	"skoola/internal/prestasi" // <-- Impor paket baru
+	"skoola/internal/prestasi"
 	"skoola/internal/profile"
 	"skoola/internal/rombel"
 	"skoola/internal/student"
@@ -352,7 +352,12 @@ func main() {
 			r.With(auth.Authorize("admin", "teacher")).Post("/materi", pembelajaranHandler.CreateMateri)
 			r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
 			r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
-			r.With(auth.Authorize("admin", "teacher")).Post("/ujian/bulk", pembelajaranHandler.CreateBulkUjian) // <-- RUTE BARU
+			r.With(auth.Authorize("admin", "teacher")).Post("/ujian/bulk", pembelajaranHandler.CreateBulkUjian)
+
+			// --- RUTE BARU DITAMBAHKAN ---
+			r.With(auth.Authorize("admin", "teacher")).Get("/ujian/monitoring/by-tahun-ajaran/{tahunAjaranID}", pembelajaranHandler.GetAllUjianMonitoringByTahunAjaran)
+			// -----------------------------
+
 			r.With(auth.Authorize("admin", "teacher")).Post("/ujian", pembelajaranHandler.CreateUjian)
 			r.With(auth.Authorize("admin", "teacher")).Put("/ujian/{id}", pembelajaranHandler.UpdateUjian)
 			r.With(auth.Authorize("admin", "teacher")).Delete("/ujian/{id}", pembelajaranHandler.DeleteUjian)

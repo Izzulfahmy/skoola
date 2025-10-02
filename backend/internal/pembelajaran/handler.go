@@ -18,6 +18,28 @@ func NewHandler(s Service) *Handler {
 	return &Handler{service: s}
 }
 
+// --- HANDLER BARU UNTUK MONITORING UJIAN (Ditambahkan) ---
+func (h *Handler) GetAllUjianMonitoringByTahunAjaran(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	tahunAjaranID := chi.URLParam(r, "tahunAjaranID") // Ambil dari URL Param
+
+	if tahunAjaranID == "" {
+		http.Error(w, "ID Tahun Ajaran wajib diisi", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.service.GetAllUjianMonitoringByTahunAjaran(r.Context(), schemaName, tahunAjaranID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data monitoring ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// --------------------------------------------------------
+
 // --- HANDLER BARU UNTUK BULK CREATION UJIAN ---
 func (h *Handler) CreateBulkUjian(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)

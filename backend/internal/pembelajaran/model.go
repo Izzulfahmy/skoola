@@ -53,6 +53,17 @@ type MateriPembelajaran struct {
 	TujuanPembelajaran []TujuanPembelajaran `json:"tujuan_pembelajaran"` // Untuk menampung data join
 }
 
+// --- DTO BARU UNTUK MONITORING UJIAN (Ditambahkan) ---
+type UjianMonitoring struct {
+	ID            string `json:"id"`         // ID Ujian (yang paling kecil) dalam grup
+	NamaUjian     string `json:"nama_ujian"` // Nama Ujian (Contoh: Ujian Tengah Semester)
+	TahunAjaranID string `json:"tahun_ajaran_id"`
+	JumlahKelas   int    `json:"jumlah_kelas"` // Jumlah Kelas/Rombel yang diaplikasikan
+	JumlahMapel   int    `json:"jumlah_mapel"` // Jumlah Mata Pelajaran yang terlibat
+}
+
+// ------------------------------------
+
 // --- DTO (Data Transfer Objects) untuk Input ---
 
 // UpsertMateriInput adalah DTO untuk membuat atau mengupdate data materi.
