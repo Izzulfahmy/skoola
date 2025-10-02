@@ -13,6 +13,8 @@ type Kelas struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	NamaTingkatan   *string   `json:"nama_tingkatan,omitempty"`    // Untuk join
+	JenjangID       *int      `json:"jenjang_id,omitempty"`        // <-- PERBAIKAN: Field baru
+	NamaJenjang     *string   `json:"nama_jenjang,omitempty"`      // <-- PERBAIKAN: Field baru
 	NamaWaliKelas   *string   `json:"nama_wali_kelas,omitempty"`   // Untuk join
 	JumlahSiswa     int       `json:"jumlah_siswa,omitempty"`      // Untuk join
 	JumlahPengajar  int       `json:"jumlah_pengajar,omitempty"`   // Untuk join
@@ -42,7 +44,7 @@ type PengajarKelas struct {
 	CreatedAt       time.Time `json:"created_at"`
 	NamaGuru        string    `json:"nama_guru,omitempty"`  // Untuk join
 	NamaMapel       string    `json:"nama_mapel,omitempty"` // Untuk join
-	KodeMapel       string    `json:"kode_mapel,omitempty"` // <-- TAMBAHKAN INI
+	KodeMapel       string    `json:"kode_mapel,omitempty"`
 }
 
 // --- DTO (Data Transfer Objects) untuk Input ---
@@ -56,7 +58,6 @@ type UpsertKelasInput struct {
 }
 
 // AddAnggotaKelasInput adalah DTO untuk menambahkan siswa ke kelas.
-// Menggunakan slice of string untuk bisa menambahkan banyak siswa sekaligus.
 type AddAnggotaKelasInput struct {
 	StudentIDs []string `json:"student_ids" validate:"required,min=1,dive,uuid"`
 }

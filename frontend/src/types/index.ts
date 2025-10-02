@@ -1,5 +1,16 @@
 // file: src/types/index.ts
 
+// --- TIPE BARU UNTUK AUTH CONTEXT (Dipindahkan ke atas untuk akses global) ---
+// Fix: 2339 - Menambahkan AuthUser agar property 'user' ada.
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string; 
+  role: 'admin' | 'teacher' | 'superadmin';
+  username: string; 
+}
+// ------------------------------------
+
 // --- TIPE BARU UNTUK PRESTASI ---
 export interface Prestasi {
   id: string;
@@ -96,10 +107,10 @@ export interface RencanaPembelajaranItem {
     penilaian_sumatif?: PenilaianSumatif[];
 }
 
-// --- TIPE BARU UNTUK BULK UJIAN ---
+// --- TIPE BARU UNTUK BULK UJIAN (DIPERBAIKI UNTUK MATCH PENGGUNAAN DI UjianPage.tsx) ---
 export interface CreateBulkUjianPayload {
-  pengajar_kelas_id: string; // Tambahkan ini jika pengajar_kelas_id diperlukan untuk konteks
   nama_ujian: string;
+  tahun_ajaran_id: string; 
   kelas_ids: string[]; // UUIDs dari kelas/rombel yang dipilih
 }
 
@@ -140,6 +151,12 @@ export interface Tenant {
   updated_at: string;
 }
 
+// Tambahkan minimal Jenjang type untuk struktur nested di Kelas
+export interface Jenjang {
+  id: number;
+  nama_jenjang: string;
+}
+
 export interface JenjangPendidikan {
   id: number;
   nama_jenjang: string;
@@ -162,12 +179,15 @@ export interface UpsertJabatanInput {
   nama_jabatan: string;
 }
 
+// Update Tingkatan untuk mendukung nested Jenjang (optional for forward compatibility)
 export interface Tingkatan {
   id: number;
   nama_tingkatan: string;
   urutan?: number;
   created_at: string;
   updated_at: string;
+  jenjang?: Jenjang; // Added optional nested jenjang
+  jenjang_id?: number; // Added optional jenjang_id
 }
 
 export interface UpsertTingkatanInput {
@@ -265,6 +285,7 @@ export interface Rombel {
   nama_tingkatan?: string;
 }
 
+// Update Kelas (Rombel) structure (FINAL FIX untuk sinkronisasi Backend/Frontend)
 export interface Kelas {
   id: string;
   nama_kelas: string;
@@ -274,11 +295,19 @@ export interface Kelas {
   created_at: string;
   updated_at: string;
   nama_tingkatan?: string;
+  
+  // PERBAIKAN: Field flat yang dikirimkan oleh Go Backend untuk Cascader
+  jenjang_id?: number; 
+  nama_jenjang?: string; 
+  // --------------------------
+
   nama_wali_kelas?: string;
   jumlah_siswa: number;
   jumlah_pengajar: number;
   nama_tahun_ajaran?: string;
   semester?: string;
+  
+  // HAPUS STRUKTUR NESTED: tingkatan?: { ... } karena sudah diganti field flat di atas.
 }
 
 export interface AnggotaKelas {

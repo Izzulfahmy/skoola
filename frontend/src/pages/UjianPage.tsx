@@ -2,10 +2,13 @@
 import React, { useState, useMemo } from 'react';
 import { Button, Typography, Card, Space, Modal, Form, Input, Cascader, Alert, notification, Tag } from 'antd';
 import { PlusOutlined, FormOutlined } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getKelasByTahunAjaran } from '../api/rombel';
+// Hapus useQueryClient karena tidak digunakan lagi
+import { useQuery, useMutation } from '@tanstack/react-query'; 
+// PERBAIKAN 1: Ganti nama impor dan panggilan fungsi API
+import { getAllKelasByTahunAjaran } from '../api/rombel'; 
 import { useTahunAjaran } from '../hooks/useTahunAjaran';
-import { Kelas, CreateBulkUjianPayload } from '../types';
+// Asumsi: Jenjang type sudah ada di types/index.ts untuk Cascader
+import type { Kelas, CreateBulkUjianPayload, Jenjang } from '../types'; 
 import { createBulkUjian } from '../api/pembelajaran';
 import { Link } from 'react-router-dom';
 
@@ -21,7 +24,7 @@ interface CascaderOption {
 
 const UjianPage: React.FC = () => {
   const [api, contextHolder] = useNotification();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient(); // Dihapus
   const [form] = Form.useForm();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { activeTahunAjaran } = useTahunAjaran();
@@ -29,7 +32,8 @@ const UjianPage: React.FC = () => {
   // 1. Fetch data Rombel berdasarkan Tahun Ajaran aktif
   const { data: rombelData, isLoading: isLoadingRombel } = useQuery<Kelas[]>({
     queryKey: ['rombelListByTahunAjaran', activeTahunAjaran?.id],
-    queryFn: () => getKelasByTahunAjaran(activeTahunAjaran!.id),
+    // PERBAIKAN 1: Panggil fungsi API dengan nama yang benar
+    queryFn: () => getAllKelasByTahunAjaran(activeTahunAjaran!.id),
     enabled: !!activeTahunAjaran?.id,
   });
 
@@ -41,9 +45,18 @@ const UjianPage: React.FC = () => {
     const groups = new Map<string, CascaderOption>(); // Key: JenjangID-TingkatanID
 
     rombelData.forEach(kelas => {
-      const key = `${kelas.tingkatan?.jenjang_id}-${kelas.tingkatan_id}`;
-      const jenjangLabel = kelas.tingkatan?.jenjang?.nama_jenjang || 'Unknown Jenjang';
-      const tingkatanLabel = kelas.tingkatan?.nama_tingkatan || 'Unknown Tingkatan';
+      
+      // PERBAIKAN: Gunakan flat fields yang baru dari backend (kelas.jenjang_id, kelas.nama_jenjang)
+      if (!kelas.jenjang_id || !kelas.nama_tingkatan || !kelas.nama_jenjang) { 
+          // Logik pengecekan baru yang sesuai dengan data flat
+          console.warn(`Kelas ID ${kelas.id} dilewati karena data jenjang atau tingkatan hilang.`);
+          return;
+      }
+      
+      // Menggunakan tingkatan_id dan jenjang_id dari field flat
+      const key = `${kelas.jenjang_id}-${kelas.tingkatan_id}`;
+      const jenjangLabel = kelas.nama_jenjang;
+      const tingkatanLabel = kelas.nama_tingkatan;
       const groupLabel = `${jenjangLabel} - ${tingkatanLabel}`;
 
       if (!groups.has(key)) {
@@ -57,11 +70,11 @@ const UjianPage: React.FC = () => {
       // Tambahkan Rombel/Kelas sebagai checkbox di bawah group
       groups.get(key)!.children!.push({
         value: kelas.id, // ID Kelas/Rombel (UUID)
-        label: kelas.nama, // Nama Rombel (e.g., 'X MIPA 1')
+        label: kelas.nama_kelas, 
       });
     });
 
-    // Urutkan groups berdasarkan jenjang dan tingkatan jika perlu
+    // Urutkan groups berdasarkan jenjang dan tingkatan
     return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [rombelData]);
 
@@ -75,7 +88,6 @@ const UjianPage: React.FC = () => {
       });
       setIsModalOpen(false);
       form.resetFields();
-      // Optional: Mungkin perlu refresh data di halaman lain jika ada tabel ujian, tapi karena ini admin panel, kita biarkan saja.
     },
     onError: (error: any) => {
       api.error({
@@ -91,10 +103,10 @@ const UjianPage: React.FC = () => {
       return;
     }
 
-    // Ambil hanya UUID kelas dari Cascader (level 1 dari path)
+    // Ambil hanya UUID kelas dari Cascader (level 1 dari path, karena level 0 adalah Jenjang/Tingkatan group)
+    // Cascader path adalah [Jenjang-Tingkatan-Key, Kelas-ID]
     const kelasIDs: string[] = values.kelas.map((path: string[]) => path[1]);
 
-    // Hapus duplikat, meskipun Cascader dengan multiple selection seharusnya sudah unik
     const uniqueKelasIDs = Array.from(new Set(kelasIDs));
 
     if (uniqueKelasIDs.length === 0) {
