@@ -1,121 +1,97 @@
-// backend/internal/ujianmaster/service.go
 package ujianmaster
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"skoola/internal/tahunajaran"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
-var ErrValidation = errors.New("validation failed")
-
-// Interface tidak berubah
+// Service defines the business logic for UjianMaster.
 type Service interface {
-	Create(ctx context.Context, schemaName string, input UpsertUjianMasterInput) (*UjianMaster, error)
-	GetAllByTA(ctx context.Context, schemaName, tahunAjaranID string) ([]UjianMaster, error)
-	GetByID(ctx context.Context, schemaName, id string) (*UjianDetailResponse, error)
-	Update(ctx context.Context, schemaName, id string, input UpsertUjianMasterInput) (*UjianMaster, error)
-	Delete(ctx context.Context, schemaName, id string) error
+	CreateUjianMaster(ctx context.Context, req UjianMaster) (UjianMaster, error)
+	GetAllUjianMasterByTahunAjaran(ctx context.Context, tahunAjaranID string) ([]UjianMaster, error)
+	GetUjianMasterByID(ctx context.Context, id string) (UjianMasterDetail, error)
+	UpdateUjianMaster(ctx context.Context, id string, req UjianMaster) (UjianMaster, error)
+	DeleteUjianMaster(ctx context.Context, id string) error
 }
 
-// **PERBAIKAN KRUSIAL DI SINI**
-// Struct service sekarang memiliki semua field yang diperlukan
 type service struct {
-	repo     Repository
-	taRepo   tahunajaran.Repository
-	validate *validator.Validate
+	repo Repository
 }
 
-// **PERBAIKAN KRUSIAL DI SINI**
-// NewService sekarang menerima semua dependensi dengan benar
-func NewService(repo Repository, taRepo tahunajaran.Repository, validate *validator.Validate) Service {
-	return &service{
-		repo:     repo,
-		taRepo:   taRepo,
-		validate: validate,
-	}
+// NewService creates a new UjianMaster service.
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
-func (s *service) Create(ctx context.Context, schemaName string, input UpsertUjianMasterInput) (*UjianMaster, error) {
-	if err := s.validate.Struct(input); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
-	}
-	um := &UjianMaster{
-		ID:             uuid.New().String(),
-		TahunAjaranID:  input.TahunAjaranID,
-		NamaPaketUjian: input.NamaPaketUjian,
-		JenisUjianID:   input.JenisUjianID,
-		Durasi:         input.Durasi,
-		JumlahSoal:     input.JumlahSoal,
-		Keterangan:     input.Keterangan,
-	}
-	if err := s.repo.Create(ctx, schemaName, um); err != nil {
-		return nil, err
-	}
-	return um, nil
-}
-
-func (s *service) GetAllByTA(ctx context.Context, schemaName, tahunAjaranID string) ([]UjianMaster, error) {
-	if tahunAjaranID == "" {
-		return []UjianMaster{}, nil
-	}
-	return s.repo.GetAllByTahunAjaran(ctx, schemaName, tahunAjaranID)
-}
-
-func (s *service) GetByID(ctx context.Context, schemaName, id string) (*UjianDetailResponse, error) {
-	ujianMaster, err := s.repo.GetByID(ctx, schemaName, id)
+// CreateUjianMaster handles the creation of a new UjianMaster.
+func (s *service) CreateUjianMaster(ctx context.Context, req UjianMaster) (UjianMaster, error) {
+	// Validation can be added here if necessary
+	createdUM, err := s.repo.Create(req)
 	if err != nil {
-		return nil, fmt.Errorf("gagal mendapatkan data master ujian: %w", err)
+		return UjianMaster{}, fmt.Errorf("gagal membuat paket ujian di service: %w", err)
 	}
-	if ujianMaster == nil {
-		return nil, errors.New("paket ujian tidak ditemukan")
-	}
-
-	penugasan, err := s.repo.GetPenugasanByMasterID(ctx, schemaName, id)
-	if err != nil {
-		return nil, fmt.Errorf("gagal mendapatkan data penugasan: %w", err)
-	}
-
-	available, err := s.repo.GetAvailableKelas(ctx, schemaName, ujianMaster.TahunAjaranID, id)
-	if err != nil {
-		return nil, fmt.Errorf("gagal mendapatkan data kelas tersedia: %w", err)
-	}
-
-	response := &UjianDetailResponse{
-		Detail: UjianDetail{
-			NamaPaketUjian: ujianMaster.NamaPaketUjian,
-			Penugasan:      penugasan,
-		},
-		AvailableKelas: available,
-	}
-
-	return response, nil
+	return createdUM, nil
 }
 
-func (s *service) Update(ctx context.Context, schemaName, id string, input UpsertUjianMasterInput) (*UjianMaster, error) {
-	if err := s.validate.Struct(input); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
+// GetAllUjianMasterByTahunAjaran retrieves all UjianMasters for a given academic year.
+func (s *service) GetAllUjianMasterByTahunAjaran(ctx context.Context, tahunAjaranID string) ([]UjianMaster, error) {
+	taID, err := uuid.Parse(tahunAjaranID)
+	if err != nil {
+		return nil, errors.New("ID tahun ajaran tidak valid")
 	}
-	um, err := s.repo.GetByID(ctx, schemaName, id)
-	if err != nil || um == nil {
-		return nil, fmt.Errorf("data ujian master tidak ditemukan")
-	}
-	um.NamaPaketUjian = input.NamaPaketUjian
-	um.JenisUjianID = input.JenisUjianID
-	um.Durasi = input.Durasi
-	um.JumlahSoal = input.JumlahSoal
-	um.Keterangan = input.Keterangan
-
-	if err := s.repo.Update(ctx, schemaName, um); err != nil {
-		return nil, err
-	}
-	return um, nil
+	return s.repo.GetAllByTahunAjaran(taID)
 }
 
-func (s *service) Delete(ctx context.Context, schemaName string, id string) error {
-	return s.repo.Delete(ctx, schemaName, id)
+// GetUjianMasterByID retrieves details of a specific UjianMaster.
+func (s *service) GetUjianMasterByID(ctx context.Context, id string) (UjianMasterDetail, error) {
+	umID, err := uuid.Parse(id)
+	if err != nil {
+		return UjianMasterDetail{}, errors.New("ID paket ujian tidak valid")
+	}
+
+	ujianMaster, err := s.repo.GetByID(umID)
+	if err != nil {
+		return UjianMasterDetail{}, err // Let handler format the not found error
+	}
+
+	detail := UjianMasterDetail{
+		UjianMaster: ujianMaster,
+	}
+
+	return detail, nil
+}
+
+// UpdateUjianMaster handles the update of an existing UjianMaster.
+func (s *service) UpdateUjianMaster(ctx context.Context, id string, req UjianMaster) (UjianMaster, error) {
+	umID, err := uuid.Parse(id)
+	if err != nil {
+		return UjianMaster{}, errors.New("ID paket ujian tidak valid")
+	}
+
+	// Get existing data to ensure it exists
+	_, err = s.repo.GetByID(umID)
+	if err != nil {
+		return UjianMaster{}, errors.New("paket ujian tidak ditemukan untuk diperbarui")
+	}
+
+	req.ID = umID // Ensure the ID from the URL is used for the update
+
+	updatedUM, err := s.repo.Update(req)
+	if err != nil {
+		return UjianMaster{}, fmt.Errorf("gagal memperbarui paket ujian di service: %w", err)
+	}
+
+	return updatedUM, nil
+}
+
+// DeleteUjianMaster handles the deletion of an UjianMaster.
+func (s *service) DeleteUjianMaster(ctx context.Context, id string) error {
+	umID, err := uuid.Parse(id)
+	if err != nil {
+		return errors.New("ID paket ujian tidak valid")
+	}
+	return s.repo.Delete(umID)
 }

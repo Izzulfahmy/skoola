@@ -1,74 +1,74 @@
-// backend/internal/ujianmaster/repository.go
 package ujianmaster
 
 import (
-	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 )
 
+// Repository defines the operations for UjianMaster.
 type Repository interface {
-	Create(ctx context.Context, schemaName string, um *UjianMaster) error
-	GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMaster, error)
-	GetByID(ctx context.Context, schemaName string, id string) (*UjianMaster, error)
-	Update(ctx context.Context, schemaName string, um *UjianMaster) error
-	Delete(ctx context.Context, schemaName string, id string) error
-	GetPenugasanByMasterID(ctx context.Context, schemaName string, ujianMasterID string) ([]PenugasanDetail, error)
-	GetAvailableKelas(ctx context.Context, schemaName string, tahunAjaranID string, ujianMasterID string) ([]AvailableKelas, error)
+	Create(um UjianMaster) (UjianMaster, error)
+	GetAllByTahunAjaran(tahunAjaranID uuid.UUID) ([]UjianMaster, error)
+	GetByID(id uuid.UUID) (UjianMaster, error)
+	Update(um UjianMaster) (UjianMaster, error)
+	Delete(id uuid.UUID) error
 }
 
-type postgresRepository struct {
+type repository struct {
 	db *sql.DB
 }
 
+// NewRepository creates a new UjianMaster repository.
 func NewRepository(db *sql.DB) Repository {
-	return &postgresRepository{db: db}
+	return &repository{db: db}
 }
 
-func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) error {
-	_, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName))
-	return err
-}
+// Create inserts a new UjianMaster record into the database.
+func (r *repository) Create(um UjianMaster) (UjianMaster, error) {
+	um.ID = uuid.New()
+	um.CreatedAt = time.Now()
+	um.UpdatedAt = time.Now()
 
-func (r *postgresRepository) Create(ctx context.Context, schemaName string, um *UjianMaster) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	// PERBAIKAN: Menggunakan id_jenis_ujian sesuai skema DB
-	query := `INSERT INTO ujian_master (id, tahun_ajaran_id, nama_paket_ujian, id_jenis_ujian, durasi, jumlah_soal, keterangan) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := r.db.ExecContext(ctx, query, um.ID, um.TahunAjaranID, um.NamaPaketUjian, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan)
-	return err
-}
-
-func (r *postgresRepository) GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMaster, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-	// **PERBAIKAN UTAMA DI SINI**
-	// Mengganti semua 'jenis_ujian_id' menjadi 'id_jenis_ujian' agar cocok dengan database
 	query := `
-        SELECT 
-            um.id, 
-            um.nama_paket_ujian, 
-            um.id_jenis_ujian, 
-            ju.nama_jenis_ujian, 
-            um.durasi, 
-            um.jumlah_soal, 
-            um.keterangan, 
-            um.created_at, 
+		INSERT INTO ujian_master (id, nama_paket_ujian, tahun_ajaran_id, jenis_ujian_id, durasi, jumlah_soal, keterangan, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`
+	_, err := r.db.Exec(query, um.ID, um.NamaPaketUjian, um.TahunAjaranID, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan, um.CreatedAt, um.UpdatedAt)
+	if err != nil {
+		return UjianMaster{}, fmt.Errorf("gagal membuat paket ujian: %w", err)
+	}
+	return um, nil
+}
+
+// GetAllByTahunAjaran retrieves all UjianMaster records for a specific academic year.
+func (r *repository) GetAllByTahunAjaran(tahunAjaranID uuid.UUID) ([]UjianMaster, error) {
+	var results []UjianMaster
+	query := `
+        SELECT
+            um.id,
+            um.nama_paket_ujian,
+            um.jenis_ujian_id,
+            ju.nama_ujian,
+            um.durasi,
+            um.jumlah_soal,
+            um.keterangan,
+            um.created_at,
             um.updated_at
         FROM ujian_master um
-        JOIN jenis_ujian ju ON um.id_jenis_ujian = ju.id
+        JOIN jenis_ujian ju ON um.jenis_ujian_id = ju.id
         WHERE um.tahun_ajaran_id = $1
         ORDER BY um.created_at DESC
     `
-	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
+	rows, err := r.db.Query(query, tahunAjaranID)
 	if err != nil {
 		return nil, fmt.Errorf("gagal menjalankan query: %w", err)
 	}
 	defer rows.Close()
 
-	var results []UjianMaster
 	for rows.Next() {
 		var um UjianMaster
 		if err := rows.Scan(
@@ -78,149 +78,73 @@ func (r *postgresRepository) GetAllByTahunAjaran(ctx context.Context, schemaName
 		}
 		results = append(results, um)
 	}
-	return results, rows.Err()
-}
 
-func (r *postgresRepository) GetByID(ctx context.Context, schemaName string, id string) (*UjianMaster, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error pada baris hasil: %w", err)
 	}
-	query := `SELECT id, tahun_ajaran_id, nama_paket_ujian FROM ujian_master WHERE id = $1`
-	row := r.db.QueryRowContext(ctx, query, id)
-	var um UjianMaster
-	err := row.Scan(&um.ID, &um.TahunAjaranID, &um.NamaPaketUjian)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &um, nil
-}
 
-func (r *postgresRepository) Update(ctx context.Context, schemaName string, um *UjianMaster) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	// PERBAIKAN: Menggunakan id_jenis_ujian sesuai skema DB
-	query := `UPDATE ujian_master SET nama_paket_ujian = $1, id_jenis_ujian = $2, durasi = $3, jumlah_soal = $4, keterangan = $5, updated_at = NOW() WHERE id = $6`
-	_, err := r.db.ExecContext(ctx, query, um.NamaPaketUjian, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan, um.ID)
-	return err
-}
-
-func (r *postgresRepository) Delete(ctx context.Context, schemaName string, id string) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	_, err := r.db.ExecContext(ctx, "DELETE FROM ujian_master WHERE id = $1", id)
-	return err
-}
-
-func (r *postgresRepository) GetPenugasanByMasterID(ctx context.Context, schemaName string, ujianMasterID string) ([]PenugasanDetail, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-	query := `
-		SELECT pk.id, k.nama_kelas, mp.nama_mapel, t.nama_lengkap
-		FROM ujian u
-		JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
-		JOIN kelas k ON pk.kelas_id = k.id
-		JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
-		JOIN teachers t ON pk.teacher_id = t.id
-		WHERE u.ujian_master_id = $1
-		ORDER BY k.nama_kelas, mp.nama_mapel
-	`
-	rows, err := r.db.QueryContext(ctx, query, ujianMasterID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var results []PenugasanDetail
-	for rows.Next() {
-		var pd PenugasanDetail
-		if err := rows.Scan(&pd.PengajarKelasID, &pd.NamaKelas, &pd.NamaMapel, &pd.NamaGuru); err != nil {
-			return nil, err
-		}
-		results = append(results, pd)
-	}
 	return results, nil
 }
 
-func (r *postgresRepository) GetAvailableKelas(ctx context.Context, schemaName string, tahunAjaranID string, ujianMasterID string) ([]AvailableKelas, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
+// GetByID retrieves a single UjianMaster by its ID.
+func (r *repository) GetByID(id uuid.UUID) (UjianMaster, error) {
+	var um UjianMaster
 	query := `
-		WITH AssignedPengajar AS (
-            SELECT pengajar_kelas_id
-            FROM ujian
-            WHERE ujian_master_id = $2
-        )
-        SELECT 
-            DISTINCT ON (jp.id, t.id, mp.id, pk.id)
-            jp.id as jenjang_id, jp.nama_jenjang,
-            t.id as tingkatan_id, t.nama_tingkatan,
-            mp.id as mapel_id, mp.nama_mapel,
-            pk.id as pengajar_kelas_id, th.nama_lengkap as nama_guru
-        FROM pengajar_kelas pk
-        JOIN kelas k ON pk.kelas_id = k.id
-        JOIN tingkatan t ON k.tingkatan_id = t.id
-        JOIN jenjang_pendidikan jp ON t.jenjang_id = jp.id
-        JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
-        JOIN teachers th ON pk.teacher_id = th.id
-        WHERE k.tahun_ajaran_id = $1
-          AND pk.id NOT IN (SELECT pengajar_kelas_id FROM AssignedPengajar)
-        ORDER BY jp.id, t.id, mp.id, pk.id;
-    `
-	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID, ujianMasterID)
+		SELECT
+			um.id, um.nama_paket_ujian, um.tahun_ajaran_id, um.jenis_ujian_id,
+			ju.nama_ujian, um.durasi, um.jumlah_soal, um.keterangan,
+			um.created_at, um.updated_at
+		FROM ujian_master um
+		JOIN jenis_ujian ju ON um.jenis_ujian_id = ju.id
+		WHERE um.id = $1
+	`
+	err := r.db.QueryRow(query, id).Scan(
+		&um.ID, &um.NamaPaketUjian, &um.TahunAjaranID, &um.JenisUjianID,
+		&um.NamaJenisUjian, &um.Durasi, &um.JumlahSoal, &um.Keterangan,
+		&um.CreatedAt, &um.UpdatedAt,
+	)
+
 	if err != nil {
-		return nil, fmt.Errorf("gagal query available kelas: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return UjianMaster{}, errors.New("paket ujian tidak ditemukan")
+		}
+		return UjianMaster{}, fmt.Errorf("gagal mengambil paket ujian: %w", err)
 	}
-	defer rows.Close()
+	return um, nil
+}
 
-	tingkatanMap := make(map[string]*AvailableKelas)
-	mapelMap := make(map[string]*AvailableMapel)
+// Update modifies an existing UjianMaster record.
+func (r *repository) Update(um UjianMaster) (UjianMaster, error) {
+	um.UpdatedAt = time.Now()
+	query := `
+		UPDATE ujian_master SET
+			nama_paket_ujian = $2, jenis_ujian_id = $3, durasi = $4,
+			jumlah_soal = $5, keterangan = $6, updated_at = $7
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(query, um.ID, um.NamaPaketUjian, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan, um.UpdatedAt)
+	if err != nil {
+		return UjianMaster{}, fmt.Errorf("gagal memperbarui paket ujian: %w", err)
+	}
+	return um, nil
+}
 
-	for rows.Next() {
-		var jenjangID, tingkatanID int
-		var jenjangNama, tingkatanNama, mapelID, mapelNama, pengajarKelasID, namaGuru string
-
-		if err := rows.Scan(&jenjangID, &jenjangNama, &tingkatanID, &tingkatanNama, &mapelID, &mapelNama, &pengajarKelasID, &namaGuru); err != nil {
-			return nil, fmt.Errorf("gagal scan available kelas row: %w", err)
-		}
-
-		tingkatanKey := fmt.Sprintf("%d-%d", jenjangID, tingkatanID)
-		if _, ok := tingkatanMap[tingkatanKey]; !ok {
-			newTingkatan := AvailableKelas{
-				Value:    tingkatanKey,
-				Label:    fmt.Sprintf("%s - %s", jenjangNama, tingkatanNama),
-				Children: []AvailableMapel{},
-			}
-			tingkatanMap[tingkatanKey] = &newTingkatan
-		}
-
-		mapelKey := fmt.Sprintf("%s-%s", tingkatanKey, mapelID)
-		if _, ok := mapelMap[mapelKey]; !ok {
-			newMapel := AvailableMapel{
-				Value:    mapelID,
-				Label:    mapelNama,
-				Children: []AvailablePengajar{},
-			}
-			mapelMap[mapelKey] = &newMapel
-			tingkatanMap[tingkatanKey].Children = append(tingkatanMap[tingkatanKey].Children, newMapel)
-		}
-
-		mapelMap[mapelKey].Children = append(mapelMap[mapelKey].Children, AvailablePengajar{
-			Value: pengajarKelasID,
-			Label: namaGuru,
-		})
+// Delete removes an UjianMaster record from the database.
+func (r *repository) Delete(id uuid.UUID) error {
+	query := "DELETE FROM ujian_master WHERE id = $1"
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus paket ujian: %w", err)
 	}
 
-	var result []AvailableKelas
-	for _, v := range tingkatanMap {
-		result = append(result, *v)
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("gagal mendapatkan jumlah baris yang terpengaruh: %w", err)
 	}
 
-	return result, nil
+	if rowsAffected == 0 {
+		return errors.New("paket ujian tidak ditemukan untuk dihapus")
+	}
+
+	return nil
 }

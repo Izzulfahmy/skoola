@@ -144,7 +144,8 @@ func main() {
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
-	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, tahunAjaranRepo, validate)
+	// --- PERBAIKAN 1: Menghapus argumen ekstra ---
+	ujianMasterService := ujianmaster.NewService(ujianMasterRepo)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -380,10 +381,10 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
 
-		// **BLOK INI YANG DIPERBAIKI**
 		r.Route("/ujian-master", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/tahun-ajaran/{taID}", ujianMasterHandler.GetAllByTA)
-			r.With(auth.Authorize("admin")).Get("/{id}", ujianMasterHandler.GetById)
+			// --- PERBAIKAN 2: Mengganti GetById menjadi GetByID ---
+			r.With(auth.Authorize("admin")).Get("/{id}", ujianMasterHandler.GetByID)
 			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
