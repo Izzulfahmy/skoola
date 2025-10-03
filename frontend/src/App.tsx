@@ -23,6 +23,7 @@ import PresensiPage from './pages/PresensiPage';
 import EkstrakurikulerPage from './pages/EkstrakurikulerPage';
 import PrestasiPage from './pages/PrestasiPage';
 import UjianPage from './pages/UjianPage';
+import RaporPage from './pages/RaporPage'; // <-- Import halaman baru
 
 // Teacher Pages
 import TeacherLayout from './layouts/TeacherLayout';
@@ -68,6 +69,8 @@ const App: React.FC = () => {
           <Route path="ekstrakurikuler" element={<EkstrakurikulerPage />} />
           <Route path="prestasi" element={<PrestasiPage />} />
           <Route path="ujian" element={<UjianPage />} />
+          {/* --- PENAMBAHAN RUTE RAPOR --- */}
+          <Route path="rapor" element={<RaporPage />} />
         </Route>
 
         {/* Teacher Routes */}

@@ -1,4 +1,4 @@
-// file: frontend/src/layouts/AdminLayout.tsx
+// frontend/src/layouts/AdminLayout.tsx
 import React, { useState, useEffect } from 'react';
 import {
   DesktopOutlined,
@@ -14,16 +14,14 @@ import {
   ProjectOutlined,
   ApartmentOutlined,
   SolutionOutlined,
-  ExperimentOutlined, // Ikon untuk Ekstrakurikuler/Ujian
-  FormOutlined, // <-- Menggunakan FormOutlined untuk Menu Ujian (lebih kontekstual)
+  ExperimentOutlined, 
+  FormOutlined,
+  ReadOutlined, // <-- Import ikon baru
 } from '@ant-design/icons';
-// Hapus Avatar dari import karena sudah diakses via Dropdown/Space, atau biarkan jika digunakan
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd'; 
 import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// Impor useTahunAjaran (walaupun tidak terlihat di kode yang Anda berikan, ini penting untuk Admin Panel)
-// import { useTahunAjaran } from '../hooks/useTahunAjaran'; 
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -33,14 +31,12 @@ const AdminLayout = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
-  // Asumsi: useAuth() sudah mengembalikan user
-  const { logout, user } = useAuth(); // Tambahkan user
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const { token } = theme.useToken();
 
-  // Fix 6133: Hapus useEffect jika tidak digunakan (tapi di sini digunakan untuk resize)
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -59,7 +55,6 @@ const AdminLayout = () => {
       key: 'settings',
       label: 'Pengaturan Akun',
       icon: <SettingOutlined />,
-      // Asumsi rute settings ada di '/settings'
       onClick: () => navigate('/settings'), 
     },
     {
@@ -74,7 +69,6 @@ const AdminLayout = () => {
     },
   ];
 
-  // --- Item menu diperbarui untuk memasukkan Ujian ---
   const allMenuItems: MenuProps['items'] = [
     { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
     { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
@@ -84,33 +78,26 @@ const AdminLayout = () => {
     { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
     { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
     { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombel</Link> },
-    
-    // --- PENAMBAHAN MENU UJIAN ---
     { key: '/ujian', icon: <FormOutlined />, label: <Link to="/ujian">Ujian</Link> }, 
-    
     {
       key: '/ekstrakurikuler',
       icon: <ExperimentOutlined />,
       label: <Link to="/ekstrakurikuler">Ekstrakurikuler</Link>,
     },
     { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
+    // --- PENAMBAHAN MENU RAPOR ---
+    { key: '/rapor', icon: <ReadOutlined />, label: <Link to="/rapor">Rapor</Link> },
     { type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
   ];
-  // ----------------------------------------------------
 
-  // Menyaring item menu yang valid dan memiliki key, untuk menghindari error saat iterasi
   const validMenuItems = allMenuItems.filter(
-    // Kita harus memastikan item adalah objek dan memiliki key yang berupa string/React.Key
     (item): item is { key: string | number; icon: React.ReactNode; label: React.ReactNode; } => 
       item !== null && typeof item === 'object' && 'key' in item && item.key !== undefined
   );
   
-  // Logika activeKey yang disederhanakan
   const activeKey = validMenuItems
-    // Sortir dari path terpanjang ke terpendek agar match yang lebih spesifik diprioritaskan
     .sort((a, b) => (typeof b.key === 'string' ? b.key.length : 0) - (typeof a.key === 'string' ? a.key.length : 0))
-    // Temukan key yang path-nya cocok dengan awal pathname (misal: /rombel/detail cocok dengan /rombel)
     .find(item => typeof item.key === 'string' && location.pathname.startsWith(item.key))?.key || '/dashboard';
   
   const menuContent = (
@@ -125,7 +112,6 @@ const AdminLayout = () => {
       <Menu
         theme="dark"
         mode="inline"
-        // selectedKeys harus berupa string[]
         selectedKeys={[activeKey.toString()]} 
         items={allMenuItems}
         onClick={isMobile ? () => setDrawerVisible(false) : undefined}
@@ -171,7 +157,6 @@ const AdminLayout = () => {
           >
              <style>
               {`
-                /* Styling untuk mengatasi padding saat menu collapse */
                 .ant-menu-inline-collapsed > .ant-menu-item {
                   padding: 0 calc(50% - 16px) !important;
                 }
@@ -190,7 +175,6 @@ const AdminLayout = () => {
               style={{ fontSize: '16px', width: 48, height: 48 }}
             />
             <Space align="center">
-              {/* Menggunakan user.name atau username jika tersedia */}
               {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, {user?.name || user?.username || 'Admin'}!</Text>}
               <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
                 <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
