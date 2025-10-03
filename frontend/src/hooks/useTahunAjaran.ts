@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getAllTahunAjaran } from '../api/tahunAjaran';
 import type { TahunAjaran } from '../types';
-import { message } from 'antd'; // Import message for better user experience
+import { message } from 'antd';
 
 interface TahunAjaranOption {
   id: string;
@@ -25,23 +25,28 @@ const getOptionFromTA = (ta: TahunAjaran): TahunAjaranOption => ({
 export const useTahunAjaran = (): UseTahunAjaran => {
   const [activeTahunAjaran, setActiveTahunAjaranState] = useState<TahunAjaranOption | null>(null);
   const [options, setOptions] = useState<TahunAjaranOption[]>([]);
-  
+
   // 1. Ambil dari localStorage saat inisialisasi
   useEffect(() => {
     const savedActiveTa = localStorage.getItem('activeTahunAjaran');
     if (savedActiveTa) {
-      setActiveTahunAjaranState(JSON.parse(savedActiveTa));
+      try {
+        setActiveTahunAjaranState(JSON.parse(savedActiveTa));
+      } catch (e) {
+        console.error("Gagal mem-parsing tahun ajaran dari localStorage", e);
+        localStorage.removeItem('activeTahunAjaran');
+      }
     }
   }, []);
 
-  // 2. Simpan ke localStorage saat berubah
+  // 2. Fungsi untuk mengubah tahun ajaran aktif dan menyimpannya
   const setActiveTahunAjaran = (ta: TahunAjaranOption) => {
     setActiveTahunAjaranState(ta);
     localStorage.setItem('activeTahunAjaran', JSON.stringify(ta));
     message.success(`Tahun Ajaran Aktif diubah ke: ${ta.nama}`, 1);
   };
-  
-  // 3. Fetch data dari API
+
+  // 3. Fetch data dari API (hanya sekali saat komponen dimuat)
   useEffect(() => {
     const fetchTahunAjaran = async () => {
       try {
@@ -50,26 +55,28 @@ export const useTahunAjaran = (): UseTahunAjaran => {
         setOptions(taList);
 
         if (taList.length > 0) {
-          const aktif = taList.find(ta => ta.status === 'Aktif');
+          const aktifDariAPI = taList.find(ta => ta.status === 'Aktif');
           
-          // Tentukan mana yang harus di-set sebagai aktif
-          const toSet = activeTahunAjaran // 1. Periksa state yang tersimpan (jika ada)
-            ? taList.find(t => t.id === activeTahunAjaran.id) || aktif || taList[0] // 2. Cari di list baru, atau pakai yang aktif API, atau yang pertama
-            : aktif || taList[0]; // 3. Jika belum ada state, pakai yang aktif API atau yang pertama
-          
+          // Prioritaskan state saat ini (dari localStorage), jika tidak ada, gunakan yang aktif dari API, atau yang pertama
+          const currentActiveId = activeTahunAjaran?.id;
+          const toSet = currentActiveId && taList.some(t => t.id === currentActiveId)
+            ? taList.find(t => t.id === currentActiveId)
+            : aktifDariAPI || taList[0];
+
           if (toSet) {
-              // Jika data ditemukan, set state tanpa mengubah localStorage lagi (hanya update state)
-              setActiveTahunAjaranState(toSet); 
+            // Langsung set state. Jika berbeda, `setActiveTahunAjaran` akan menanganinya
+            setActiveTahunAjaranState(toSet);
           }
         }
-
       } catch (err) {
         console.error("Gagal memuat daftar tahun ajaran:", err);
+        message.error("Gagal memuat daftar tahun ajaran");
       }
     };
 
     fetchTahunAjaran();
-  }, [activeTahunAjaran?.id]); // Dependency hanya pada ID agar tidak loop tak terbatas
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // <-- DEPENDENCY DIHAPUS UNTUK MENCEGAH LOOP
 
   return { activeTahunAjaran, tahunAjaranOptions: options, setActiveTahunAjaran };
 };
