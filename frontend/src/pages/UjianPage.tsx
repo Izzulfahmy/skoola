@@ -233,5 +233,3 @@ const UjianPage: React.FC = () => {
     </>
   );
 };
-
-export default UjianPage;

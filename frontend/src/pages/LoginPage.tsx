@@ -1,4 +1,3 @@
-// frontend/src/pages/LoginPage.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LockOutlined, UserOutlined, IdcardOutlined, CrownOutlined, BankOutlined } from '@ant-design/icons';
@@ -19,7 +18,7 @@ const LoginPage = () => {
   const [form] = Form.useForm();
 
   const handleModeChange = () => {
-    form.resetFields(); 
+    form.resetFields();
     setErrorMessage(null);
     setIsSuperAdminLogin(!isSuperAdminLogin);
   };
@@ -45,10 +44,12 @@ const LoginPage = () => {
       // --- LOGIKA REDIRECT YANG SUDAH DIPERBAIKI ---
       if (role === 'superadmin') {
         navigate('/superadmin');
+      } else if (role === 'admin') {
+        navigate('/admin/dashboard');
       } else if (role === 'teacher') {
-        navigate('/teacher'); // Diubah dari '/teacher/dashboard'
+        navigate('/teacher');
       } else {
-        navigate('/'); // Diubah dari '/dashboard'
+        navigate('/');
       }
     } catch (error: any) {
       const serverErrorMessage = error.response?.data || 'Email, password, atau ID Sekolah salah.';
@@ -61,12 +62,12 @@ const LoginPage = () => {
   return (
     <Row justify="center" align="middle" style={{ minHeight: '100vh' }}>
       <Col xs={22} sm={16} md={12} lg={8} xl={6}>
-        <Card style={{ position: 'relative' }}> 
+        <Card style={{ position: 'relative' }}>
           <Tooltip title={isSuperAdminLogin ? 'Beralih ke login sekolah' : 'Beralih ke login superadmin'}>
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               shape="circle"
-              icon={isSuperAdminLogin ? <BankOutlined /> : <CrownOutlined />} 
+              icon={isSuperAdminLogin ? <BankOutlined /> : <CrownOutlined />}
               onClick={handleModeChange}
               style={{ position: 'absolute', top: '10px', right: '10px' }}
             />
