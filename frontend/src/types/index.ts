@@ -5,9 +5,9 @@
 export interface AuthUser {
   id: string;
   email: string;
-  name: string; 
+  name: string;
   role: 'admin' | 'teacher' | 'superadmin';
-  username: string; 
+  username: string;
 }
 // ------------------------------------
 
@@ -121,7 +121,7 @@ export interface RencanaPembelajaranItem {
 // --- TIPE BARU UNTUK BULK UJIAN (DIPERBAIKI UNTUK MATCH PENGGUNAAN DI UjianPage.tsx) ---
 export interface CreateBulkUjianPayload {
   nama_ujian: string;
-  tahun_ajaran_id: string; 
+  tahun_ajaran_id: string;
   kelas_ids: string[]; // UUIDs dari kelas/rombel yang dipilih
 }
 
@@ -218,6 +218,13 @@ export interface TahunAjaran {
   updated_at: string;
 }
 
+// +++ PERBAIKAN FINAL: Tambahkan tipe TahunAjaranOption yang diekspor +++
+export interface TahunAjaranOption {
+  id: string;
+  nama: string;
+  status: 'Aktif' | 'Tidak Aktif';
+}
+
 export interface UpsertTahunAjaranInput {
   nama_tahun_ajaran: string;
   semester: 'Ganjil' | 'Genap';
@@ -306,10 +313,10 @@ export interface Kelas {
   created_at: string;
   updated_at: string;
   nama_tingkatan?: string;
-  
+
   // PERBAIKAN: Field flat yang dikirimkan oleh Go Backend untuk Cascader
-  jenjang_id?: number; 
-  nama_jenjang?: string; 
+  jenjang_id?: number;
+  nama_jenjang?: string;
   // --------------------------
 
   nama_wali_kelas?: string;
@@ -317,7 +324,7 @@ export interface Kelas {
   jumlah_pengajar: number;
   nama_tahun_ajaran?: string;
   semester?: string;
-  
+
   // HAPUS STRUKTUR NESTED: tingkatan?: { ... } karena sudah diganti field flat di atas.
 }
 
@@ -420,8 +427,8 @@ export interface PenilaianSiswaData {
   anggota_kelas_id: string;
   nama_siswa: string;
   nis?: string;
-  nilai_formatif: Record<number, NilaiSiswa>; 
-  nilai_sumatif: Record<string, NilaiSumatifSiswa>; 
+  nilai_formatif: Record<number, NilaiSiswa>;
+  nilai_sumatif: Record<string, NilaiSumatifSiswa>;
 }
 
 export interface FullPenilaianData {
@@ -542,7 +549,7 @@ export interface Student {
   id: string;
   created_at: string;
   updated_at: string;
-  
+
   nis?: string;
   nisn?: string;
   nomor_ujian_sekolah?: string;
@@ -554,14 +561,14 @@ export interface Student {
   tanggal_lahir?: string;
   agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
   kewarganegaraan?: string;
-  
+
   alamat_lengkap?: string;
   desa_kelurahan?: string;
   kecamatan?: string;
   kota_kabupaten?: string;
   provinsi?: string;
   kode_pos?: string;
-  
+
   nama_ayah?: string;
   pekerjaan_ayah?: string;
   alamat_ayah?: string;
@@ -641,7 +648,7 @@ export interface Ekstrakurikuler {
   created_at: string;
   updated_at: string;
   // FIX: Tambahkan properti dari backend yang diperbarui (Nama Pembina & Jumlah Anggota)
-  nama_pembina?: string | null; 
+  nama_pembina?: string | null;
   jumlah_anggota?: number | null;
 }
 
