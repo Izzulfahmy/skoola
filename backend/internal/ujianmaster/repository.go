@@ -25,7 +25,6 @@ func NewRepository(db *sql.DB) Repository {
 	return &postgresRepository{db: db}
 }
 
-// Fungsi ini penting dan harus ada.
 func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) error {
 	_, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %q", schemaName))
 	return err
@@ -35,7 +34,8 @@ func (r *postgresRepository) Create(ctx context.Context, schemaName string, um *
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-	query := `INSERT INTO ujian_master (id, tahun_ajaran_id, nama_paket_ujian, jenis_ujian_id, durasi, jumlah_soal, keterangan) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	// PERBAIKAN: Menggunakan id_jenis_ujian sesuai skema DB
+	query := `INSERT INTO ujian_master (id, tahun_ajaran_id, nama_paket_ujian, id_jenis_ujian, durasi, jumlah_soal, keterangan) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err := r.db.ExecContext(ctx, query, um.ID, um.TahunAjaranID, um.NamaPaketUjian, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan)
 	return err
 }
@@ -44,11 +44,21 @@ func (r *postgresRepository) GetAllByTahunAjaran(ctx context.Context, schemaName
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// PERBAIKAN: Nama skema dihapus dari query karena sudah di-handle oleh setSchema
+	// **PERBAIKAN UTAMA DI SINI**
+	// Mengganti semua 'jenis_ujian_id' menjadi 'id_jenis_ujian' agar cocok dengan database
 	query := `
-        SELECT um.id, um.nama_paket_ujian, um.jenis_ujian_id, ju.nama_jenis_ujian, um.durasi, um.jumlah_soal, um.keterangan, um.created_at, um.updated_at
+        SELECT 
+            um.id, 
+            um.nama_paket_ujian, 
+            um.id_jenis_ujian, 
+            ju.nama_jenis_ujian, 
+            um.durasi, 
+            um.jumlah_soal, 
+            um.keterangan, 
+            um.created_at, 
+            um.updated_at
         FROM ujian_master um
-        JOIN jenis_ujian ju ON um.jenis_ujian_id = ju.id
+        JOIN jenis_ujian ju ON um.id_jenis_ujian = ju.id
         WHERE um.tahun_ajaran_id = $1
         ORDER BY um.created_at DESC
     `
@@ -92,7 +102,8 @@ func (r *postgresRepository) Update(ctx context.Context, schemaName string, um *
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-	query := `UPDATE ujian_master SET nama_paket_ujian = $1, jenis_ujian_id = $2, durasi = $3, jumlah_soal = $4, keterangan = $5, updated_at = NOW() WHERE id = $6`
+	// PERBAIKAN: Menggunakan id_jenis_ujian sesuai skema DB
+	query := `UPDATE ujian_master SET nama_paket_ujian = $1, id_jenis_ujian = $2, durasi = $3, jumlah_soal = $4, keterangan = $5, updated_at = NOW() WHERE id = $6`
 	_, err := r.db.ExecContext(ctx, query, um.NamaPaketUjian, um.JenisUjianID, um.Durasi, um.JumlahSoal, um.Keterangan, um.ID)
 	return err
 }

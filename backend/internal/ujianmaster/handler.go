@@ -3,6 +3,7 @@ package ujianmaster
 
 import (
 	"encoding/json"
+	"log" // <-- Tambahkan import untuk logging
 	"net/http"
 	"skoola/internal/middleware"
 
@@ -27,6 +28,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.Create(r.Context(), schemaName, input)
 	if err != nil {
+		log.Printf("ERROR: Gagal membuat paket ujian: %v\n", err) // Log error
 		http.Error(w, "Gagal membuat paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -40,6 +42,8 @@ func (h *Handler) GetAllByTA(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.GetAllByTA(r.Context(), schemaName, tahunAjaranID)
 	if err != nil {
+		// **PERUBAHAN UTAMA DI SINI: Mencetak error ke terminal**
+		log.Printf("ERROR handler GetAllByTA: Gagal mengambil data paket ujian: %v\n", err)
 		http.Error(w, "Gagal mengambil data paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -52,6 +56,7 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.GetByID(r.Context(), schemaName, id)
 	if err != nil {
+		log.Printf("ERROR: Gagal mengambil detail paket ujian: %v\n", err) // Log error
 		http.Error(w, "Gagal mengambil detail paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -68,6 +73,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := h.service.Update(r.Context(), schemaName, id, input)
 	if err != nil {
+		log.Printf("ERROR: Gagal memperbarui paket ujian: %v\n", err) // Log error
 		http.Error(w, "Gagal memperbarui paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -78,6 +84,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	id := chi.URLParam(r, "id")
 	if err := h.service.Delete(r.Context(), schemaName, id); err != nil {
+		log.Printf("ERROR: Gagal menghapus paket ujian: %v\n", err) // Log error
 		http.Error(w, "Gagal menghapus paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
