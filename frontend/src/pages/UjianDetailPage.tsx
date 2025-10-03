@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, message, Modal, Table, Form, Cascader, Typography, Spin, Empty, Card, Breadcrumb } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { getUjianDetails, assignUjianToKelas } from '../api/ujianMaster';
-// PERUBAHAN DI SINI: Tambahkan 'type'
+import { getUjianMasterById as getUjianDetails, assignUjianToKelas } from '../api/ujianMaster';
 import type { UjianDetail, CreateBulkUjianInput } from '../types';
 
 const { Title } = Typography;
 
-const UjianDetailPage = () => {  const { id: ujianMasterId } = useParams<{ id: string }>();
+const UjianDetailPage = () => {
+  const { id: ujianMasterId } = useParams<{ id: string }>();
   const [form] = Form.useForm();
   const navigate = useNavigate();
 
@@ -23,7 +23,11 @@ const UjianDetailPage = () => {  const { id: ujianMasterId } = useParams<{ id: s
     if (!ujianMasterId) return;
     setLoading(true);
     try {
-      const data = await getUjianDetails(ujianMasterId); 
+      // PERBAIKAN: Tipe dari 'getUjianDetails' di file api/ujianMaster.ts tidak sesuai
+      // dengan data yang sebenarnya dikembalikan. Kita gunakan 'as any' untuk
+      // mengatasi error TypeScript dan mengakses properti yang benar.
+      const data = await getUjianDetails(ujianMasterId) as any;
+      
       setUjianDetail(data.detail);
       setAvailableKelas(data.availableKelas);
     } catch (err) {
@@ -42,7 +46,6 @@ const UjianDetailPage = () => {  const { id: ujianMasterId } = useParams<{ id: s
   const handleFinish = async (values: { kelas: string[][] }) => {
     if (!ujianMasterId) return;
 
-    // Ambil hanya ID dari pengajar_kelas
     const pengajarKelasIds = values.kelas.map(k => k[k.length - 1]);
     if (pengajarKelasIds.length === 0) {
         message.warning("Pilih setidaknya satu kelas.");

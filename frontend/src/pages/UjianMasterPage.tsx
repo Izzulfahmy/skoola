@@ -1,249 +1,95 @@
-// file: frontend/src/pages/UjianMasterPage.tsx
-import React, { useState, useEffect } from 'react';
-import {
-  Button,
-  Typography,
-  Card,
-  Space,
-  Modal,
-  Form,
-  Input,
-  Table,
-  notification,
-  Select,
-  Alert,
-  Tag,
-} from 'antd';
-import { PlusOutlined, DeleteOutlined, EyeOutlined, BuildOutlined } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// frontend/src/pages/UjianMasterPage.tsx
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Card, Select, Spin, Table, Typography, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { useTahunAjaran } from '../hooks/useTahunAjaran';
-import {
-  getAllUjianMaster,
-  createUjianMaster,
-  deleteUjianMaster,
-} from '../api/ujianMaster';
-import type { UjianMaster, UpsertUjianMasterInput, TahunAjaranOption } from '../types';
+import { PlusOutlined } from '@ant-design/icons';
+import { getAllTahunAjaran } from '../api/tahunAjaran';
+import { getAllUjianMaster } from '../api/ujianMaster';
+import type { TahunAjaran, UjianMaster } from '../types';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title } = Typography;
 
-const UjianMasterPage: React.FC = () => {
-  const [api, contextHolder] = notification.useNotification();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const UjianMasterPage = () => {
   const navigate = useNavigate();
+  const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<string | undefined>(undefined);
 
-  const { tahunAjaranOptions, activeTahunAjaran } = useTahunAjaran();
-  const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<TahunAjaranOption | null>(null);
+  const { data: tahunAjaranData, isLoading: isTahunAjaranLoading } = useQuery<TahunAjaran[]>({
+    queryKey: ['tahunAjaran'],
+    queryFn: getAllTahunAjaran,
+  });
 
   useEffect(() => {
-    if (activeTahunAjaran) {
-      setSelectedTahunAjaran(activeTahunAjaran);
-    } else if (tahunAjaranOptions.length > 0) {
-      setSelectedTahunAjaran(tahunAjaranOptions[0]);
+    if (tahunAjaranData && !selectedTahunAjaran) {
+      // Perbandingan 'Aktif' sudah benar
+      const activeTahunAjaran = tahunAjaranData.find(ta => ta.status === 'Aktif');
+      if (activeTahunAjaran) {
+        setSelectedTahunAjaran(activeTahunAjaran.id);
+      }
     }
-  }, [activeTahunAjaran, tahunAjaranOptions]);
+  }, [tahunAjaranData, selectedTahunAjaran]);
 
-  const { data: ujianMasterData, isLoading } = useQuery<UjianMaster[]>({
-    queryKey: ['ujianMasterList', selectedTahunAjaran?.id],
-    queryFn: () => getAllUjianMaster(selectedTahunAjaran!.id),
-    enabled: !!selectedTahunAjaran?.id,
+  const { data: ujianData, isLoading: isUjianLoading, isError } = useQuery<UjianMaster[]>({
+    queryKey: ['ujianMaster', selectedTahunAjaran],
+    queryFn: () => getAllUjianMaster(selectedTahunAjaran!),
+    enabled: !!selectedTahunAjaran,
   });
-
-  const createMutation = useMutation({
-    mutationFn: createUjianMaster,
-    onSuccess: () => {
-      api.success({
-        message: 'Sukses',
-        description: 'Paket Ujian baru berhasil dibuat.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['ujianMasterList', selectedTahunAjaran?.id] });
-      setIsModalOpen(false);
-      form.resetFields();
-    },
-    onError: (error: any) => {
-      api.error({
-        message: 'Gagal',
-        description: error.response?.data?.error || 'Terjadi kesalahan saat membuat paket ujian.',
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteUjianMaster,
-    onSuccess: () => {
-      api.success({
-        message: 'Sukses',
-        description: 'Paket Ujian berhasil dihapus.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['ujianMasterList', selectedTahunAjaran?.id] });
-    },
-    onError: (error: any) => {
-      api.error({
-        message: 'Gagal',
-        description: error.response?.data?.error || 'Terjadi kesalahan saat menghapus paket ujian.',
-      });
-    },
-  });
-
-  const handleFinish = (values: any) => {
-    const payload: UpsertUjianMasterInput = {
-      nama_paket_ujian: values.nama_paket_ujian,
-      tahun_ajaran_id: values.tahun_ajaran_id,
-    };
-    createMutation.mutate(payload);
-  };
-
-  const handleDelete = (id: string) => {
-    Modal.confirm({
-      title: 'Anda yakin ingin menghapus paket ujian ini?',
-      content: 'Tindakan ini tidak dapat dibatalkan.',
-      okText: 'Ya, Hapus',
-      okType: 'danger',
-      cancelText: 'Batal',
-      onOk: () => {
-        deleteMutation.mutate(id);
-      },
-    });
-  };
+  
+  if (isError) {
+      message.error("Gagal memuat data paket ujian. Silakan coba lagi.");
+  }
 
   const columns = [
-    {
-      title: 'No',
-      key: 'index',
-      render: (_: any, __: any, index: number) => index + 1,
-      width: '5%',
-    },
     {
       title: 'Nama Paket Ujian',
       dataIndex: 'nama_paket_ujian',
       key: 'nama_paket_ujian',
-    },
-    {
-      title: 'Aksi',
-      key: 'action',
-      render: (_: any, record: UjianMaster) => (
-        <Space size="middle">
-          <Button
-            type="default"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/admin/ujian-detail/${record.id}`)}
-          >
-            Lihat Penugasan
-          </Button>
-          <Button
-            type="primary"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id)}
-          >
-            Hapus
-          </Button>
-        </Space>
+      render: (text: string, record: UjianMaster) => (
+        <a onClick={() => navigate(`/admin/ujian/${record.id}`)}>{text}</a>
       ),
-      width: '30%',
     },
+    { title: 'Jenis Ujian', dataIndex: 'nama_jenis_ujian', key: 'nama_jenis_ujian' },
+    { title: 'Jumlah Soal', dataIndex: 'jumlah_soal', key: 'jumlah_soal' },
+    { title: 'Durasi (menit)', dataIndex: 'durasi', key: 'durasi' },
   ];
 
-  return (
-    <>
-      {contextHolder}
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <Title level={3}><BuildOutlined /> Manajemen Paket Ujian</Title>
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-            <Space>
-                <Text>Tahun Ajaran:</Text>
-                <Select
-                    value={selectedTahunAjaran?.id}
-                    style={{ width: 250 }}
-                    onChange={(value) => {
-                    const selected = tahunAjaranOptions.find(ta => ta.id === value);
-                    setSelectedTahunAjaran(selected || null);
-                    }}
-                    placeholder="Pilih Tahun Ajaran"
-                >
-                    {tahunAjaranOptions.map(ta => (
-                    <Option key={ta.id} value={ta.id}>{ta.nama}</Option>
-                    ))}
-                </Select>
-            </Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                form.setFieldsValue({ tahun_ajaran_id: selectedTahunAjaran?.id });
-                setIsModalOpen(true);
-              }}
-              disabled={tahunAjaranOptions.length === 0}
-            >
-              Tambah Paket Ujian Baru
-            </Button>
-          </div>
+  const isLoading = isTahunAjaranLoading || (!!selectedTahunAjaran && isUjianLoading);
 
-          {!selectedTahunAjaran ? (
-            <Alert
-              message="Silakan Pilih Tahun Ajaran"
-              description="Pilih tahun ajaran dari dropdown di atas untuk melihat atau menambah paket ujian."
-              type="info"
-              showIcon
-            />
-          ) : (
-            <Table
-              columns={columns}
-              dataSource={ujianMasterData}
-              loading={isLoading}
-              rowKey="id"
-              bordered
-            />
-          )}
-        </Card>
-      </Space>
-      <Modal
-        title="Tambah Paket Ujian Baru"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        destroyOnClose
-        footer={[
-          <Button key="back" onClick={() => setIsModalOpen(false)}>
-            Batal
-          </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            loading={createMutation.isPending}
-            onClick={() => form.submit()}
-          >
-            Simpan
-          </Button>,
-        ]}
-      >
-        <Form form={form} layout="vertical" onFinish={handleFinish}>
-          <Form.Item
-            name="tahun_ajaran_id"
-            label="Tahun Ajaran"
-            rules={[{ required: true, message: 'Tahun Ajaran wajib dipilih!' }]}
-          >
-            <Select placeholder="Pilih Tahun Ajaran untuk paket ujian ini">
-              {tahunAjaranOptions.map(ta => (
-                <Option key={ta.id} value={ta.id}>
-                  {ta.nama} <Tag color={ta.status === 'Aktif' ? 'green' : 'default'}>{ta.status}</Tag>
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="nama_paket_ujian"
-            label="Nama Paket Ujian"
-            rules={[{ required: true, message: 'Nama Paket Ujian wajib diisi!' }]}
-          >
-            <Input placeholder="Contoh: Ujian Akhir Semester Ganjil 2024/2025" />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+  return (
+    <Card>
+      <Title level={4}>Manajemen Paket Ujian</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Select
+          style={{ width: 250 }}
+          placeholder="Pilih Tahun Ajaran"
+          value={selectedTahunAjaran}
+          onChange={(value) => setSelectedTahunAjaran(value)}
+          loading={isTahunAjaranLoading}
+          options={tahunAjaranData?.map(ta => ({
+            // **PERBAIKAN FINAL DI SINI**
+            // Menggunakan `nama_tahun_ajaran` sesuai dengan tipe data TahunAjaran
+            label: `${ta.nama_tahun_ajaran} - ${ta.semester}`,
+            value: ta.id,
+          }))}
+        />
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={() => navigate('/admin/ujian/create')}
+        >
+          Buat Paket Ujian Baru
+        </Button>
+      </div>
+
+      <Spin spinning={isLoading}>
+        <Table
+          dataSource={ujianData}
+          columns={columns}
+          rowKey="id"
+          pagination={false}
+        />
+      </Spin>
+    </Card>
   );
 };
 

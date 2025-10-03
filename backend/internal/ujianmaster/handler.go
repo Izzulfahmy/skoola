@@ -34,11 +34,25 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAllByTA(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	result, err := h.service.GetAll(r.Context(), schemaName)
+	tahunAjaranID := chi.URLParam(r, "taID")
+
+	result, err := h.service.GetAllByTA(r.Context(), schemaName, tahunAjaranID)
 	if err != nil {
 		http.Error(w, "Gagal mengambil data paket ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	id := chi.URLParam(r, "id")
+
+	result, err := h.service.GetByID(r.Context(), schemaName, id)
+	if err != nil {
+		http.Error(w, "Gagal mengambil detail paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(result)

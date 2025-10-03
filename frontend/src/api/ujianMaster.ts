@@ -10,10 +10,10 @@ import type { UjianMaster, UpsertUjianMasterInput, CreateBulkUjianInput, UjianDe
 
 // GET /ujian-master/by-ta/:tahun_ajaran_id
 export const getAllUjianMaster = async (tahunAjaranId: string): Promise<UjianMaster[]> => {
-  const response = await axiosInstance.get(`/ujian-master/by-ta/${tahunAjaranId}`);
+  // PERBAIKAN: Sesuaikan URL dengan endpoint di backend
+  const response = await axiosInstance.get(`/ujian-master/tahun-ajaran/${tahunAjaranId}`);
   return response.data;
 };
-
 // GET /ujian-master/:id
 export const getUjianMasterById = async (id: string): Promise<UjianDetail> => {
     const response = await axiosInstance.get(`/ujian-master/${id}`);

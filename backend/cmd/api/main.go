@@ -31,7 +31,7 @@ import (
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
 	"skoola/internal/tingkatan"
-	"skoola/internal/ujianmaster" // DITAMBAHKAN
+	"skoola/internal/ujianmaster"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -119,7 +119,7 @@ func main() {
 	presensiRepo := presensi.NewRepository(db)
 	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
 	prestasiRepo := prestasi.NewRepository(db)
-	ujianMasterRepo := ujianmaster.NewRepository(db) // DITAMBAHKAN
+	ujianMasterRepo := ujianmaster.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -144,7 +144,7 @@ func main() {
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
-	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, tahunAjaranRepo, validate) // DITAMBAHKAN
+	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, tahunAjaranRepo, validate)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -171,7 +171,7 @@ func main() {
 	connectionHandler := connection.NewHandler()
 	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
 	prestasiHandler := prestasi.NewHandler(prestasiService)
-	ujianMasterHandler := ujianmaster.NewHandler(ujianMasterService) // DITAMBAHKAN
+	ujianMasterHandler := ujianmaster.NewHandler(ujianMasterService)
 
 	r := chi.NewRouter()
 
@@ -380,16 +380,14 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
 
-		// RUTE BARU UNTUK UJIAN MASTER DITAMBAHKAN DI SINI
-		r.Route("/api/ujian-master", func(r chi.Router) {
+		// **BLOK INI YANG DIPERBAIKI**
+		r.Route("/ujian-master", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/tahun-ajaran/{taID}", ujianMasterHandler.GetAllByTA)
+			r.With(auth.Authorize("admin")).Get("/{id}", ujianMasterHandler.GetById)
 			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
-			r.With(auth.Authorize("admin")).Get("/", ujianMasterHandler.GetAll)
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
 		})
-
-		// (Opsional tapi direkomendasikan) Buat rute untuk detail penugasan
-		// r.With(auth.Authorize("admin")).Get("/api/ujian/{ujian_master_id}", pembelajaranHandler.GetUjianByMasterID)
 
 		r.Route("/presensi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
