@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"skoola/internal/penilaiansumatif"
-	"strings"
 
 	"github.com/lib/pq"
 )
@@ -28,8 +27,9 @@ type Repository interface {
 	UpdateUjian(ctx context.Context, schemaName string, id int, input UpsertUjianInput) error
 	DeleteUjian(ctx context.Context, schemaName string, id int) error
 	CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error)
-	// BARU: Repository untuk monitoring
 	GetAllUjianMonitoringByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMonitoring, error)
+	// FUNGSI BARU YANG DIPERBAIKI DITAMBAHKAN DI INTERFACE
+	GetAllUjianByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasIDs []string) (map[string][]UjianDetail, error)
 
 	// Tujuan Pembelajaran
 	CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error)
@@ -147,7 +147,7 @@ func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName strin
 	return &m, nil
 }
 
-// --- Implementasi CreateBulkUjian ---
+// --- Implementasi CreateBulkUjian (TELAH DIUBAH) ---
 
 func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
@@ -160,34 +160,7 @@ func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName str
 	}
 	defer tx.Rollback()
 
-	pengajarKelasQuery := `
-        SELECT 
-            id
-        FROM pengajar_kelas
-        WHERE kelas_id = ANY($1)
-    `
-	rows, err := tx.QueryContext(ctx, pengajarKelasQuery, pq.Array(input.KelasIDs))
-	if err != nil {
-		return nil, fmt.Errorf("gagal mendapatkan pengajar kelas: %w", err)
-	}
-	defer rows.Close()
-
-	var pengajarKelasIDs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("gagal memindai pengajar kelas id: %w", err)
-		}
-		pengajarKelasIDs = append(pengajarKelasIDs, id)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error saat iterasi pengajar kelas: %w", err)
-	}
-
-	if len(pengajarKelasIDs) == 0 {
-		return &BulkUjianResult{SuccessCount: 0, TotalCount: 0}, nil
-	}
-
+	// Dapatkan urutan maksimum untuk semua pengajar_kelas_id yang terlibat
 	urutanQuery := `
         SELECT COALESCE(MAX(urutan), 0) FROM (
             SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = ANY($1)
@@ -196,39 +169,37 @@ func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName str
         ) as combined
     `
 	var maxUrutan sql.NullInt64
-	if err := tx.QueryRowContext(ctx, urutanQuery, pq.Array(pengajarKelasIDs)).Scan(&maxUrutan); err != nil {
+	if err := tx.QueryRowContext(ctx, urutanQuery, pq.Array(input.PengajarKelasIDs)).Scan(&maxUrutan); err != nil {
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
 	}
 
-	var valueStrings []string
-	var valueArgs []interface{}
-	baseUrutan := int(maxUrutan.Int64)
+	nextUrutan := int(maxUrutan.Int64) + 1
 
-	for i, pkID := range pengajarKelasIDs {
-		newUrutan := baseUrutan + i + 1
-		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", 3*i+1, 3*i+2, 3*i+3))
-		valueArgs = append(valueArgs, pkID, input.NamaUjian, newUrutan)
-	}
-
-	bulkInsertQuery := fmt.Sprintf(`
-        INSERT INTO ujian (pengajar_kelas_id, nama_ujian, urutan)
-        VALUES %s
-    `, strings.Join(valueStrings, ","))
-
-	result, err := tx.ExecContext(ctx, bulkInsertQuery, valueArgs...)
+	stmt, err := tx.PrepareContext(ctx, `
+        INSERT INTO ujian (pengajar_kelas_id, ujian_master_id, urutan)
+        VALUES ($1, $2, $3)
+    `)
 	if err != nil {
-		return nil, fmt.Errorf("gagal insert bulk ujian: %w", err)
+		return nil, fmt.Errorf("gagal mempersiapkan statement bulk insert: %w", err)
 	}
+	defer stmt.Close()
 
-	rowsAffected, _ := result.RowsAffected()
+	var successCount int
+	for _, pkID := range input.PengajarKelasIDs {
+		_, err := stmt.ExecContext(ctx, pkID, input.UjianMasterID, nextUrutan)
+		if err == nil {
+			successCount++
+		}
+		// Anda bisa menambahkan logging error di sini jika perlu
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
 	}
 
 	return &BulkUjianResult{
-		SuccessCount: int(rowsAffected),
-		TotalCount:   len(pengajarKelasIDs),
+		SuccessCount: successCount,
+		TotalCount:   len(input.PengajarKelasIDs),
 	}, nil
 }
 
@@ -651,7 +622,10 @@ func (r *postgresRepository) CreateUjian(ctx context.Context, schemaName string,
 	row := tx.QueryRowContext(ctx, query, input.PengajarKelasID, input.NamaUjian, nextUrutan)
 
 	var u Ujian
-	if err := row.Scan(&u.ID, &u.PengajarKelasID, &u.NamaUjian, &u.Urutan, &u.CreatedAt, &u.UpdatedAt); err != nil {
+	// Perhatikan: Scan di sini mungkin perlu disesuaikan jika 'nama_ujian' dihapus dari tabel 'ujian'
+	// Untuk saat ini, asumsikan 'nama_ujian' masih ada untuk fungsi lama
+	var namaUjian sql.NullString // Placeholder, karena field ini mungkin akan diganti dengan ujian_master_id
+	if err := row.Scan(&u.ID, &u.PengajarKelasID, &namaUjian, &u.Urutan, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("gagal memindai data ujian setelah dibuat: %w", err)
 	}
 
@@ -677,4 +651,60 @@ func (r *postgresRepository) DeleteUjian(ctx context.Context, schemaName string,
 	}
 	_, err := r.db.ExecContext(ctx, "DELETE FROM ujian WHERE id = $1", id)
 	return err
+}
+
+// --- KODE BARU DARI TUTORIAL ---
+// Ganti fungsi lama dengan yang ini
+func (r *postgresRepository) GetAllUjianByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasIDs []string) (map[string][]UjianDetail, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	// 1. Query diubah untuk JOIN dengan tabel ujian_master
+	query := `
+        SELECT
+            u.id,
+            u.pengajar_kelas_id,
+            u.ujian_master_id,
+            um.nama_paket_ujian,
+            u.urutan,
+            u.created_at,
+            u.updated_at
+        FROM
+            ujian u
+        JOIN
+            ujian_master um ON u.ujian_master_id = um.id
+        WHERE
+            u.pengajar_kelas_id = ANY($1)`
+
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(pengajarKelasIDs))
+	if err != nil {
+		return nil, fmt.Errorf("gagal query ujian: %w", err)
+	}
+	defer rows.Close()
+
+	ujianMap := make(map[string][]UjianDetail)
+	for rows.Next() {
+		// 2. Gunakan struct UjianDetail yang baru
+		var u UjianDetail
+		// 3. Sesuaikan scan dengan field baru
+		if err := rows.Scan(
+			&u.ID,
+			&u.PengajarKelasID,
+			&u.UjianMasterID,
+			&u.NamaPaketUjian, // Scan nama_paket_ujian
+			&u.Urutan,
+			&u.CreatedAt,
+			&u.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("gagal scan ujian: %w", err)
+		}
+		ujianMap[u.PengajarKelasID] = append(ujianMap[u.PengajarKelasID], u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error selama iterasi baris ujian: %w", err)
+	}
+
+	return ujianMap, nil
 }

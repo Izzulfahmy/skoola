@@ -31,6 +31,7 @@ import (
 	"skoola/internal/teacher"
 	"skoola/internal/tenant"
 	"skoola/internal/tingkatan"
+	"skoola/internal/ujianmaster" // DITAMBAHKAN
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -117,7 +118,8 @@ func main() {
 	penilaianSumatifRepo := penilaiansumatif.NewRepository(db)
 	presensiRepo := presensi.NewRepository(db)
 	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
-	prestasiRepo := prestasi.NewRepository(db) // <-- Tambahkan repo baru
+	prestasiRepo := prestasi.NewRepository(db)
+	ujianMasterRepo := ujianmaster.NewRepository(db) // DITAMBAHKAN
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -141,7 +143,8 @@ func main() {
 	penilaianSumatifService := penilaiansumatif.NewService(penilaianSumatifRepo, validate)
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
-	prestasiService := prestasi.NewService(prestasiRepo, validate) // <-- Tambahkan service baru
+	prestasiService := prestasi.NewService(prestasiRepo, validate)
+	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, tahunAjaranRepo, validate) // DITAMBAHKAN
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -167,7 +170,8 @@ func main() {
 	presensiHandler := presensi.NewHandler(presensiService)
 	connectionHandler := connection.NewHandler()
 	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
-	prestasiHandler := prestasi.NewHandler(prestasiService) // <-- Tambahkan handler baru
+	prestasiHandler := prestasi.NewHandler(prestasiService)
+	ujianMasterHandler := ujianmaster.NewHandler(ujianMasterService) // DITAMBAHKAN
 
 	r := chi.NewRouter()
 
@@ -256,24 +260,17 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenjangHandler.Delete)
 		})
 
-		// --- PERUBAHAN DAN PENAMBAHAN ADA DI BAWAH INI ---
 		r.Route("/ekstrakurikuler", func(r chi.Router) {
-			// Rute untuk Master Data (di menu Pengaturan)
 			r.With(auth.Authorize("admin")).Get("/", ekstrakurikulerHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", ekstrakurikulerHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ekstrakurikulerHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ekstrakurikulerHandler.Delete)
-
-			// Rute untuk Sesi (di menu baru Manajemen Ekstrakurikuler)
-			r.With(auth.Authorize("admin")).Get("/sesi", ekstrakurikulerHandler.GetSesi) // GET /ekstrakurikuler/sesi?ekskulId=1&tahunAjaranId=2
+			r.With(auth.Authorize("admin")).Get("/sesi", ekstrakurikulerHandler.GetSesi)
 			r.With(auth.Authorize("admin")).Put("/sesi/{sesiId}", ekstrakurikulerHandler.UpdateSesiDetail)
-
-			// Rute untuk Anggota
 			r.With(auth.Authorize("admin")).Get("/sesi/{sesiId}/anggota", ekstrakurikulerHandler.GetAnggota)
 			r.With(auth.Authorize("admin")).Post("/sesi/{sesiId}/anggota", ekstrakurikulerHandler.AddAnggota)
 			r.With(auth.Authorize("admin")).Delete("/anggota/{anggotaId}", ekstrakurikulerHandler.RemoveAnggota)
 		})
-		// --------------------------------------------------
 
 		r.Route("/jabatan", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/", jabatanHandler.GetAll)
@@ -353,11 +350,7 @@ func main() {
 			r.With(auth.Authorize("admin", "teacher")).Put("/materi/{materiID}", pembelajaranHandler.UpdateMateri)
 			r.With(auth.Authorize("admin", "teacher")).Delete("/materi/{materiID}", pembelajaranHandler.DeleteMateri)
 			r.With(auth.Authorize("admin", "teacher")).Post("/ujian/bulk", pembelajaranHandler.CreateBulkUjian)
-
-			// --- RUTE BARU DITAMBAHKAN ---
 			r.With(auth.Authorize("admin", "teacher")).Get("/ujian/monitoring/by-tahun-ajaran/{tahunAjaranID}", pembelajaranHandler.GetAllUjianMonitoringByTahunAjaran)
-			// -----------------------------
-
 			r.With(auth.Authorize("admin", "teacher")).Post("/ujian", pembelajaranHandler.CreateUjian)
 			r.With(auth.Authorize("admin", "teacher")).Put("/ujian/{id}", pembelajaranHandler.UpdateUjian)
 			r.With(auth.Authorize("admin", "teacher")).Delete("/ujian/{id}", pembelajaranHandler.DeleteUjian)
@@ -387,13 +380,23 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
 
+		// RUTE BARU UNTUK UJIAN MASTER DITAMBAHKAN DI SINI
+		r.Route("/api/ujian-master", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
+			r.With(auth.Authorize("admin")).Get("/", ujianMasterHandler.GetAll)
+			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
+		})
+
+		// (Opsional tapi direkomendasikan) Buat rute untuk detail penugasan
+		// r.With(auth.Authorize("admin")).Get("/api/ujian/{ujian_master_id}", pembelajaranHandler.GetUjianByMasterID)
+
 		r.Route("/presensi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
 			r.With(auth.Authorize("admin")).Post("/", presensiHandler.UpsertPresensi)
 			r.With(auth.Authorize("admin")).Delete("/", presensiHandler.DeletePresensi)
 		})
 
-		// <-- Rute baru untuk prestasi
 		r.Route("/prestasi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/", prestasiHandler.GetAllByTahunAjaran)
 			r.With(auth.Authorize("admin")).Post("/", prestasiHandler.Create)

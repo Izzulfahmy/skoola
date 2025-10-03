@@ -16,7 +16,7 @@ import {
   SolutionOutlined,
   ExperimentOutlined, 
   FormOutlined,
-  ReadOutlined, // <-- Import ikon baru
+  ReadOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd'; 
 import type { MenuProps } from 'antd';
@@ -55,7 +55,7 @@ const AdminLayout = () => {
       key: 'settings',
       label: 'Pengaturan Akun',
       icon: <SettingOutlined />,
-      onClick: () => navigate('/settings'), 
+      onClick: () => navigate('/admin/settings'), // <-- Also prefix this
     },
     {
       type: 'divider',
@@ -69,26 +69,28 @@ const AdminLayout = () => {
     },
   ];
 
+  // =================================================================
+  // PERBAIKAN UTAMA: Tambahkan prefix '/admin' pada semua key dan Link
+  // =================================================================
   const allMenuItems: MenuProps['items'] = [
-    { key: '/dashboard', icon: <DesktopOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
-    { key: '/profile', icon: <BankOutlined />, label: <Link to="/profile">Profil Sekolah</Link> },
-    { key: '/tahun-ajaran', icon: <CalendarOutlined />, label: <Link to="/tahun-ajaran">Tahun Pelajaran</Link> },
-    { key: '/kurikulum', icon: <ProjectOutlined />, label: <Link to="/kurikulum">Kurikulum</Link> },
-    { key: '/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/mata-pelajaran">Mata Pelajaran</Link> },
-    { key: '/teachers', icon: <UserOutlined />, label: <Link to="/teachers">Data Guru</Link> },
-    { key: '/students', icon: <TeamOutlined />, label: <Link to="/students">Data Siswa</Link> },
-    { key: '/rombel', icon: <ApartmentOutlined />, label: <Link to="/rombel">Rombel</Link> },
-    { key: '/ujian', icon: <FormOutlined />, label: <Link to="/ujian">Ujian</Link> }, 
+    { key: '/admin/dashboard', icon: <DesktopOutlined />, label: <Link to="/admin/dashboard">Dashboard</Link> },
+    { key: '/admin/profile', icon: <BankOutlined />, label: <Link to="/admin/profile">Profil Sekolah</Link> },
+    { key: '/admin/tahun-ajaran', icon: <CalendarOutlined />, label: <Link to="/admin/tahun-ajaran">Tahun Pelajaran</Link> },
+    { key: '/admin/kurikulum', icon: <ProjectOutlined />, label: <Link to="/admin/kurikulum">Kurikulum</Link> },
+    { key: '/admin/mata-pelajaran', icon: <BookOutlined />, label: <Link to="/admin/mata-pelajaran">Mata Pelajaran</Link> },
+    { key: '/admin/teachers', icon: <UserOutlined />, label: <Link to="/admin/teachers">Data Guru</Link> },
+    { key: '/admin/students', icon: <TeamOutlined />, label: <Link to="/admin/students">Data Siswa</Link> },
+    { key: '/admin/rombel', icon: <ApartmentOutlined />, label: <Link to="/admin/rombel">Rombel</Link> },
+    { key: '/admin/ujian', icon: <FormOutlined />, label: <Link to="/admin/ujian">Ujian</Link> }, 
     {
-      key: '/ekstrakurikuler',
+      key: '/admin/ekstrakurikuler',
       icon: <ExperimentOutlined />,
-      label: <Link to="/ekstrakurikuler">Ekstrakurikuler</Link>,
+      label: <Link to="/admin/ekstrakurikuler">Ekstrakurikuler</Link>,
     },
-    { key: '/presensi', icon: <SolutionOutlined />, label: <Link to="/presensi">Presensi</Link> },
-    // --- PENAMBAHAN MENU RAPOR ---
-    { key: '/rapor', icon: <ReadOutlined />, label: <Link to="/rapor">Rapor</Link> },
+    { key: '/admin/presensi', icon: <SolutionOutlined />, label: <Link to="/admin/presensi">Presensi</Link> },
+    { key: '/admin/rapor', icon: <ReadOutlined />, label: <Link to="/admin/rapor">Rapor</Link> },
     { type: 'divider' },
-    { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Pengaturan</Link> },
+    { key: '/admin/settings', icon: <SettingOutlined />, label: <Link to="/admin/settings">Pengaturan</Link> },
   ];
 
   const validMenuItems = allMenuItems.filter(
@@ -96,9 +98,10 @@ const AdminLayout = () => {
       item !== null && typeof item === 'object' && 'key' in item && item.key !== undefined
   );
   
+  // Logic to find the active key based on the current URL path
   const activeKey = validMenuItems
     .sort((a, b) => (typeof b.key === 'string' ? b.key.length : 0) - (typeof a.key === 'string' ? a.key.length : 0))
-    .find(item => typeof item.key === 'string' && location.pathname.startsWith(item.key))?.key || '/dashboard';
+    .find(item => typeof item.key === 'string' && location.pathname.startsWith(item.key))?.key || '/admin/dashboard';
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -106,7 +109,7 @@ const AdminLayout = () => {
         height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
-        {isMobile || !collapsed ? 'Admin Panel' : ''}
+        {isMobile || !collapsed ? 'Admin Panel' : 'S'}
       </div>
       
       <Menu

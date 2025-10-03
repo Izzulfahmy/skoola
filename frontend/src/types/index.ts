@@ -697,3 +697,33 @@ export interface UpsertJenisUjianInput {
   kode_ujian: string;
   nama_ujian: string;
 }
+
+export interface UjianMaster {
+  id: string;
+  tahun_ajaran_id: string;
+  nama_paket_ujian: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertUjianMasterInput {
+  tahun_ajaran_id: string;
+  nama_paket_ujian: string;
+}
+
+// Ini adalah tipe data yang direfactor dari 'CreateBulkUjianInput' yang lama
+export interface CreateBulkUjianInput {
+    ujian_master_id: string;
+    pengajar_kelas_ids: string[];
+}
+
+// Tipe untuk menampung detail penugasan ujian di halaman detail
+export interface UjianDetail {
+  nama_paket_ujian: string;
+  penugasan: {
+    pengajar_kelas_id: string;
+    nama_kelas: string;
+    nama_mapel: string;
+    nama_guru: string;
+  }[];
+}

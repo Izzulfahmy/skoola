@@ -22,11 +22,22 @@ type RencanaPembelajaranItem struct {
 type Ujian struct {
 	ID               int                                 `json:"id"`
 	PengajarKelasID  string                              `json:"pengajar_kelas_id"`
-	NamaUjian        string                              `json:"nama_ujian"`
+	UjianMasterID    string                              `json:"ujian_master_id"` // DIUBAH
 	Urutan           int                                 `json:"urutan"`
 	CreatedAt        time.Time                           `json:"created_at"`
 	UpdatedAt        time.Time                           `json:"updated_at"`
 	PenilaianSumatif []penilaiansumatif.PenilaianSumatif `json:"penilaian_sumatif"`
+}
+
+// UjianDetail adalah DTO untuk menampung data gabungan dari tabel ujian dan ujian_master
+type UjianDetail struct {
+	ID              int       `json:"id"`
+	PengajarKelasID string    `json:"pengajar_kelas_id"`
+	UjianMasterID   string    `json:"ujian_master_id"`
+	NamaPaketUjian  string    `json:"nama_paket_ujian"` // Field baru dari join
+	Urutan          int       `json:"urutan"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // TujuanPembelajaran merepresentasikan data dari tabel 'tujuan_pembelajaran'.
@@ -103,11 +114,10 @@ type RencanaUrutanItem struct {
 	Type string `json:"type" validate:"required,oneof=materi ujian"`
 }
 
-// --- DTO BARU UNTUK BULK CREATION UJIAN ---
+// --- DTO BARU UNTUK BULK CREATION UJIAN (REFACTOR) ---
 type CreateBulkUjianInput struct {
-	NamaUjian     string   `json:"nama_ujian" validate:"required,min=3,max=255"`
-	TahunAjaranID string   `json:"tahun_ajaran_id" validate:"required,uuid"`
-	KelasIDs      []string `json:"kelas_ids" validate:"required,min=1,dive,uuid"`
+	UjianMasterID    string   `json:"ujian_master_id" validate:"required,uuid"`
+	PengajarKelasIDs []string `json:"pengajar_kelas_ids" validate:"required,min=1,dive,uuid"`
 }
 
 type BulkUjianResult struct {
