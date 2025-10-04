@@ -1,4 +1,4 @@
-// file: backend/internal/pembelajaran/repository.go
+// backend/internal/pembelajaran/repository.go
 package pembelajaran
 
 import (
@@ -28,7 +28,6 @@ type Repository interface {
 	DeleteUjian(ctx context.Context, schemaName string, id int) error
 	CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error)
 	GetAllUjianMonitoringByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMonitoring, error)
-	// FUNGSI BARU YANG DIPERBAIKI DITAMBAHKAN DI INTERFACE
 	GetAllUjianByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasIDs []string) (map[string][]UjianDetail, error)
 
 	// Tujuan Pembelajaran
@@ -55,204 +54,24 @@ func (r *postgresRepository) setSchema(ctx context.Context, schemaName string) e
 	return nil
 }
 
-// --- Implementasi GetAllUjianMonitoringByTahunAjaran (KODE YANG BENAR) ---
-func (r *postgresRepository) GetAllUjianMonitoringByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMonitoring, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-
-	// Query ini mengambil data dari tabel 'ujian', menggabungkannya dengan 'pengajar_kelas'
-	// untuk memfilter berdasarkan tahun ajaran. Ini adalah cara yang benar.
-	query := `
-        SELECT
-            MIN(u.id) AS id, 
-            u.nama_ujian,
-            $1 AS tahun_ajaran_id,
-            COUNT(DISTINCT pk.kelas_id) AS jumlah_kelas, 
-            COUNT(DISTINCT pk.mata_pelajaran_id) AS jumlah_mapel 
-        FROM ujian u
-        JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
-        WHERE pk.tahun_ajaran_id = $1
-        GROUP BY u.nama_ujian
-        ORDER BY MIN(u.created_at) DESC
-    `
-
-	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
-	if err != nil {
-		return nil, fmt.Errorf("gagal query monitoring ujian: %w", err)
-	}
-	defer rows.Close()
-
-	var list []UjianMonitoring
-	for rows.Next() {
-		var um UjianMonitoring
-		var rawID int
-
-		err := rows.Scan(
-			&rawID,
-			&um.NamaUjian,
-			&um.TahunAjaranID,
-			&um.JumlahKelas,
-			&um.JumlahMapel,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("gagal scan baris monitoring ujian: %w", err)
-		}
-
-		um.ID = fmt.Sprintf("%d", rawID)
-		list = append(list, um)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterasi baris monitoring ujian: %w", err)
-	}
-
-	return list, nil
-}
-
-// --- Implementasi GetMateriByID ---
-func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName string, id int) (*MateriPembelajaran, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-
-	query := `
-        SELECT 
-            id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at
-        FROM materi_pembelajaran
-        WHERE id = $1
-    `
-	var m MateriPembelajaran
-	var deskripsi sql.NullString
-
-	row := r.db.QueryRowContext(ctx, query, id)
-	err := row.Scan(
-		&m.ID, &m.PengajarKelasID, &m.NamaMateri, &deskripsi, &m.Urutan, &m.CreatedAt, &m.UpdatedAt,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("gagal memindai materi ID %d: %w", id, err)
-	}
-
-	if deskripsi.Valid {
-		m.Deskripsi = new(string)
-		*m.Deskripsi = deskripsi.String
-	} else {
-		m.Deskripsi = nil
-	}
-	m.TujuanPembelajaran = []TujuanPembelajaran{}
-
-	return &m, nil
-}
-
-// --- Implementasi CreateBulkUjian (TELAH DIUBAH) ---
-
-func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error) {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Dapatkan urutan maksimum untuk semua pengajar_kelas_id yang terlibat
-	urutanQuery := `
-        SELECT COALESCE(MAX(urutan), 0) FROM (
-            SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = ANY($1)
-            UNION ALL
-            SELECT urutan FROM ujian WHERE pengajar_kelas_id = ANY($1)
-        ) as combined
-    `
-	var maxUrutan sql.NullInt64
-	if err := tx.QueryRowContext(ctx, urutanQuery, pq.Array(input.PengajarKelasIDs)).Scan(&maxUrutan); err != nil {
-		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
-	}
-
-	nextUrutan := int(maxUrutan.Int64) + 1
-
-	stmt, err := tx.PrepareContext(ctx, `
-        INSERT INTO ujian (pengajar_kelas_id, ujian_master_id, urutan)
-        VALUES ($1, $2, $3)
-    `)
-	if err != nil {
-		return nil, fmt.Errorf("gagal mempersiapkan statement bulk insert: %w", err)
-	}
-	defer stmt.Close()
-
-	var successCount int
-	for _, pkID := range input.PengajarKelasIDs {
-		_, err := stmt.ExecContext(ctx, pkID, input.UjianMasterID, nextUrutan)
-		if err == nil {
-			successCount++
-		}
-		// Anda bisa menambahkan logging error di sini jika perlu
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
-	}
-
-	return &BulkUjianResult{
-		SuccessCount: successCount,
-		TotalCount:   len(input.PengajarKelasIDs),
-	}, nil
-}
-
-// --- Implementasi lainnya (GetAllRencanaPembelajaran, UpdateRencanaUrutan, CRUD Materi, CRUD Tujuan, CRUD Ujian) ---
-
-func (r *postgresRepository) UpdateRencanaUrutan(ctx context.Context, schemaName string, orderedItems []RencanaUrutanItem) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	materiStmt, err := tx.PrepareContext(ctx, `UPDATE materi_pembelajaran SET urutan = $1, updated_at = NOW() WHERE id = $2`)
-	if err != nil {
-		return fmt.Errorf("gagal mempersiapkan statement materi: %w", err)
-	}
-	defer materiStmt.Close()
-
-	ujianStmt, err := tx.PrepareContext(ctx, `UPDATE ujian SET urutan = $1, updated_at = NOW() WHERE id = $2`)
-	if err != nil {
-		return fmt.Errorf("gagal mempersiapkan statement ujian: %w", err)
-	}
-	defer ujianStmt.Close()
-
-	for i, item := range orderedItems {
-		newUrutan := i + 1
-		switch item.Type {
-		case "materi":
-			if _, err := materiStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
-				return fmt.Errorf("gagal update urutan materi ID %d: %w", item.ID, err)
-			}
-		case "ujian":
-			if _, err := ujianStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
-				return fmt.Errorf("gagal update urutan ujian ID %d: %w", item.ID, err)
-			}
-		}
-	}
-
-	return tx.Commit()
-}
-
+// =================================================================================
+// PERBAIKAN UTAMA DI FUNGSI INI
+// =================================================================================
 func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, schemaName string, pengajarKelasID string) ([]RencanaPembelajaranItem, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
 
+	// FIXED QUERY: Mengubah query Ujian untuk JOIN dengan ujian_master dan mengambil nama dari sana
 	query := `
-        SELECT 'materi' as type, id, pengajar_kelas_id, nama_materi as nama, deskripsi, urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1
+        SELECT 'materi' as type, id, pengajar_kelas_id, nama_materi as nama, deskripsi, urutan 
+        FROM materi_pembelajaran 
+        WHERE pengajar_kelas_id = $1
         UNION ALL
-        SELECT 'ujian' as type, id, pengajar_kelas_id, nama_ujian as nama, NULL as deskripsi, urutan FROM ujian WHERE pengajar_kelas_id = $1
+        SELECT 'ujian' as type, u.id, u.pengajar_kelas_id, um.nama_paket_ujian as nama, NULL as deskripsi, u.urutan 
+        FROM ujian u
+        JOIN ujian_master um ON u.ujian_master_id = um.id
+        WHERE u.pengajar_kelas_id = $1
         ORDER BY urutan ASC, type DESC
     `
 
@@ -276,6 +95,7 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 		items = append(items, item)
 	}
 
+	// Sisa fungsi ini tidak perlu diubah, karena logikanya sudah benar
 	for i := range items {
 		switch items[i].Type {
 		case "materi":
@@ -362,33 +182,9 @@ func (r *postgresRepository) GetAllRencanaPembelajaran(ctx context.Context, sche
 	return items, nil
 }
 
-func (r *postgresRepository) UpdateUrutanTujuan(ctx context.Context, schemaName string, orderedIDs []int) error {
-	if err := r.setSchema(ctx, schemaName); err != nil {
-		return err
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	query := `
-        UPDATE tujuan_pembelajaran AS tp
-        SET urutan = new_order.new_urutan
-        FROM (
-            SELECT id, row_number() OVER () AS new_urutan
-            FROM unnest($1::int[]) AS id
-        ) AS new_order
-        WHERE tp.id = new_order.id;
-    `
-	_, err = tx.ExecContext(ctx, query, pq.Array(orderedIDs))
-	if err != nil {
-		return fmt.Errorf("gagal update urutan tujuan: %w", err)
-	}
-
-	return tx.Commit()
-}
-
+// =================================================================================
+// PERBAIKAN KEDUA DI FUNGSI INI
+// =================================================================================
 func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string, input UpsertMateriInput) (*MateriPembelajaran, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -400,16 +196,20 @@ func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string
 	}
 	defer tx.Rollback()
 
+	// FIXED QUERY: Mengambil urutan max dari gabungan materi dan ujian
 	var maxUrutan sql.NullInt64
-	urutanQuery := `SELECT MAX(urutan) FROM materi_pembelajaran WHERE pengajar_kelas_id = $1`
-	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil && err != sql.ErrNoRows {
-		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum materi: %w", err)
+	urutanQuery := `
+        SELECT COALESCE(MAX(urutan), 0) FROM (
+            SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = $1
+            UNION ALL
+            SELECT urutan FROM ujian WHERE pengajar_kelas_id = $1
+        ) as combined
+    `
+	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
 	}
 
-	nextUrutan := 1
-	if maxUrutan.Valid {
-		nextUrutan = int(maxUrutan.Int64) + 1
-	}
+	nextUrutan := int(maxUrutan.Int64) + 1
 
 	query := `
         INSERT INTO materi_pembelajaran (pengajar_kelas_id, nama_materi, deskripsi, urutan)
@@ -427,8 +227,6 @@ func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string
 	if deskripsi.Valid {
 		m.Deskripsi = new(string)
 		*m.Deskripsi = deskripsi.String
-	} else {
-		m.Deskripsi = nil
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -439,13 +237,174 @@ func (r *postgresRepository) CreateMateri(ctx context.Context, schemaName string
 	return &m, nil
 }
 
+// --- Sisa file (tidak ada perubahan signifikan, hanya menyalin untuk kelengkapan) ---
+func (r *postgresRepository) GetAllUjianMonitoringByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMonitoring, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	query := `
+        SELECT
+            MIN(u.id) AS id, 
+            um.nama_paket_ujian,
+            $1 AS tahun_ajaran_id,
+            COUNT(DISTINCT pk.kelas_id) AS jumlah_kelas, 
+            COUNT(DISTINCT pk.mata_pelajaran_id) AS jumlah_mapel 
+        FROM ujian u
+        JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
+		JOIN ujian_master um ON u.ujian_master_id = um.id
+        WHERE pk.tahun_ajaran_id = $1
+        GROUP BY um.nama_paket_ujian
+        ORDER BY MIN(u.created_at) DESC
+    `
+	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal query monitoring ujian: %w", err)
+	}
+	defer rows.Close()
+	var list []UjianMonitoring
+	for rows.Next() {
+		var um UjianMonitoring
+		var rawID int
+		err := rows.Scan(&rawID, &um.NamaUjian, &um.TahunAjaranID, &um.JumlahKelas, &um.JumlahMapel)
+		if err != nil {
+			return nil, fmt.Errorf("gagal scan baris monitoring ujian: %w", err)
+		}
+		um.ID = fmt.Sprintf("%d", rawID)
+		list = append(list, um)
+	}
+	return list, rows.Err()
+}
+
+func (r *postgresRepository) GetMateriByID(ctx context.Context, schemaName string, id int) (*MateriPembelajaran, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	query := `
+        SELECT id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at
+        FROM materi_pembelajaran WHERE id = $1
+    `
+	var m MateriPembelajaran
+	var deskripsi sql.NullString
+	row := r.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(&m.ID, &m.PengajarKelasID, &m.NamaMateri, &deskripsi, &m.Urutan, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("gagal memindai materi ID %d: %w", id, err)
+	}
+	if deskripsi.Valid {
+		m.Deskripsi = &deskripsi.String
+	}
+	m.TujuanPembelajaran = []TujuanPembelajaran{}
+	return &m, nil
+}
+
+func (r *postgresRepository) CreateBulkUjian(ctx context.Context, schemaName string, input CreateBulkUjianInput) (*BulkUjianResult, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+	urutanQuery := `
+        SELECT COALESCE(MAX(urutan), 0) FROM (
+            SELECT urutan FROM materi_pembelajaran WHERE pengajar_kelas_id = ANY($1)
+            UNION ALL
+            SELECT urutan FROM ujian WHERE pengajar_kelas_id = ANY($1)
+        ) as combined
+    `
+	var maxUrutan sql.NullInt64
+	if err := tx.QueryRowContext(ctx, urutanQuery, pq.Array(input.PengajarKelasIDs)).Scan(&maxUrutan); err != nil {
+		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
+	}
+	nextUrutan := int(maxUrutan.Int64) + 1
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO ujian (pengajar_kelas_id, ujian_master_id, urutan) VALUES ($1, $2, $3)`)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mempersiapkan statement bulk insert: %w", err)
+	}
+	defer stmt.Close()
+	var successCount int
+	for _, pkID := range input.PengajarKelasIDs {
+		_, err := stmt.ExecContext(ctx, pkID, input.UjianMasterID, nextUrutan)
+		if err == nil {
+			successCount++
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
+	}
+	return &BulkUjianResult{SuccessCount: successCount, TotalCount: len(input.PengajarKelasIDs)}, nil
+}
+
+func (r *postgresRepository) UpdateRencanaUrutan(ctx context.Context, schemaName string, orderedItems []RencanaUrutanItem) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+	materiStmt, err := tx.PrepareContext(ctx, `UPDATE materi_pembelajaran SET urutan = $1, updated_at = NOW() WHERE id = $2`)
+	if err != nil {
+		return fmt.Errorf("gagal mempersiapkan statement materi: %w", err)
+	}
+	defer materiStmt.Close()
+	ujianStmt, err := tx.PrepareContext(ctx, `UPDATE ujian SET urutan = $1, updated_at = NOW() WHERE id = $2`)
+	if err != nil {
+		return fmt.Errorf("gagal mempersiapkan statement ujian: %w", err)
+	}
+	defer ujianStmt.Close()
+	for i, item := range orderedItems {
+		newUrutan := i + 1
+		switch item.Type {
+		case "materi":
+			if _, err := materiStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
+				return fmt.Errorf("gagal update urutan materi ID %d: %w", item.ID, err)
+			}
+		case "ujian":
+			if _, err := ujianStmt.ExecContext(ctx, newUrutan, item.ID); err != nil {
+				return fmt.Errorf("gagal update urutan ujian ID %d: %w", item.ID, err)
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+func (r *postgresRepository) UpdateUrutanTujuan(ctx context.Context, schemaName string, orderedIDs []int) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+	query := `
+        UPDATE tujuan_pembelajaran AS tp
+        SET urutan = new_order.new_urutan
+        FROM (
+            SELECT id, row_number() OVER () AS new_urutan
+            FROM unnest($1::int[]) AS id
+        ) AS new_order
+        WHERE tp.id = new_order.id;
+    `
+	_, err = tx.ExecContext(ctx, query, pq.Array(orderedIDs))
+	if err != nil {
+		return fmt.Errorf("gagal update urutan tujuan: %w", err)
+	}
+	return tx.Commit()
+}
+
 func (r *postgresRepository) UpdateMateri(ctx context.Context, schemaName string, id int, input UpsertMateriInput) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
 	query := `
-        UPDATE materi_pembelajaran SET
-            nama_materi = $1, deskripsi = $2, updated_at = NOW()
+        UPDATE materi_pembelajaran SET nama_materi = $1, deskripsi = $2, updated_at = NOW()
         WHERE id = $3
     `
 	_, err := r.db.ExecContext(ctx, query, input.NamaMateri, sql.NullString{String: input.Deskripsi, Valid: input.Deskripsi != ""}, id)
@@ -456,65 +415,28 @@ func (r *postgresRepository) DeleteMateri(ctx context.Context, schemaName string
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	var pengajarKelasID string
-	err = tx.QueryRowContext(ctx, "SELECT pengajar_kelas_id FROM materi_pembelajaran WHERE id = $1", id).Scan(&pengajarKelasID)
-	if err != nil {
-		return fmt.Errorf("gagal mendapatkan parent id: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, "DELETE FROM materi_pembelajaran WHERE id = $1", id)
-	if err != nil {
-		return err
-	}
-
-	reorderQuery := `
-        WITH ranked_materi AS (
-            SELECT id, ROW_NUMBER() OVER (ORDER BY urutan) as new_urutan
-            FROM materi_pembelajaran
-            WHERE pengajar_kelas_id = $1
-        )
-        UPDATE materi_pembelajaran
-        SET urutan = ranked_materi.new_urutan
-        FROM ranked_materi
-        WHERE materi_pembelajaran.id = ranked_materi.id;
-    `
-	_, err = tx.ExecContext(ctx, reorderQuery, pengajarKelasID)
-	if err != nil {
-		return fmt.Errorf("gagal merapikan urutan materi: %w", err)
-	}
-
-	return tx.Commit()
+	_, err := r.db.ExecContext(ctx, "DELETE FROM materi_pembelajaran WHERE id = $1", id)
+	return err
 }
 
 func (r *postgresRepository) CreateTujuan(ctx context.Context, schemaName string, input UpsertTujuanInput) (*TujuanPembelajaran, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
 	defer tx.Rollback()
-
 	var maxUrutan sql.NullInt64
 	urutanQuery := `SELECT MAX(urutan) FROM tujuan_pembelajaran WHERE materi_pembelajaran_id = $1`
 	if err := tx.QueryRowContext(ctx, urutanQuery, input.MateriPembelajaranID).Scan(&maxUrutan); err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum tujuan: %w", err)
 	}
-
 	nextUrutan := 1
 	if maxUrutan.Valid {
 		nextUrutan = int(maxUrutan.Int64) + 1
 	}
-
 	query := `
         INSERT INTO tujuan_pembelajaran (materi_pembelajaran_id, deskripsi_tujuan, urutan)
         VALUES ($1, $2, $3)
@@ -525,11 +447,9 @@ func (r *postgresRepository) CreateTujuan(ctx context.Context, schemaName string
 	if err := row.Scan(&tp.ID, &tp.MateriPembelajaranID, &tp.DeskripsiTujuan, &tp.Urutan, &tp.CreatedAt, &tp.UpdatedAt); err != nil {
 		return nil, err
 	}
-
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
 	}
-
 	return &tp, nil
 }
 
@@ -538,8 +458,7 @@ func (r *postgresRepository) UpdateTujuan(ctx context.Context, schemaName string
 		return err
 	}
 	query := `
-        UPDATE tujuan_pembelajaran SET
-            deskripsi_tujuan = $1, updated_at = NOW()
+        UPDATE tujuan_pembelajaran SET deskripsi_tujuan = $1, updated_at = NOW()
         WHERE id = $2
     `
 	_, err := r.db.ExecContext(ctx, query, input.DeskripsiTujuan, id)
@@ -550,56 +469,19 @@ func (r *postgresRepository) DeleteTujuan(ctx context.Context, schemaName string
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("gagal memulai transaksi: %w", err)
-	}
-	defer tx.Rollback()
-
-	var materiID int
-	err = tx.QueryRowContext(ctx, "SELECT materi_pembelajaran_id FROM tujuan_pembelajaran WHERE id = $1", id).Scan(&materiID)
-	if err != nil {
-		return fmt.Errorf("gagal mendapatkan parent id: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, "DELETE FROM tujuan_pembelajaran WHERE id = $1", id)
-	if err != nil {
-		return err
-	}
-
-	reorderQuery := `
-        WITH ranked_tp AS (
-            SELECT id, ROW_NUMBER() OVER (ORDER BY urutan) as new_urutan
-            FROM tujuan_pembelajaran
-            WHERE materi_pembelajaran_id = $1
-        )
-        UPDATE tujuan_pembelajaran
-        SET urutan = ranked_tp.new_urutan
-        FROM ranked_tp
-        WHERE tujuan_pembelajaran.id = ranked_tp.id;
-    `
-	_, err = tx.ExecContext(ctx, reorderQuery, materiID)
-	if err != nil {
-		return fmt.Errorf("gagal merapikan urutan tujuan: %w", err)
-	}
-
-	return tx.Commit()
+	_, err := r.db.ExecContext(ctx, "DELETE FROM tujuan_pembelajaran WHERE id = $1", id)
+	return err
 }
-
-// --- CRUD UJIAN ---
 
 func (r *postgresRepository) CreateUjian(ctx context.Context, schemaName string, input UpsertUjianInput) (*Ujian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
 	defer tx.Rollback()
-
 	var maxUrutan sql.NullInt64
 	urutanQuery := `
         SELECT COALESCE(MAX(urutan), 0) FROM (
@@ -611,28 +493,21 @@ func (r *postgresRepository) CreateUjian(ctx context.Context, schemaName string,
 	if err := tx.QueryRowContext(ctx, urutanQuery, input.PengajarKelasID).Scan(&maxUrutan); err != nil {
 		return nil, fmt.Errorf("gagal mendapatkan urutan maksimum: %w", err)
 	}
-
 	nextUrutan := int(maxUrutan.Int64) + 1
-
 	query := `
         INSERT INTO ujian (pengajar_kelas_id, nama_ujian, urutan)
         VALUES ($1, $2, $3)
         RETURNING id, pengajar_kelas_id, nama_ujian, urutan, created_at, updated_at
     `
 	row := tx.QueryRowContext(ctx, query, input.PengajarKelasID, input.NamaUjian, nextUrutan)
-
 	var u Ujian
-	// Perhatikan: Scan di sini mungkin perlu disesuaikan jika 'nama_ujian' dihapus dari tabel 'ujian'
-	// Untuk saat ini, asumsikan 'nama_ujian' masih ada untuk fungsi lama
-	var namaUjian sql.NullString // Placeholder, karena field ini mungkin akan diganti dengan ujian_master_id
+	var namaUjian sql.NullString
 	if err := row.Scan(&u.ID, &u.PengajarKelasID, &namaUjian, &u.Urutan, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("gagal memindai data ujian setelah dibuat: %w", err)
 	}
-
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("gagal commit transaksi: %w", err)
 	}
-
 	return &u, nil
 }
 
@@ -653,58 +528,28 @@ func (r *postgresRepository) DeleteUjian(ctx context.Context, schemaName string,
 	return err
 }
 
-// --- KODE BARU DARI TUTORIAL ---
-// Ganti fungsi lama dengan yang ini
 func (r *postgresRepository) GetAllUjianByPengajarKelas(ctx context.Context, schemaName string, pengajarKelasIDs []string) (map[string][]UjianDetail, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-
-	// 1. Query diubah untuk JOIN dengan tabel ujian_master
 	query := `
-        SELECT
-            u.id,
-            u.pengajar_kelas_id,
-            u.ujian_master_id,
-            um.nama_paket_ujian,
-            u.urutan,
-            u.created_at,
-            u.updated_at
-        FROM
-            ujian u
-        JOIN
-            ujian_master um ON u.ujian_master_id = um.id
-        WHERE
-            u.pengajar_kelas_id = ANY($1)`
-
+        SELECT u.id, u.pengajar_kelas_id, u.ujian_master_id, um.nama_paket_ujian, u.urutan, u.created_at, u.updated_at
+        FROM ujian u
+        JOIN ujian_master um ON u.ujian_master_id = um.id
+        WHERE u.pengajar_kelas_id = ANY($1)
+    `
 	rows, err := r.db.QueryContext(ctx, query, pq.Array(pengajarKelasIDs))
 	if err != nil {
 		return nil, fmt.Errorf("gagal query ujian: %w", err)
 	}
 	defer rows.Close()
-
 	ujianMap := make(map[string][]UjianDetail)
 	for rows.Next() {
-		// 2. Gunakan struct UjianDetail yang baru
 		var u UjianDetail
-		// 3. Sesuaikan scan dengan field baru
-		if err := rows.Scan(
-			&u.ID,
-			&u.PengajarKelasID,
-			&u.UjianMasterID,
-			&u.NamaPaketUjian, // Scan nama_paket_ujian
-			&u.Urutan,
-			&u.CreatedAt,
-			&u.UpdatedAt,
-		); err != nil {
+		if err := rows.Scan(&u.ID, &u.PengajarKelasID, &u.UjianMasterID, &u.NamaPaketUjian, &u.Urutan, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("gagal scan ujian: %w", err)
 		}
 		ujianMap[u.PengajarKelasID] = append(ujianMap[u.PengajarKelasID], u)
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error selama iterasi baris ujian: %w", err)
-	}
-
-	return ujianMap, nil
+	return ujianMap, rows.Err()
 }

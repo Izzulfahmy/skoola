@@ -1,4 +1,4 @@
-// file: backend/internal/pembelajaran/model.go
+// backend/internal/pembelajaran/model.go
 package pembelajaran
 
 import (
@@ -22,7 +22,7 @@ type RencanaPembelajaranItem struct {
 type Ujian struct {
 	ID               int                                 `json:"id"`
 	PengajarKelasID  string                              `json:"pengajar_kelas_id"`
-	UjianMasterID    string                              `json:"ujian_master_id"` // DIUBAH
+	UjianMasterID    string                              `json:"ujian_master_id"` // Pastikan ini ada
 	Urutan           int                                 `json:"urutan"`
 	CreatedAt        time.Time                           `json:"created_at"`
 	UpdatedAt        time.Time                           `json:"updated_at"`
@@ -34,7 +34,7 @@ type UjianDetail struct {
 	ID              int       `json:"id"`
 	PengajarKelasID string    `json:"pengajar_kelas_id"`
 	UjianMasterID   string    `json:"ujian_master_id"`
-	NamaPaketUjian  string    `json:"nama_paket_ujian"` // Field baru dari join
+	NamaPaketUjian  string    `json:"nama_paket_ujian"`
 	Urutan          int       `json:"urutan"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -52,7 +52,6 @@ type TujuanPembelajaran struct {
 }
 
 // MateriPembelajaran merepresentasikan data dari tabel 'materi_pembelajaran'
-// dan menyertakan slice dari TujuanPembelajaran sebagai relasi nested.
 type MateriPembelajaran struct {
 	ID                 int                  `json:"id"`
 	PengajarKelasID    string               `json:"pengajar_kelas_id"`
@@ -61,21 +60,16 @@ type MateriPembelajaran struct {
 	Urutan             int                  `json:"urutan"`
 	CreatedAt          time.Time            `json:"created_at"`
 	UpdatedAt          time.Time            `json:"updated_at"`
-	TujuanPembelajaran []TujuanPembelajaran `json:"tujuan_pembelajaran"` // Untuk menampung data join
+	TujuanPembelajaran []TujuanPembelajaran `json:"tujuan_pembelajaran"`
 }
 
-// --- DTO BARU UNTUK MONITORING UJIAN (Ditambahkan) ---
 type UjianMonitoring struct {
-	ID            string `json:"id"`         // ID Ujian (yang paling kecil) dalam grup
-	NamaUjian     string `json:"nama_ujian"` // Nama Ujian (Contoh: Ujian Tengah Semester)
+	ID            string `json:"id"`
+	NamaUjian     string `json:"nama_ujian"`
 	TahunAjaranID string `json:"tahun_ajaran_id"`
-	JumlahKelas   int    `json:"jumlah_kelas"` // Jumlah Kelas/Rombel yang diaplikasikan
-	JumlahMapel   int    `json:"jumlah_mapel"` // Jumlah Mata Pelajaran yang terlibat
+	JumlahKelas   int    `json:"jumlah_kelas"`
+	JumlahMapel   int    `json:"jumlah_mapel"`
 }
-
-// ------------------------------------
-
-// --- DTO (Data Transfer Objects) untuk Input ---
 
 // UpsertMateriInput adalah DTO untuk membuat atau mengupdate data materi.
 type UpsertMateriInput struct {
@@ -88,7 +82,8 @@ type UpsertMateriInput struct {
 // UpsertUjianInput adalah DTO untuk membuat atau mengupdate data ujian.
 type UpsertUjianInput struct {
 	PengajarKelasID string `json:"pengajar_kelas_id" validate:"required,uuid"`
-	NamaUjian       string `json:"nama_ujian" validate:"required,min=3,max=255"`
+	NamaUjian       string `json:"nama_ujian" validate:"required,min=3,max=255"` // Ini mungkin tidak lagi dipakai jika sudah refactor
+	UjianMasterID   string `json:"ujian_master_id" validate:"omitempty,uuid"`
 	Urutan          int    `json:"urutan" validate:"omitempty,numeric"`
 }
 
@@ -99,12 +94,10 @@ type UpsertTujuanInput struct {
 	Urutan               int    `json:"urutan" validate:"omitempty,numeric"`
 }
 
-// UpdateUrutanInput adalah DTO untuk update urutan tujuan pembelajaran
 type UpdateUrutanInput struct {
 	OrderedIDs []int `json:"ordered_ids" validate:"required,dive,numeric"`
 }
 
-// --- DTO BARU UNTUK UPDATE URUTAN GABUNGAN ---
 type UpdateRencanaUrutanInput struct {
 	OrderedItems []RencanaUrutanItem `json:"ordered_items" validate:"required,dive"`
 }
@@ -114,7 +107,6 @@ type RencanaUrutanItem struct {
 	Type string `json:"type" validate:"required,oneof=materi ujian"`
 }
 
-// --- DTO BARU UNTUK BULK CREATION UJIAN (REFACTOR) ---
 type CreateBulkUjianInput struct {
 	UjianMasterID    string   `json:"ujian_master_id" validate:"required,uuid"`
 	PengajarKelasIDs []string `json:"pengajar_kelas_ids" validate:"required,min=1,dive,uuid"`

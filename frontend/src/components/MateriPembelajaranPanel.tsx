@@ -1,3 +1,5 @@
+// frontend/src/components/MateriPembelajaranPanel.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tree, Button, message, Spin, Empty, Input, Popconfirm, Space, Modal, Form, Select, DatePicker, Tag, Tooltip, Typography } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd';
@@ -7,8 +9,6 @@ import {
   createMateri,
   updateMateri,
   deleteMateri,
-  createUjian,
-  updateUjian,
   deleteUjian,
   createTujuan,
   updateTujuan,
@@ -74,6 +74,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ initialValue, isTextArea 
 
 interface MateriPembelajaranPanelProps {
   pengajarKelasId: string;
+  onUpdate?: () => void;
 }
 
 const parseKey = (key: Key): { type: string; id: number | string; parentId?: number } => {
@@ -87,7 +88,7 @@ const parseKey = (key: Key): { type: string; id: number | string; parentId?: num
     };
 };
 
-const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelProps) => {
+const MateriPembelajaranPanel = ({ pengajarKelasId, onUpdate }: MateriPembelajaranPanelProps) => {
   const [rencanaList, setRencanaList] = useState<RencanaPembelajaranItem[]>([]);
   const [jenisUjianList, setJenisUjianList] = useState<JenisUjian[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,18 +127,9 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       await createMateri({ pengajar_kelas_id: pengajarKelasId, nama_materi: "Materi Baru" });
       message.success("Materi baru berhasil ditambahkan.");
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       message.error("Gagal menambahkan materi baru.");
-    }
-  };
-
-  const handleAddUjian = async () => {
-    try {
-      await createUjian({ pengajar_kelas_id: pengajarKelasId, nama_ujian: "Ujian Baru" });
-      message.success("Ujian baru berhasil ditambahkan.");
-      fetchData();
-    } catch (error) {
-      message.error("Gagal menambahkan ujian baru.");
     }
   };
 
@@ -146,6 +138,7 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       await createTujuan({ materi_pembelajaran_id: materiId, deskripsi_tujuan: "Tujuan pembelajaran baru." });
       message.success("Tujuan pembelajaran baru berhasil ditambahkan.");
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       message.error("Gagal menambahkan tujuan pembelajaran.");
     }
@@ -154,25 +147,45 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
   const handleSave = useCallback(async (newValue: string) => {
     if (!editingKey) return;
     const { type, id, parentId } = parseKey(editingKey);
-
     setEditingKey(null);
+    const oldRencanaList = [...rencanaList];
+
+    const newRencanaList = rencanaList.map(item => {
+        if (`${item.type}_${item.id}` === editingKey) {
+            return { ...item, nama: newValue };
+        }
+        if (item.tujuan_pembelajaran) {
+            return {
+                ...item,
+                tujuan_pembelajaran: item.tujuan_pembelajaran.map(tp => {
+                    if (`tp_${tp.id}_${item.id}` === editingKey) {
+                        return { ...tp, deskripsi_tujuan: newValue };
+                    }
+                    return tp;
+                })
+            };
+        }
+        return item;
+    });
+    setRencanaList(newRencanaList);
 
     try {
-      if (type === 'materi') {
-        await updateMateri(id as number, { nama_materi: newValue, pengajar_kelas_id: pengajarKelasId });
-      } else if (type === 'ujian') {
-        await updateUjian(id as number, { nama_ujian: newValue, pengajar_kelas_id: pengajarKelasId });
-      } else if (type === 'tp' && parentId) {
-        await updateTujuan(id as number, { deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
-      }
-      message.success("Perubahan berhasil disimpan.");
-      fetchData();
+        if (type === 'materi') {
+            // =================================================================================
+            // PERBAIKAN ERROR TYPESCRIPT DI SINI
+            // =================================================================================
+            await updateMateri(id as number, { nama_materi: newValue, pengajar_kelas_id: pengajarKelasId });
+        } else if (type === 'ujian') {
+            // Nama ujian tidak bisa diedit dari sini karena berasal dari Ujian Master
+        } else if (type === 'tp' && parentId) {
+            await updateTujuan(id as number, { deskripsi_tujuan: newValue, materi_pembelajaran_id: parentId });
+        }
+        message.success("Perubahan berhasil disimpan.");
     } catch (error) {
-      message.error("Gagal menyimpan perubahan.");
-      fetchData();
+        message.error("Gagal menyimpan perubahan.");
+        setRencanaList(oldRencanaList);
     }
-  }, [editingKey, pengajarKelasId, fetchData]);
-
+  }, [editingKey, pengajarKelasId, rencanaList]);
 
   const handleDelete = useCallback(async (key: string) => {
     const { type, id } = parseKey(key);
@@ -183,10 +196,11 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       else if (type === 'penilaian') await deletePenilaian(String(id));
       message.success("Data berhasil dihapus.");
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       message.error("Gagal menghapus data.");
     }
-  }, [fetchData]);
+  }, [fetchData, onUpdate]);
 
   const handleOpenPenilaianModal = (item: TujuanPembelajaran | Ujian, penilaian: PenilaianSumatif | null) => {
     setCurrentItem(item);
@@ -223,68 +237,64 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
       }
       setPenilaianModalVisible(false);
       fetchData();
+      if (onUpdate) onUpdate();
     } catch (error) {
       message.error("Gagal menyimpan rencana penilaian.");
     }
-  }, [currentItem, isEditingPenilaian, editingPenilaian, fetchData]);
+  }, [currentItem, isEditingPenilaian, editingPenilaian, fetchData, onUpdate]);
+  
+  const onDrop: TreeProps['onDrop'] = async (info) => {
+    const { dragNode, node: dropNode, dropToGap, dropPosition: rawDropPosition } = info;
+    const dropKey = dropNode.key;
+    const dragKey = dragNode.key;
 
-  // PERBAIKAN: Definisikan handler secara terpisah dengan tipe eksplisit
-  const dropHandler: TreeProps['onDrop'] = async (info) => {
-    const dropKey = info.node.key;
-    const dragKey = info.dragNode.key;
-    const dropPos = info.node.pos.split('-');
-    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
+    if (dropToGap === false) {
+      message.warning("Item hanya bisa diurutkan, bukan dijadikan sub-item.");
+      return;
+    }
 
+    const dropPos = dropNode.pos.split('-');
+    const dropPosition = rawDropPosition - Number(dropPos[dropPos.length - 1]);
     const dragNodeData = parseKey(dragKey);
     const dropNodeData = parseKey(dropKey);
-
-    if (!info.dropToGap) {
-        message.warning("Item hanya bisa diurutkan, bukan dijadikan sub-item.");
-        return;
-    }
+    const oldRencanaList = [...rencanaList];
 
     if ((dragNodeData.type === 'materi' || dragNodeData.type === 'ujian') && (dropNodeData.type === 'materi' || dropNodeData.type === 'ujian')) {
-        const reorderedList = [...rencanaList];
-        const dragIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dragKey);
-        const [draggedItem] = reorderedList.splice(dragIndex, 1);
-        const dropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
-        reorderedList.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
-        setRencanaList(reorderedList);
-        const orderedItems = reorderedList.map(item => ({ id: item.id, type: item.type as 'materi' | 'ujian' }));
-        try {
-            await updateRencanaUrutan({ ordered_items: orderedItems });
-            message.success('Urutan berhasil diperbarui.');
-        } catch (error) {
-            message.error('Gagal menyimpan urutan baru. Memuat ulang data...');
-            fetchData();
-        }
-    }
+      const reorderedList = [...oldRencanaList];
+      const dragIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dragKey);
+      const [draggedItem] = reorderedList.splice(dragIndex, 1);
+      const dropIndex = reorderedList.findIndex(item => `${item.type}_${item.id}` === dropKey);
+      reorderedList.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
+      setRencanaList(reorderedList);
+      const orderedItems = reorderedList.map(item => ({ id: item.id, type: item.type as 'materi' | 'ujian' }));
+      try {
+        await updateRencanaUrutan({ ordered_items: orderedItems });
+      } catch (error) {
+        message.error('Gagal menyimpan urutan. Mengembalikan ke posisi semula.');
+        setRencanaList(oldRencanaList);
+      }
+    } 
     else if (dragNodeData.type === 'tp' && dropNodeData.type === 'tp' && dragNodeData.parentId === dropNodeData.parentId) {
-        const parentMateri = rencanaList.find(m => m.id === dragNodeData.parentId);
-        if (!parentMateri || !parentMateri.tujuan_pembelajaran) return;
-        const reorderedTPs = [...parentMateri.tujuan_pembelajaran];
-        const dragIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dragKey);
-        const [draggedItem] = reorderedTPs.splice(dragIndex, 1);
-        const dropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
-        reorderedTPs.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
-        const updatedRencanaList = rencanaList.map(m => m.id === dragNodeData.parentId ? { ...m, tujuan_pembelajaran: reorderedTPs } : m);
-        setRencanaList(updatedRencanaList);
-        const orderedIds = reorderedTPs.map(tp => tp.id);
-        try {
-            await updateUrutanTujuan({ ordered_ids: orderedIds });
-            message.success('Urutan tujuan pembelajaran berhasil diperbarui.');
-        } catch (error) {
-            message.error('Gagal menyimpan urutan baru. Memuat ulang data...');
-            fetchData();
-        }
+      const parentMateri = oldRencanaList.find(m => m.id === dragNodeData.parentId);
+      if (!parentMateri || !parentMateri.tujuan_pembelajaran) return;
+      const reorderedTPs = [...parentMateri.tujuan_pembelajaran];
+      const dragIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dragKey);
+      const [draggedItem] = reorderedTPs.splice(dragIndex, 1);
+      const dropIndex = reorderedTPs.findIndex(tp => `tp_${tp.id}_${tp.materi_pembelajaran_id}` === dropKey);
+      reorderedTPs.splice(dropPosition <= 0 ? dropIndex : dropIndex + 1, 0, draggedItem);
+      const updatedRencanaList = oldRencanaList.map(m => m.id === dragNodeData.parentId ? { ...m, tujuan_pembelajaran: reorderedTPs } : m);
+      setRencanaList(updatedRencanaList);
+      const orderedIds = reorderedTPs.map(tp => tp.id);
+      try {
+        await updateUrutanTujuan({ ordered_ids: orderedIds });
+      } catch (error) {
+        message.error('Gagal menyimpan urutan tujuan. Mengembalikan ke posisi semula.');
+        setRencanaList(oldRencanaList);
+      }
     } else {
-        message.warning("Drag and drop hanya didukung untuk item pada level yang sama.");
+      message.warning("Drag and drop hanya didukung untuk item pada level yang sama.");
     }
   };
-
-  // Bungkus handler yang sudah memiliki tipe dengan useCallback
-  const onDrop = useCallback(dropHandler, [rencanaList, fetchData]);
-
 
   const generateTreeData = useCallback((): TreeDataNode[] => {
     return rencanaList.map(item => {
@@ -367,9 +377,9 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                     <span style={{ fontWeight: 'bold', flex: 1, marginRight: '8px' }}>{item.nama}</span>
                     <Space>
-                        {item.type === 'materi' && <Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(item.id)} size="small" type="text" />}
+                        {item.type === 'materi' && <Tooltip title="Tambah Tujuan Pembelajaran"><Button icon={<PlusOutlined />} onClick={() => handleAddTujuan(item.id)} size="small" type="text" /></Tooltip>}
                         {item.type === 'ujian' && <Tooltip title="Tambah Rincian Ujian"><Button icon={<AuditOutlined />} size="small" type="text" onClick={() => handleOpenPenilaianModal(item as Ujian, null)}/></Tooltip>}
-                        <Button icon={<EditOutlined />} onClick={() => setEditingKey(itemKey)} size="small" type="text" />
+                        {item.type !== 'ujian' && <Button icon={<EditOutlined />} onClick={() => setEditingKey(itemKey)} size="small" type="text" /> }
                         <Popconfirm title={`Hapus ${item.type} ini?`} onConfirm={() => handleDelete(itemKey)}><Button icon={<DeleteOutlined />} size="small" type="text" danger /></Popconfirm>
                     </Space>
                 </div>
@@ -386,7 +396,6 @@ const MateriPembelajaranPanel = ({ pengajarKelasId }: MateriPembelajaranPanelPro
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<PlusOutlined />} onClick={handleAddMateri}>Tambah Materi</Button>
-        <Button icon={<PlusOutlined />} onClick={handleAddUjian}>Tambah Ujian</Button>
       </Space>
       {rencanaList.length > 0 ? (
         <Tree
