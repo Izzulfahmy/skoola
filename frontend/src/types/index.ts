@@ -692,6 +692,9 @@ export interface AddAnggotaInput {
   student_ids: string[];
 }
 
+
+// --- PERUBAHAN DIMULAI DI SINI ---
+
 export interface JenisUjian {
   id: number;
   kode_ujian: string;
@@ -705,6 +708,7 @@ export interface UpsertJenisUjianInput {
   nama_ujian: string;
 }
 
+// UjianMaster diperbarui sesuai instruksi
 export interface UjianMaster {
   id: string;
   tahun_ajaran_id: string;
@@ -713,24 +717,45 @@ export interface UjianMaster {
   updated_at: string;
 }
 
+// UpsertUjianMasterInput diperbarui sesuai instruksi
 export interface UpsertUjianMasterInput {
   tahun_ajaran_id: string;
   nama_paket_ujian: string;
 }
 
-// Ini adalah tipe data yang direfactor dari 'CreateBulkUjianInput' yang lama
+// Tipe baru untuk data penugasan yang sudah ada
+export interface PenugasanUjian {
+    pengajar_kelas_id: string;
+    nama_kelas: string;
+    nama_mapel: string;
+    nama_guru: string;
+}
+
+// Tipe baru untuk struktur Cascader di frontend
+export interface AvailableMapel {
+    value: string;
+    label: string;
+}
+
+// Tipe baru untuk struktur Cascader di frontend
+export interface AvailableKelas {
+    value: string;
+    label: string;
+    children: AvailableMapel[];
+}
+
+// UjianDetail diperbarui untuk menampung seluruh data detail dari backend
+export interface UjianDetail {
+    detail: UjianMaster;
+    penugasan: PenugasanUjian[];
+    availableKelas: AvailableKelas[];
+}
+
+
+// Tipe data ini masih relevan untuk fungsi lain, jadi tetap dipertahankan
 export interface CreateBulkUjianInput {
     ujian_master_id: string;
     pengajar_kelas_ids: string[];
 }
 
-// Tipe untuk menampung detail penugasan ujian di halaman detail
-export interface UjianDetail {
-  nama_paket_ujian: string;
-  penugasan: {
-    pengajar_kelas_id: string;
-    nama_kelas: string;
-    nama_mapel: string;
-    nama_guru: string;
-  }[];
-}
+// --- AKHIR PERUBAHAN ---

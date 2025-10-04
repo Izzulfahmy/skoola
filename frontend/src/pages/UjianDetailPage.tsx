@@ -1,10 +1,11 @@
 // frontend/src/pages/UjianDetailPage.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, message, Modal, Table, Form, Cascader, Typography, Spin, Empty, Card, Breadcrumb } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { getUjianMasterById as getUjianDetails, assignUjianToKelas } from '../api/ujianMaster';
-import type { UjianDetail, CreateBulkUjianInput } from '../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getUjianMasterById, assignUjianToKelas } from '../api/ujianMaster';
+import type { UjianDetail } from '../types';
 
 const { Title } = Typography;
 
@@ -12,62 +13,38 @@ const UjianDetailPage = () => {
   const { id: ujianMasterId } = useParams<{ id: string }>();
   const [form] = Form.useForm();
   const navigate = useNavigate();
-
-  const [ujianDetail, setUjianDetail] = useState<UjianDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availableKelas, setAvailableKelas] = useState<any[]>([]);
 
-  const fetchData = async () => {
-    if (!ujianMasterId) return;
-    setLoading(true);
-    try {
-      // PERBAIKAN: Tipe dari 'getUjianDetails' di file api/ujianMaster.ts tidak sesuai
-      // dengan data yang sebenarnya dikembalikan. Kita gunakan 'as any' untuk
-      // mengatasi error TypeScript dan mengakses properti yang benar.
-      const data = await getUjianDetails(ujianMasterId) as any;
-      
-      setUjianDetail(data.detail);
-      setAvailableKelas(data.availableKelas);
-    } catch (err) {
-      message.error('Gagal memuat detail paket ujian.');
-    } finally {
-      setLoading(false);
+  const { data: ujianDetail, isLoading, isError, error } = useQuery<UjianDetail>({
+    queryKey: ['ujianDetail', ujianMasterId],
+    queryFn: () => getUjianMasterById(ujianMasterId!),
+    enabled: !!ujianMasterId,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (pengajarKelasIds: string[]) => {
+        if (!ujianMasterId) throw new Error("ID Master Ujian tidak ditemukan");
+        return assignUjianToKelas(ujianMasterId, { pengajar_kelas_ids: pengajarKelasIds });
+    },
+    onSuccess: () => {
+        message.success('Kelas berhasil ditugaskan untuk ujian ini!');
+        queryClient.invalidateQueries({ queryKey: ['ujianDetail', ujianMasterId] });
+        setIsModalOpen(false);
+        form.resetFields();
+    },
+    onError: (err: any) => {
+        message.error(err.response?.data?.message || 'Gagal menugaskan kelas.');
     }
-  };
+  });
 
-  useEffect(() => {
-    if (ujianMasterId) {
-        fetchData();
-    }
-  }, [ujianMasterId]);
-
-  const handleFinish = async (values: { kelas: string[][] }) => {
-    if (!ujianMasterId) return;
-
+  const handleFinish = (values: { kelas: string[][] }) => {
     const pengajarKelasIds = values.kelas.map(k => k[k.length - 1]);
     if (pengajarKelasIds.length === 0) {
         message.warning("Pilih setidaknya satu kelas.");
         return;
     }
-
-    setIsSubmitting(true);
-    try {
-      const payload: CreateBulkUjianInput = {
-          ujian_master_id: ujianMasterId,
-          pengajar_kelas_ids: pengajarKelasIds,
-      };
-      await assignUjianToKelas(payload);
-      message.success('Kelas berhasil ditugaskan untuk ujian ini!');
-      setIsModalOpen(false);
-      form.resetFields();
-      await fetchData();
-    } catch (err) {
-      message.error('Gagal menugaskan kelas.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    mutation.mutate(pengajarKelasIds);
   };
 
   const columns = [
@@ -76,7 +53,11 @@ const UjianDetailPage = () => {
       { title: 'Guru', dataIndex: 'nama_guru', key: 'guru' },
   ];
 
-  if (loading) return <Spin size="large" />;
+  if (isLoading) return <Spin size="large" style={{ display: 'block', marginTop: '50px' }}/>;
+  if (isError) {
+      message.error(`Gagal memuat detail: ${error.message}`);
+      return <Empty description="Gagal memuat detail paket ujian." />;
+  }
 
   return (
     <Card>
@@ -87,12 +68,13 @@ const UjianDetailPage = () => {
             ]}
             style={{ marginBottom: 16 }}
         />
-      <Title level={4}>Detail Paket Ujian: {ujianDetail?.nama_paket_ujian}</Title>
+      <Title level={4}>Detail Paket Ujian: {ujianDetail?.detail.nama_paket_ujian}</Title>
       <Button
         type="primary"
         icon={<PlusOutlined />}
         onClick={() => setIsModalOpen(true)}
         style={{ marginBottom: 16 }}
+        disabled={!ujianDetail?.availableKelas || ujianDetail.availableKelas.length === 0}
       >
         Daftarkan Kelas
       </Button>
@@ -110,17 +92,16 @@ const UjianDetailPage = () => {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={() => form.submit()}
-        confirmLoading={isSubmitting}
+        confirmLoading={mutation.isPending}
         destroyOnClose
       >
         <Form form={form} onFinish={handleFinish} layout="vertical" style={{ marginTop: 24 }}>
-          <Form.Item name="kelas" label="Pilih Kelas" rules={[{ required: true, message: "Pilih setidaknya satu kelas" }]}>
+          <Form.Item name="kelas" label="Pilih Kelas & Mata Pelajaran" rules={[{ required: true, message: "Pilih setidaknya satu" }]}>
             <Cascader
-              options={availableKelas}
+              options={ujianDetail?.availableKelas || []}
               multiple
               showCheckedStrategy={Cascader.SHOW_CHILD}
-              placeholder="Pilih kelas-kelas yang akan mengikuti ujian ini"
-              changeOnSelect
+              placeholder="Pilih kelas dan mapel yang akan mengikuti ujian ini"
             />
           </Form.Item>
         </Form>

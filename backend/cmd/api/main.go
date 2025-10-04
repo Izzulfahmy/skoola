@@ -1,4 +1,3 @@
-// file: backend/cmd/api/main.go
 package main
 
 import (
@@ -144,7 +143,6 @@ func main() {
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
-	// --- PERBAIKAN 1: Menghapus argumen ekstra ---
 	ujianMasterService := ujianmaster.NewService(ujianMasterRepo)
 
 	// Handlers
@@ -383,11 +381,12 @@ func main() {
 
 		r.Route("/ujian-master", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/tahun-ajaran/{taID}", ujianMasterHandler.GetAllByTA)
-			// --- PERBAIKAN 2: Mengganti GetById menjadi GetByID ---
 			r.With(auth.Authorize("admin")).Get("/{id}", ujianMasterHandler.GetByID)
 			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
+			// --- RUTE BARU DITAMBAHKAN SESUAI TUTORIAL ---
+			r.With(auth.Authorize("admin")).Post("/{id}/assign-kelas", ujianMasterHandler.AssignKelas)
 		})
 
 		r.Route("/presensi", func(r chi.Router) {

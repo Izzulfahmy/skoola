@@ -3,6 +3,7 @@ package ujianmaster
 import (
 	"encoding/json"
 	"net/http"
+	"skoola/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -15,15 +16,47 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// --- HANDLER BARU ---
+type AssignKelasInput struct {
+	PengajarKelasIDs []string `json:"pengajar_kelas_ids"`
+}
+
+func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	var input AssignKelasInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.service.AssignKelasToUjian(r.Context(), schemaName, ujianMasterID, input.PengajarKelasIDs)
+	if err != nil {
+		http.Error(w, "Gagal menugaskan kelas: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":      "Berhasil menugaskan kelas.",
+		"successCount": count,
+	})
+}
+
+// -----------------
+
 // Create handles the creation of a new UjianMaster.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	var um UjianMaster
 	if err := json.NewDecoder(r.Body).Decode(&um); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
 	}
 
-	createdUM, err := h.service.CreateUjianMaster(r.Context(), um)
+	createdUM, err := h.service.CreateUjianMaster(r.Context(), schemaName, um)
 	if err != nil {
 		http.Error(w, "Gagal membuat paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -36,15 +69,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 // GetAllByTA handles getting all UjianMaster by Tahun Ajaran.
 func (h *Handler) GetAllByTA(w http.ResponseWriter, r *http.Request) {
-	// --- PERBAIKAN DI SINI ---
-	// Mengganti "tahunAjaranID" menjadi "taID" agar cocok dengan router di main.go
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	tahunAjaranID := chi.URLParam(r, "taID")
 	if tahunAjaranID == "" {
 		http.Error(w, "Parameter taID tidak ditemukan di URL", http.StatusBadRequest)
 		return
 	}
 
-	results, err := h.service.GetAllUjianMasterByTahunAjaran(r.Context(), tahunAjaranID)
+	results, err := h.service.GetAllUjianMasterByTahunAjaran(r.Context(), schemaName, tahunAjaranID)
 	if err != nil {
 		http.Error(w, "Gagal mengambil data paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -56,8 +88,9 @@ func (h *Handler) GetAllByTA(w http.ResponseWriter, r *http.Request) {
 
 // GetByID handles getting a UjianMaster by its ID.
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	id := chi.URLParam(r, "id")
-	um, err := h.service.GetUjianMasterByID(r.Context(), id)
+	um, err := h.service.GetUjianMasterByID(r.Context(), schemaName, id)
 	if err != nil {
 		http.Error(w, "Paket ujian tidak ditemukan: "+err.Error(), http.StatusNotFound)
 		return
@@ -69,6 +102,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 // Update handles updating a UjianMaster.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	id := chi.URLParam(r, "id")
 	var um UjianMaster
 	if err := json.NewDecoder(r.Body).Decode(&um); err != nil {
@@ -76,7 +110,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedUM, err := h.service.UpdateUjianMaster(r.Context(), id, um)
+	updatedUM, err := h.service.UpdateUjianMaster(r.Context(), schemaName, id, um)
 	if err != nil {
 		http.Error(w, "Gagal memperbarui paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -88,8 +122,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles deleting a UjianMaster.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	id := chi.URLParam(r, "id")
-	err := h.service.DeleteUjianMaster(r.Context(), id)
+	err := h.service.DeleteUjianMaster(r.Context(), schemaName, id)
 	if err != nil {
 		http.Error(w, "Gagal menghapus paket ujian: "+err.Error(), http.StatusInternalServerError)
 		return

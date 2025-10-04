@@ -6,25 +6,38 @@ import (
 	"github.com/google/uuid"
 )
 
-// UjianMaster represents the main exam package entity.
-// NOTE: Corrected data types for ID fields from string/int to uuid.UUID.
+// UjianMaster disesuaikan dengan skema DB Anda.
 type UjianMaster struct {
 	ID             uuid.UUID `json:"id"`
 	NamaPaketUjian string    `json:"nama_paket_ujian"`
 	TahunAjaranID  uuid.UUID `json:"tahun_ajaran_id"`
-	JenisUjianID   uuid.UUID `json:"jenis_ujian_id"`
-	NamaJenisUjian string    `json:"nama_jenis_ujian,omitempty"` // omitempty because it's from a JOIN
-	Durasi         int       `json:"durasi"`
-	JumlahSoal     int       `json:"jumlah_soal"`
-	Keterangan     string    `json:"keterangan"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// UjianMasterDetail is a new struct for providing detailed exam information.
-// It was missing, causing a compilation error.
+// PenugasanUjian tetap sama
+type PenugasanUjian struct {
+	PengajarKelasID string `json:"pengajar_kelas_id"`
+	NamaKelas       string `json:"nama_kelas"`
+	NamaMapel       string `json:"nama_mapel"`
+	NamaGuru        string `json:"nama_guru"`
+}
+
+// AvailableKelas tetap sama
+type AvailableKelas struct {
+	Value    string           `json:"value"`
+	Label    string           `json:"label"`
+	Children []AvailableMapel `json:"children"`
+}
+
+type AvailableMapel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// UjianMasterDetail tetap sama
 type UjianMasterDetail struct {
-	UjianMaster
-	// Penugasan      []SomeType `json:"penugasan"`      // Placeholder for future implementation
-	// AvailableKelas []SomeType `json:"available_kelas"`  // Placeholder for future implementation
+	Detail         UjianMaster      `json:"detail"`
+	Penugasan      []PenugasanUjian `json:"penugasan"`
+	AvailableKelas []AvailableKelas `json:"availableKelas"`
 }
