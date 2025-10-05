@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import {
   Spin,
   Empty,
-  Collapse,
   Typography,
   Button,
   Modal,
@@ -13,7 +12,10 @@ import {
   Tooltip,
   Table,
   Tag,
-  Flex, // Import Flex untuk layout
+  Row,
+  Col,
+  Card,
+  Flex,
 } from 'antd';
 import { PlusOutlined, UsergroupAddOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +23,6 @@ import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
 import { addPesertaFromKelas } from '../../api/ujianMaster';
 
-const { Panel } = Collapse;
 const { Text } = Typography;
 
 const denseCellStyle = {
@@ -63,7 +64,8 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       title: 'Nama Siswa',
       dataIndex: 'nama_siswa',
       key: 'nama_siswa',
-      render: (text) => <Text strong>{text}</Text>,
+      // --- PERUBAHAN DI SINI: Menghilangkan `strong` ---
+      render: (text) => text,
       onHeaderCell: () => ({ style: denseHeaderStyle }),
       onCell: () => ({ style: denseCellStyle }),
     },
@@ -71,7 +73,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       title: 'NISN',
       dataIndex: 'nisn',
       key: 'nisn',
-      width: 160,
+      width: 150,
       responsive: ['md'],
       render: (nisn) => nisn || <Text type="secondary">-</Text>,
       onHeaderCell: () => ({ style: denseHeaderStyle }),
@@ -82,8 +84,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       dataIndex: 'nomor_ujian',
       key: 'nomor_ujian',
       align: 'center',
-      width: 180,
-      responsive: ['sm'],
+      width: 120,
       render: (nomor) => (
         nomor ? <Tag color="blue">{nomor}</Tag> : <Tag>Belum Ada</Tag>
       ),
@@ -109,14 +110,19 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     addPesertaMutation.mutate(values.kelas_id);
   };
 
-  const uniqueKelas = useMemo(() => {
+  const availableKelasForDropdown = useMemo(() => {
+    const kelasSudahJadiPeserta = data ? Object.keys(data) : [];
     const seen = new Set<string>();
-    return penugasan.filter((p) => {
+    const uniqueKelasPenugasan = penugasan.filter((p) => {
       const duplicate = seen.has(p.kelas_id);
       seen.add(p.kelas_id);
       return !duplicate;
     });
-  }, [penugasan]);
+    
+    return uniqueKelasPenugasan.filter(
+      (kelas) => !kelasSudahJadiPeserta.includes(kelas.nama_kelas)
+    );
+  }, [penugasan, data]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -126,7 +132,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     if (!data || Object.keys(data).length === 0) {
       return (
         <Empty
-          style={{ padding: '48px 0', background: '#fff' }}
+          style={{ padding: '48px 0' }}
           description={
             <Text type="secondary">Belum ada peserta ujian.</Text>
           }
@@ -135,33 +141,33 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     }
 
     return (
-      <Collapse ghost defaultActiveKey={Object.keys(data)} style={{ padding: 0 }}>
+      <Row gutter={[16, 16]}>
         {Object.entries(data).map(([namaKelas, pesertaList]) => (
-          <Panel
-            header={
-              // --- PERUBAHAN DI SINI ---
-              <Flex justify="space-between" align="center">
-                <Text strong>
-                  <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
-                  {namaKelas}
-                </Text>
-                <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
-              </Flex>
-            }
-            key={namaKelas}
-            style={{ padding: '0 !important', margin: 0 }}
-          >
-            <Table
-              columns={columns}
-              dataSource={pesertaList}
-              rowKey="id"
+          <Col xs={24} sm={24} md={12} key={namaKelas}>
+            <Card
               size="small"
-              pagination={false}
-              style={{ marginTop: '-16px', marginBottom: '-16px' }}
-            />
-          </Panel>
+              title={
+                <Flex justify="space-between" align="center">
+                  <Text strong>
+                    <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
+                    {namaKelas}
+                  </Text>
+                  <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
+                </Flex>
+              }
+              bodyStyle={{ padding: 0 }}
+            >
+              <Table
+                columns={columns}
+                dataSource={pesertaList}
+                rowKey="id"
+                size="small"
+                pagination={false}
+              />
+            </Card>
+          </Col>
         ))}
-      </Collapse>
+      </Row>
     );
   };
 
@@ -170,14 +176,14 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 16 }}>
         <Tooltip
           title={
-            uniqueKelas.length === 0 ? 'Daftarkan kelas di tab "Kelas" terlebih dahulu' : ''
+            availableKelasForDropdown.length === 0 ? 'Semua kelas yang ditugaskan sudah menjadi peserta' : ''
           }
         >
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setIsModalOpen(true)}
-            disabled={uniqueKelas.length === 0}
+            disabled={availableKelasForDropdown.length === 0}
           >
             Tambah Peserta
           </Button>
@@ -202,7 +208,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
           >
             <Select
               placeholder="Pilih kelas yang siswanya akan ditambahkan"
-              options={uniqueKelas.map((k) => ({
+              options={availableKelasForDropdown.map((k) => ({
                 value: k.kelas_id,
                 label: k.nama_kelas,
               }))}
