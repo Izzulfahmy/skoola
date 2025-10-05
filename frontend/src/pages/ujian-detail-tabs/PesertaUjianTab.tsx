@@ -33,6 +33,13 @@ const denseHeaderStyle = {
   backgroundColor: '#fafafa',
 };
 
+// Style tambahan untuk kolom nama agar bisa wrap
+const nameCellStyle = {
+  ...denseCellStyle,
+  whiteSpace: 'normal' as const, // Memaksa teks untuk wrap
+  wordBreak: 'break-word' as const,
+};
+
 interface PesertaUjianTabProps {
   ujianMasterId: string;
   data: GroupedPesertaUjian | undefined;
@@ -64,10 +71,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       title: 'Nama Siswa',
       dataIndex: 'nama_siswa',
       key: 'nama_siswa',
-      // --- PERUBAHAN DI SINI: Menghilangkan `strong` ---
-      render: (text) => text,
       onHeaderCell: () => ({ style: denseHeaderStyle }),
-      onCell: () => ({ style: denseCellStyle }),
+      // --- PERUBAHAN DI SINI: Menerapkan style untuk text wrap ---
+      onCell: () => ({ style: nameCellStyle }),
     },
     {
       title: 'NISN',
