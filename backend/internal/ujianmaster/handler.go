@@ -132,3 +132,29 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetPesertaUjian menangani permintaan untuk mengambil daftar peserta ujian berdasarkan ID ujian.
+func (h *Handler) GetPesertaUjian(w http.ResponseWriter, r *http.Request) {
+	// Mengambil schemaName dari context, sesuai dengan pola di handler lain
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+
+	// Mengambil parameter 'id' dari URL menggunakan chi
+	ujianID := chi.URLParam(r, "id")
+	if ujianID == "" {
+		http.Error(w, "Parameter id ujian tidak ditemukan di URL", http.StatusBadRequest)
+		return
+	}
+
+	// Memanggil service untuk mendapatkan data peserta yang sudah dikelompokkan
+	groupedPeserta, err := h.service.GetPesertaUjianByUjianID(r.Context(), schemaName, ujianID)
+	if err != nil {
+		// Menangani error dari service layer
+		http.Error(w, "Gagal mengambil data peserta ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Mengirim response JSON jika berhasil
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK) // Status 200 OK
+	json.NewEncoder(w).Encode(groupedPeserta)
+}

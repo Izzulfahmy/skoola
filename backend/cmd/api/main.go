@@ -143,7 +143,8 @@ func main() {
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
-	ujianMasterService := ujianmaster.NewService(ujianMasterRepo)
+	// --- PERBARUI INISIALISASI SERVICE UJIAN MASTER ---
+	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, rombelService)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -194,6 +195,7 @@ func main() {
 	r.Route("/", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 
+		// ... (semua route lain tetap sama) ...
 		r.Route("/naungan", func(r chi.Router) {
 			r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
 			r.With(auth.AuthorizeSuperadmin).Get("/{naunganID}", naunganHandler.GetByID)
@@ -385,8 +387,9 @@ func main() {
 			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
-			// --- RUTE BARU DITAMBAHKAN SESUAI TUTORIAL ---
 			r.With(auth.Authorize("admin")).Post("/{id}/assign-kelas", ujianMasterHandler.AssignKelas)
+			// --- RUTE BARU DITAMBAHKAN SESUAI TUTORIAL ---
+			r.With(auth.Authorize("admin")).Get("/{id}/peserta", ujianMasterHandler.GetPesertaUjian)
 		})
 
 		r.Route("/presensi", func(r chi.Router) {

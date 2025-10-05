@@ -26,6 +26,8 @@ type Service interface {
 	CreatePengajarKelas(ctx context.Context, schemaName string, kelasID string, input UpsertPengajarKelasInput) (*PengajarKelas, error)
 	RemovePengajarKelas(ctx context.Context, schemaName string, pengajarID string) error
 	GetAllPengajarByKelas(ctx context.Context, schemaName string, kelasID string) ([]PengajarKelas, error)
+	// GetAnggotaKelasByPengajarKelasIDs mengambil semua anggota kelas (siswa) berdasarkan daftar ID pengajar_kelas.
+	GetAnggotaKelasByPengajarKelasIDs(ctx context.Context, schemaName string, pengajarKelasIDs []uuid.UUID) ([]AnggotaKelas, error) // <-- BARU
 }
 
 type service struct {
@@ -149,4 +151,12 @@ func (s *service) RemovePengajarKelas(ctx context.Context, schemaName string, pe
 
 func (s *service) GetAllPengajarByKelas(ctx context.Context, schemaName string, kelasID string) ([]PengajarKelas, error) {
 	return s.repo.GetAllPengajarByKelas(ctx, schemaName, kelasID)
+}
+
+// GetAnggotaKelasByPengajarKelasIDs adalah implementasi service untuk mengambil anggota kelas.
+// Fungsi ini hanya meneruskan panggilan ke lapisan repository.
+func (s *service) GetAnggotaKelasByPengajarKelasIDs(ctx context.Context, schemaName string, pengajarKelasIDs []uuid.UUID) ([]AnggotaKelas, error) {
+	// Di sini Anda bisa menambahkan logika bisnis jika diperlukan,
+	// seperti validasi atau logging, sebelum memanggil repository.
+	return s.repo.FindAnggotaKelasByPengajarKelasIDs(ctx, schemaName, pengajarKelasIDs)
 }

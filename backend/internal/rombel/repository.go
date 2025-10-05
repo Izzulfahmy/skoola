@@ -24,6 +24,7 @@ type Repository interface {
 	RemoveAnggotaKelas(ctx context.Context, schemaName string, anggotaID string) error
 	GetAllAnggotaByKelas(ctx context.Context, schemaName string, kelasID string) ([]AnggotaKelas, error)
 	UpdateAnggotaKelasUrutan(ctx context.Context, schemaName string, orderedIDs []string) error
+	FindAnggotaKelasByPengajarKelasIDs(ctx context.Context, schemaName string, pengajarKelasIDs []uuid.UUID) ([]AnggotaKelas, error) // <-- BARU
 
 	// --- Pengajar Kelas (Guru) ---
 	CreatePengajarKelas(ctx context.Context, schemaName string, pengajar *PengajarKelas) (*PengajarKelas, error)
@@ -99,14 +100,11 @@ func (r *postgresRepository) GetKelasByID(ctx context.Context, schemaName string
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// TOTAL 13 KOLOM (t.jenjang_id dan j.nama_jenjang DIHAPUS)
 	query := `
         SELECT
             k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
             k.created_at, k.updated_at,
             t.nama_tingkatan,
-            -- t.jenjang_id, -- DIHAPUS
-            -- j.nama_jenjang, -- DIHAPUS
             guru.nama_lengkap as nama_wali_kelas,
             ta.nama_tahun_ajaran,
             ta.semester,
@@ -114,20 +112,16 @@ func (r *postgresRepository) GetKelasByID(ctx context.Context, schemaName string
             (SELECT COUNT(*) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
         FROM kelas k
         LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
-        -- LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id -- DIHAPUS
         LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
         LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
         WHERE k.id = $1
     `
 	row := r.db.QueryRowContext(ctx, query, kelasID)
 	var k Kelas
-	// PASTIKAN JUMLAH SCAN SAMA DENGAN 13 VARIABEL
 	err := row.Scan(
 		&k.ID, &k.NamaKelas, &k.TahunAjaranID, &k.TingkatanID, &k.WaliKelasID,
 		&k.CreatedAt, &k.UpdatedAt,
 		&k.NamaTingkatan,
-		// &k.JenjangID,    // DIHAPUS
-		// &k.NamaJenjang,  // DIHAPUS
 		&k.NamaWaliKelas,
 		&k.NamaTahunAjaran, &k.Semester,
 		&k.JumlahSiswa,
@@ -146,14 +140,11 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
-	// TOTAL 13 KOLOM (t.jenjang_id dan j.nama_jenjang DIHAPUS)
 	query := `
         SELECT
             k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
             k.created_at, k.updated_at,
             t.nama_tingkatan,
-            -- t.jenjang_id, -- DIHAPUS
-            -- j.nama_jenjang, -- DIHAPUS
             guru.nama_lengkap as nama_wali_kelas,
             ta.nama_tahun_ajaran,
             ta.semester,
@@ -161,7 +152,6 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
             (SELECT COUNT(*) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
         FROM kelas k
         LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
-        -- LEFT JOIN jenjang_pendidikan j ON t.jenjang_id = j.id -- DIHAPUS
         LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
         LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
         WHERE k.tahun_ajaran_id = $1
@@ -176,20 +166,16 @@ func (r *postgresRepository) GetAllKelasByTahunAjaran(ctx context.Context, schem
 	var list []Kelas
 	for rows.Next() {
 		var k Kelas
-		// PASTIKAN JUMLAH SCAN SAMA DENGAN 13 VARIABEL
 		err := rows.Scan(
 			&k.ID, &k.NamaKelas, &k.TahunAjaranID, &k.TingkatanID, &k.WaliKelasID,
 			&k.CreatedAt, &k.UpdatedAt,
 			&k.NamaTingkatan,
-			// &k.JenjangID,    // DIHAPUS
-			// &k.NamaJenjang,  // DIHAPUS
 			&k.NamaWaliKelas,
 			&k.NamaTahunAjaran, &k.Semester,
 			&k.JumlahSiswa,
 			&k.JumlahPengajar,
 		)
 		if err != nil {
-			// Ini akan mencetak error internal SQL jika terjadi mismatch kolom
 			return nil, fmt.Errorf("gagal scan baris kelas: %w", err)
 		}
 		list = append(list, k)
@@ -301,6 +287,53 @@ func (r *postgresRepository) UpdateAnggotaKelasUrutan(ctx context.Context, schem
 	}
 
 	return tx.Commit()
+}
+
+// FindAnggotaKelasByPengajarKelasIDs mengambil semua anggota kelas (siswa) yang termasuk dalam kelas
+// yang diajar oleh salah satu dari pengajar yang diberikan.
+func (r *postgresRepository) FindAnggotaKelasByPengajarKelasIDs(ctx context.Context, schemaName string, pengajarKelasIDs []uuid.UUID) ([]AnggotaKelas, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	// Query ini mengambil semua data anggota kelas dan siswa yang terkait,
+	// dengan memfilter berdasarkan kelas_id yang didapat dari subquery.
+	// Subquery tersebut mencari semua kelas_id unik dari tabel pengajar_kelas
+	// yang ID-nya ada dalam daftar yang diberikan.
+	query := `
+        SELECT ak.id, ak.student_id, ak.urutan, s.nis, s.nisn, s.nama_lengkap, s.jenis_kelamin
+        FROM anggota_kelas ak
+        JOIN students s ON ak.student_id = s.id
+        WHERE ak.kelas_id IN (
+            SELECT DISTINCT kelas_id FROM pengajar_kelas WHERE id = ANY($1)
+        )
+        ORDER BY ak.urutan ASC, s.nama_lengkap ASC
+    `
+
+	// Menggunakan pq.Array untuk mengirim slice Go sebagai array PostgreSQL
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(pengajarKelasIDs))
+	if err != nil {
+		return nil, fmt.Errorf("gagal menjalankan query FindAnggotaKelasByPengajarKelasIDs: %w", err)
+	}
+	defer rows.Close()
+
+	var list []AnggotaKelas
+	for rows.Next() {
+		var a AnggotaKelas
+		// Scan data dari baris ke dalam struct AnggotaKelas
+		err := rows.Scan(&a.ID, &a.StudentID, &a.Urutan, &a.NIS, &a.NISN, &a.NamaLengkap, &a.JenisKelamin)
+		if err != nil {
+			return nil, fmt.Errorf("gagal memindai baris anggota kelas: %w", err)
+		}
+		list = append(list, a)
+	}
+
+	// Memeriksa error yang mungkin terjadi selama iterasi
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error pada baris hasil query: %w", err)
+	}
+
+	return list, nil
 }
 
 // --- Implementasi Pengajar Kelas ---

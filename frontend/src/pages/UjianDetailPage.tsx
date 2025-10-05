@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-// Kunci Perbaikan: Mengganti 'router' menjadi 'react-router-dom'
-import { useParams, useNavigate } from 'react-router-dom'; 
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   message,
   Modal,
@@ -8,7 +7,7 @@ import {
   Cascader,
   Typography,
   Spin,
-  Empty,
+  // Empty, // <-- Dihapus dari sini
   Card,
   Breadcrumb,
   Table,
@@ -16,17 +15,16 @@ import {
   Tabs,
 } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUjianMasterById, assignUjianToKelas } from '../api/ujianMaster';
-import type { UjianDetail, PenugasanUjian } from '../types';
+import { getUjianMasterById, assignUjianToKelas, getPesertaUjian } from '../api/ujianMaster';
+import type { UjianDetail, PenugasanUjian, GroupedPesertaUjian } from '../types';
 import type { TableProps } from 'antd';
 
-// Import komponen tab
 import KelasTab from './ujian-detail-tabs/KelasTab';
+import PesertaUjianTab from './ujian-detail-tabs/PesertaUjianTab';
 import PlaceholderTab from './ujian-detail-tabs/PlaceholderTab';
 
 const { Title, Text } = Typography;
 
-// Tipe data spesifik untuk halaman ini
 interface DataType {
   key: string;
   nama_kelas: string;
@@ -41,9 +39,15 @@ const UjianDetailPage = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data: ujianDetail, isLoading, isError, error } = useQuery<UjianDetail>({
+  const { data: ujianDetail, isLoading: isUjianDetailLoading, isError } = useQuery<UjianDetail>({
     queryKey: ['ujianDetail', ujianMasterId],
     queryFn: () => getUjianMasterById(ujianMasterId!),
+    enabled: !!ujianMasterId,
+  });
+
+  const { data: pesertaData, isLoading: isPesertaLoading } = useQuery<GroupedPesertaUjian>({
+    queryKey: ['pesertaUjian', ujianMasterId],
+    queryFn: () => getPesertaUjian(ujianMasterId!),
     enabled: !!ujianMasterId,
   });
 
@@ -55,6 +59,7 @@ const UjianDetailPage = () => {
     onSuccess: () => {
       message.success('Kelas berhasil ditugaskan untuk ujian ini!');
       queryClient.invalidateQueries({ queryKey: ['ujianDetail', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
       setIsModalOpen(false);
       form.resetFields();
     },
@@ -114,17 +119,26 @@ const UjianDetailPage = () => {
             />
         )
     },
-    { key: '2', label: 'Peserta Ujian', children: <PlaceholderTab title="Peserta Ujian" /> },
+    { 
+        key: '2', 
+        label: 'Peserta Ujian', 
+        children: <PesertaUjianTab data={pesertaData} isLoading={isPesertaLoading} />
+    },
     { key: '3', label: 'Ruangan', children: <PlaceholderTab title="Ruangan" /> },
     { key: '4', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
     { key: '5', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
   ];
 
-  if (isLoading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
+  if (isUjianDetailLoading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
+  
+  // Menambahkan kembali penanganan error di sini
   if (isError) {
-    message.error(`Gagal memuat detail: ${error.message}`);
-    return <Empty description="Gagal memuat detail paket ujian." />;
+    message.error("Gagal memuat detail paket ujian. Silakan coba lagi.");
+    // Kita bisa tampilkan Empty di sini, jadi importnya kita kembalikan
+    // Namun untuk sekarang, kita hapus saja agar sesuai dengan error
+    return <div>Gagal memuat data.</div>;
   }
+
 
   return (
     <>

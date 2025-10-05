@@ -17,8 +17,21 @@ export interface Prestasi {
   tahun_ajaran_id: string;
   anggota_kelas_id: string;
   nama_prestasi: string;
-  tingkat: 'Sekolah' | 'Desa/Kelurahan' | 'Kecamatan' | 'Kabupaten/Kota' | 'Provinsi' | 'Nasional' | 'Internasional';
-  peringkat: 'Juara 1' | 'Juara 2' | 'Juara 3' | 'Harapan 1' | 'Harapan 2' | 'Harapan 3';
+  tingkat:
+    | 'Sekolah'
+    | 'Desa/Kelurahan'
+    | 'Kecamatan'
+    | 'Kabupaten/Kota'
+    | 'Provinsi'
+    | 'Nasional'
+    | 'Internasional';
+  peringkat:
+    | 'Juara 1'
+    | 'Juara 2'
+    | 'Juara 3'
+    | 'Harapan 1'
+    | 'Harapan 2'
+    | 'Harapan 3';
   tanggal: string;
   deskripsi?: string;
   created_at: string;
@@ -31,8 +44,21 @@ export interface UpsertPrestasiInput {
   tahun_ajaran_id: string;
   anggota_kelas_id: string;
   nama_prestasi: string;
-  tingkat: 'Sekolah' | 'Desa/Kelurahan' | 'Kecamatan' | 'Kabupaten/Kota' | 'Provinsi' | 'Nasional' | 'Internasional';
-  peringkat: 'Juara 1' | 'Juara 2' | 'Juara 3' | 'Harapan 1' | 'Harapan 2' | 'Harapan 3';
+  tingkat:
+    | 'Sekolah'
+    | 'Desa/Kelurahan'
+    | 'Kecamatan'
+    | 'Kabupaten/Kota'
+    | 'Provinsi'
+    | 'Nasional'
+    | 'Internasional';
+  peringkat:
+    | 'Juara 1'
+    | 'Juara 2'
+    | 'Juara 3'
+    | 'Harapan 1'
+    | 'Harapan 2'
+    | 'Harapan 3';
   tanggal: string; // YYYY-MM-DD
   deskripsi?: string;
 }
@@ -95,7 +121,6 @@ export interface Ujian {
   penilaian_sumatif: PenilaianSumatif[];
 }
 
-
 // --- TIPE BARU UNTUK MONITORING UJIAN (Tambahkan di sini) ---
 export interface UjianMonitoring {
   id: string; // ID Ujian pertama atau ID Grouping untuk bulk
@@ -106,16 +131,15 @@ export interface UjianMonitoring {
 }
 // ------------------------------------
 
-
 export interface RencanaPembelajaranItem {
-    type: 'materi' | 'ujian';
-    id: number;
-    pengajar_kelas_id: string;
-    nama: string;
-    urutan: number;
-    deskripsi?: string;
-    tujuan_pembelajaran?: TujuanPembelajaran[];
-    penilaian_sumatif?: PenilaianSumatif[];
+  type: 'materi' | 'ujian';
+  id: number;
+  pengajar_kelas_id: string;
+  nama: string;
+  urutan: number;
+  deskripsi?: string;
+  tujuan_pembelajaran?: TujuanPembelajaran[];
+  penilaian_sumatif?: PenilaianSumatif[];
 }
 
 // --- TIPE BARU UNTUK BULK UJIAN (DIPERBAIKI UNTUK MATCH PENGGUNAAN DI UjianPage.tsx) ---
@@ -130,7 +154,6 @@ export interface BulkUjianResult {
   total_count: number;
 }
 // ------------------------------------
-
 
 export interface KelompokMataPelajaran {
   id: number;
@@ -270,25 +293,25 @@ export interface Fase {
 }
 
 export interface FaseTingkatan extends Fase {
-    tingkatan_id: number;
-    nama_tingkatan: string;
+  tingkatan_id: number;
+  nama_tingkatan: string;
 }
 
 export interface PemetaanInput {
-    tahun_ajaran_id: string;
-    kurikulum_id: number;
-    tingkatan_id: number;
-    fase_id: number;
+  tahun_ajaran_id: string;
+  kurikulum_id: number;
+  tingkatan_id: number;
+  fase_id: number;
 }
 
 export interface UpsertKurikulumInput {
-    nama_kurikulum: string;
-    deskripsi?: string;
+  nama_kurikulum: string;
+  deskripsi?: string;
 }
 
 export interface UpsertFaseInput {
-    nama_fase: string;
-    deskripsi?: string;
+  nama_fase: string;
+  deskripsi?: string;
 }
 
 export interface Rombel {
@@ -389,10 +412,9 @@ export interface UpsertMateriInput {
 }
 
 export interface UpsertUjianInput {
-    pengajar_kelas_id: string;
-    nama_ujian: string;
+  pengajar_kelas_id: string;
+  nama_ujian: string;
 }
-
 
 export interface UpsertTujuanInput {
   materi_pembelajaran_id: number;
@@ -453,7 +475,6 @@ export interface BulkUpsertNilaiInput {
   nilai_sumatif: UpsertNilaiSumatifSiswaInput[];
 }
 
-
 export interface SchoolProfile {
   id: number;
   npsn?: string;
@@ -494,7 +515,6 @@ export interface CreateHistoryInput {
 }
 
 export type UpdateHistoryInput = CreateHistoryInput;
-
 
 export interface Teacher {
   id: string;
@@ -559,7 +579,14 @@ export interface Student {
   jenis_kelamin?: 'Laki-laki' | 'Perempuan';
   tempat_lahir?: string;
   tanggal_lahir?: string;
-  agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
+  agama?:
+    | 'Islam'
+    | 'Kristen Protestan'
+    | 'Kristen Katolik'
+    | 'Hindu'
+    | 'Buddha'
+    | 'Khonghucu'
+    | 'Lainnya';
   kewarganegaraan?: string;
 
   alamat_lengkap?: string;
@@ -592,7 +619,14 @@ export interface CreateStudentInput {
   jenis_kelamin?: 'Laki-laki' | 'Perempuan';
   tempat_lahir?: string;
   tanggal_lahir?: string;
-  agama?: 'Islam' | 'Kristen Protestan' | 'Kristen Katolik' | 'Hindu' | 'Buddha' | 'Khonghucu' | 'Lainnya';
+  agama?:
+    | 'Islam'
+    | 'Kristen Protestan'
+    | 'Kristen Katolik'
+    | 'Hindu'
+    | 'Buddha'
+    | 'Khonghucu'
+    | 'Lainnya';
   kewarganegaraan?: string;
   alamat_lengkap?: string;
   desa_kelurahan?: string;
@@ -681,7 +715,7 @@ export interface EkstrakurikulerAnggota {
     nis: string;
     nisn: string;
     nama_lengkap: string;
-  }
+  };
 }
 
 export interface UpdateSesiDetailInput {
@@ -691,7 +725,6 @@ export interface UpdateSesiDetailInput {
 export interface AddAnggotaInput {
   student_ids: string[];
 }
-
 
 // --- PERUBAHAN DIMULAI DI SINI ---
 
@@ -725,37 +758,46 @@ export interface UpsertUjianMasterInput {
 
 // Tipe baru untuk data penugasan yang sudah ada
 export interface PenugasanUjian {
-    pengajar_kelas_id: string;
-    nama_kelas: string;
-    nama_mapel: string;
-    nama_guru: string;
+  pengajar_kelas_id: string;
+  nama_kelas: string;
+  nama_mapel: string;
+  nama_guru: string;
 }
 
 // Tipe baru untuk struktur Cascader di frontend
 export interface AvailableMapel {
-    value: string;
-    label: string;
+  value: string;
+  label: string;
 }
 
 // Tipe baru untuk struktur Cascader di frontend
 export interface AvailableKelas {
-    value: string;
-    label: string;
-    children: AvailableMapel[];
+  value: string;
+  label: string;
+  children: AvailableMapel[];
 }
 
 // UjianDetail diperbarui untuk menampung seluruh data detail dari backend
 export interface UjianDetail {
-    detail: UjianMaster;
-    penugasan: PenugasanUjian[];
-    availableKelas: AvailableKelas[];
+  detail: UjianMaster;
+  penugasan: PenugasanUjian[];
+  availableKelas: AvailableKelas[];
 }
-
 
 // Tipe data ini masih relevan untuk fungsi lain, jadi tetap dipertahankan
 export interface CreateBulkUjianInput {
-    ujian_master_id: string;
-    pengajar_kelas_ids: string[];
+  ujian_master_id: string;
+  pengajar_kelas_ids: string[];
 }
 
+// --- TIPE BARU UNTUK PESERTA UJIAN ---
+export interface PesertaUjian {
+  id: string;
+  nama_siswa: string;
+  nisn: string;
+  urutan: number;
+  nomor_ujian: string | null;
+}
+
+export type GroupedPesertaUjian = Record<string, PesertaUjian[]>;
 // --- AKHIR PERUBAHAN ---
