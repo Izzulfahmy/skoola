@@ -13,6 +13,7 @@ import {
   Tooltip,
   Table,
   Tag,
+  Flex, // Import Flex untuk layout
 } from 'antd';
 import { PlusOutlined, UsergroupAddOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,13 +24,12 @@ import { addPesertaFromKelas } from '../../api/ujianMaster';
 const { Panel } = Collapse;
 const { Text } = Typography;
 
-// Style inline untuk membuat sel dan header tabel lebih rapat/pendek
 const denseCellStyle = {
   padding: '6px 8px',
 };
 const denseHeaderStyle = {
   padding: '8px 8px',
-  backgroundColor: '#fafafa', // Memberi sedikit warna pada header
+  backgroundColor: '#fafafa',
 };
 
 interface PesertaUjianTabProps {
@@ -135,14 +135,18 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     }
 
     return (
-      <Collapse accordion ghost defaultActiveKey={Object.keys(data)[0]} style={{ padding: 0 }}>
+      <Collapse ghost defaultActiveKey={Object.keys(data)} style={{ padding: 0 }}>
         {Object.entries(data).map(([namaKelas, pesertaList]) => (
           <Panel
             header={
-              <Text strong>
-                <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
-                {`${namaKelas} - ${pesertaList.length} Peserta`}
-              </Text>
+              // --- PERUBAHAN DI SINI ---
+              <Flex justify="space-between" align="center">
+                <Text strong>
+                  <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
+                  {namaKelas}
+                </Text>
+                <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
+              </Flex>
             }
             key={namaKelas}
             style={{ padding: '0 !important', margin: 0 }}
@@ -152,8 +156,8 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
               dataSource={pesertaList}
               rowKey="id"
               size="small"
-              pagination={false} // Menghilangkan paginasi untuk tampilan yang lebih rapat per kelas
-              style={{ marginTop: '-16px', marginBottom: '-16px' }} // Trik mengurangi gap vertikal
+              pagination={false}
+              style={{ marginTop: '-16px', marginBottom: '-16px' }}
             />
           </Panel>
         ))}
