@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict WThyOce96QRZGuQECQVAzWOmHnssXkOH4KfvK8jOfa4LbWjJNnKvF5gIKNpRflO
+\restrict MNdjzr8HIms0bdCj4jYAfdmYieg4sJsGnRMMWb5qdPz1r9YBwWEyXdlCtn6fNyz
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -1305,6 +1305,7 @@ COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FR
 
 COPY "20554021".kelas (id, nama_kelas, tahun_ajaran_id, tingkatan_id, wali_kelas_id, created_at, updated_at) FROM stdin;
 a53d4277-05fb-45bb-bf9f-9eea63b745d3	Kelas 1A	21d6c4a9-6a20-4571-812e-a5582fecf856	1	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	2025-10-04 04:17:31.408869+07	2025-10-04 04:17:31.408869+07
+f4dc68e5-e612-40fd-96e5-be8ccaa6650a	Kelas 2A	21d6c4a9-6a20-4571-812e-a5582fecf856	2	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	2025-10-05 09:45:23.469617+07	2025-10-05 09:45:23.469617+07
 \.
 
 
@@ -1331,7 +1332,10 @@ COPY "20554021".kurikulum (id, nama_kurikulum, deskripsi) FROM stdin;
 --
 
 COPY "20554021".mata_pelajaran (id, kode_mapel, nama_mapel, created_at, updated_at, parent_id, urutan, kelompok_id) FROM stdin;
-c2bd41d8-16f6-437e-9212-4f1c5132f5fd	MTK	Matematika	2025-10-04 04:17:08.529074+07	2025-10-04 04:17:08.529074+07	\N	1	1
+2683fc37-e305-401c-93f7-b003662cb1a3	Fiqih	Fiqih	2025-10-04 21:26:42.571335+07	2025-10-04 21:26:42.571335+07	cec2369e-b48f-4adf-a48f-125336d4daaf	1	1
+c2bd41d8-16f6-437e-9212-4f1c5132f5fd	MTK	Matematika	2025-10-04 04:17:08.529074+07	2025-10-04 04:17:08.529074+07	\N	2	1
+e717efc7-cb88-47ee-9a84-9be34f8b2df3	IPAS	Ilmu Pengetahuan Alam dan Sosial	2025-10-04 21:20:15.725189+07	2025-10-04 21:20:15.725189+07	\N	3	1
+cec2369e-b48f-4adf-a48f-125336d4daaf	PAI	Pendidikan Agama Islam	2025-10-04 21:26:34.296988+07	2025-10-04 21:26:34.296988+07	\N	1	1
 \.
 
 
@@ -1340,7 +1344,8 @@ c2bd41d8-16f6-437e-9212-4f1c5132f5fd	MTK	Matematika	2025-10-04 04:17:08.529074+0
 --
 
 COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskripsi, urutan, created_at, updated_at) FROM stdin;
-2	6c88c4fc-07d1-4dcf-b513-ff15a55c8108	Materi Baru	\N	1	2025-10-04 20:44:38.771167+07	2025-10-04 21:10:05.842413+07
+2	6c88c4fc-07d1-4dcf-b513-ff15a55c8108	Materi Baru	\N	1	2025-10-04 20:44:38.771167+07	2025-10-05 09:05:16.623482+07
+4	5bcc2320-87d5-4e4f-a739-ac35bb0fce80	Bebersih	\N	1	2025-10-05 09:45:36.895647+07	2025-10-05 09:45:47.818853+07
 \.
 
 
@@ -1349,7 +1354,6 @@ COPY "20554021".materi_pembelajaran (id, pengajar_kelas_id, nama_materi, deskrip
 --
 
 COPY "20554021".nilai_sumatif_siswa (id, penilaian_sumatif_id, anggota_kelas_id, nilai, created_at, updated_at) FROM stdin;
-1	f96811c0-bde1-45ee-9f06-f106c4690a15	c7bd7b8a-4621-4a5f-adf0-5c424d79798f	90.00	2025-10-04 21:10:53.884682+07	2025-10-04 21:10:53.884682+07
 \.
 
 
@@ -1367,6 +1371,9 @@ COPY "20554021".pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id,
 
 COPY "20554021".pengajar_kelas (id, kelas_id, teacher_id, mata_pelajaran_id, created_at) FROM stdin;
 6c88c4fc-07d1-4dcf-b513-ff15a55c8108	a53d4277-05fb-45bb-bf9f-9eea63b745d3	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	c2bd41d8-16f6-437e-9212-4f1c5132f5fd	2025-10-04 04:17:42.080363+07
+90ffd79f-bdad-4e2a-86e5-7d58b43752d9	a53d4277-05fb-45bb-bf9f-9eea63b745d3	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	e717efc7-cb88-47ee-9a84-9be34f8b2df3	2025-10-04 21:20:27.240766+07
+5bcc2320-87d5-4e4f-a739-ac35bb0fce80	f4dc68e5-e612-40fd-96e5-be8ccaa6650a	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	2683fc37-e305-401c-93f7-b003662cb1a3	2025-10-05 09:45:33.75517+07
+7ad0ec68-ec90-404a-b921-42c980fc775a	f4dc68e5-e612-40fd-96e5-be8ccaa6650a	6ec733b3-01b0-4b8f-bb8a-50a09c8483ec	c2bd41d8-16f6-437e-9212-4f1c5132f5fd	2025-10-05 09:46:44.651165+07
 \.
 
 
@@ -1386,7 +1393,6 @@ COPY "20554021".penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, n
 6678ec59-a863-4d59-9510-49467e4cbe38	1	2	Halaman 3	2025-10-04	\N	2025-10-04 20:56:59.707421+07	2025-10-04 20:56:59.707421+07	\N
 7e57834b-f064-461c-84e7-428a06a586c6	2	3	Menggambar	2025-10-28	\N	2025-10-04 20:58:09.537198+07	2025-10-04 20:58:09.537198+07	\N
 9bf08c35-407c-4137-ae8c-4823fe8399f4	1	1	Buku Tulis	2025-10-21	\N	2025-10-04 21:06:25.899257+07	2025-10-04 21:06:25.899257+07	\N
-f96811c0-bde1-45ee-9f06-f106c4690a15	\N	5	Full Pilihan Ganda	2025-10-21	\N	2025-10-04 21:07:58.150566+07	2025-10-04 21:07:58.150566+07	1
 \.
 
 
@@ -1501,7 +1507,6 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, urutan, created_at, updated_at, ujian_master_id) FROM stdin;
-1	6c88c4fc-07d1-4dcf-b513-ff15a55c8108	2	2025-10-04 20:26:43.132403+07	2025-10-04 21:10:05.842413+07	af25499f-256e-4786-bd25-9b3c35d649b9
 \.
 
 
@@ -1511,6 +1516,7 @@ COPY "20554021".ujian (id, pengajar_kelas_id, urutan, created_at, updated_at, uj
 
 COPY "20554021".ujian_master (id, tahun_ajaran_id, nama_paket_ujian, created_at, updated_at) FROM stdin;
 af25499f-256e-4786-bd25-9b3c35d649b9	21d6c4a9-6a20-4571-812e-a5582fecf856	Ujian Tengah Semester (UTS)	2025-10-04 20:26:00.767195+07	2025-10-04 20:26:00.767195+07
+7a09f10a-9b8d-4a5c-96ad-380ab44e0354	21d6c4a9-6a20-4571-812e-a5582fecf856	Ujian Akhir Semester (UAS)	2025-10-04 21:31:58.024981+07	2025-10-04 21:31:58.024981+07
 \.
 
 
@@ -1562,14 +1568,14 @@ SELECT pg_catalog.setval('"20554021".ekstrakurikuler_anggota_id_seq', 1, false);
 -- Name: ekstrakurikuler_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_id_seq', 1, true);
 
 
 --
 -- Name: ekstrakurikuler_sesi_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 1, false);
+SELECT pg_catalog.setval('"20554021".ekstrakurikuler_sesi_id_seq', 1, true);
 
 
 --
@@ -1618,7 +1624,7 @@ SELECT pg_catalog.setval('"20554021".kurikulum_id_seq', 1, false);
 -- Name: materi_pembelajaran_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".materi_pembelajaran_id_seq', 4, true);
 
 
 --
@@ -1653,7 +1659,7 @@ SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 3, true);
 -- Name: ujian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ujian_id_seq', 1, true);
+SELECT pg_catalog.setval('"20554021".ujian_id_seq', 8, true);
 
 
 --
@@ -2670,5 +2676,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WThyOce96QRZGuQECQVAzWOmHnssXkOH4KfvK8jOfa4LbWjJNnKvF5gIKNpRflO
+\unrestrict MNdjzr8HIms0bdCj4jYAfdmYieg4sJsGnRMMWb5qdPz1r9YBwWEyXdlCtn6fNyz
 
