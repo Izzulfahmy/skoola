@@ -1,13 +1,38 @@
-// frontend/src/pages/UjianDetailPage.tsx
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button, message, Modal, Table, Form, Cascader, Typography, Spin, Empty, Card, Breadcrumb } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { useState, useMemo } from 'react';
+// Kunci Perbaikan: Mengganti 'router' menjadi 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'; 
+import {
+  message,
+  Modal,
+  Form,
+  Cascader,
+  Typography,
+  Spin,
+  Empty,
+  Card,
+  Breadcrumb,
+  Table,
+  Tag,
+  Tabs,
+} from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUjianMasterById, assignUjianToKelas } from '../api/ujianMaster';
-import type { UjianDetail } from '../types';
+import type { UjianDetail, PenugasanUjian } from '../types';
+import type { TableProps } from 'antd';
 
-const { Title } = Typography;
+// Import komponen tab
+import KelasTab from './ujian-detail-tabs/KelasTab';
+import PlaceholderTab from './ujian-detail-tabs/PlaceholderTab';
+
+const { Title, Text } = Typography;
+
+// Tipe data spesifik untuk halaman ini
+interface DataType {
+  key: string;
+  nama_kelas: string;
+  jumlah_mapel: number;
+  penugasan: PenugasanUjian[];
+}
 
 const UjianDetailPage = () => {
   const { id: ujianMasterId } = useParams<{ id: string }>();
@@ -24,69 +49,99 @@ const UjianDetailPage = () => {
 
   const mutation = useMutation({
     mutationFn: (pengajarKelasIds: string[]) => {
-        if (!ujianMasterId) throw new Error("ID Master Ujian tidak ditemukan");
-        return assignUjianToKelas(ujianMasterId, { pengajar_kelas_ids: pengajarKelasIds });
+      if (!ujianMasterId) throw new Error("ID Master Ujian tidak ditemukan");
+      return assignUjianToKelas(ujianMasterId, { pengajar_kelas_ids: pengajarKelasIds });
     },
     onSuccess: () => {
-        message.success('Kelas berhasil ditugaskan untuk ujian ini!');
-        queryClient.invalidateQueries({ queryKey: ['ujianDetail', ujianMasterId] });
-        setIsModalOpen(false);
-        form.resetFields();
+      message.success('Kelas berhasil ditugaskan untuk ujian ini!');
+      queryClient.invalidateQueries({ queryKey: ['ujianDetail', ujianMasterId] });
+      setIsModalOpen(false);
+      form.resetFields();
     },
     onError: (err: any) => {
-        message.error(err.response?.data?.message || 'Gagal menugaskan kelas.');
+      message.error(err.response?.data?.message || 'Gagal menugaskan kelas.');
     }
   });
 
   const handleFinish = (values: { kelas: string[][] }) => {
     const pengajarKelasIds = values.kelas.map(k => k[k.length - 1]);
     if (pengajarKelasIds.length === 0) {
-        message.warning("Pilih setidaknya satu kelas.");
-        return;
+      message.warning("Pilih setidaknya satu kelas.");
+      return;
     }
     mutation.mutate(pengajarKelasIds);
   };
 
-  const columns = [
-      { title: 'Kelas', dataIndex: 'nama_kelas', key: 'kelas' },
-      { title: 'Mata Pelajaran', dataIndex: 'nama_mapel', key: 'mapel' },
-      { title: 'Guru', dataIndex: 'nama_guru', key: 'guru' },
+  const tableData = useMemo<DataType[]>(() => {
+    if (!ujianDetail?.penugasan) return [];
+    const grouped = ujianDetail.penugasan.reduce((acc, current) => {
+      (acc[current.nama_kelas] = acc[current.nama_kelas] || []).push(current);
+      return acc;
+    }, {} as Record<string, PenugasanUjian[]>);
+
+    return Object.entries(grouped).map(([namaKelas, penugasanList]) => ({
+      key: namaKelas,
+      nama_kelas: namaKelas,
+      jumlah_mapel: penugasanList.length,
+      penugasan: penugasanList,
+    }));
+  }, [ujianDetail?.penugasan]);
+
+  const expandedRowRender = (record: DataType) => {
+    const columns: TableProps<PenugasanUjian>['columns'] = [
+      { dataIndex: 'nama_mapel', key: 'nama_mapel', width: '50%' },
+      { dataIndex: 'nama_guru', key: 'nama_guru' },
+    ];
+    return <Table columns={columns} dataSource={record.penugasan} pagination={false} size="small" showHeader={false} />;
+  };
+
+  const mainTableColumns: TableProps<DataType>['columns'] = [
+    { dataIndex: 'nama_kelas', key: 'nama_kelas', render: (text) => <Text strong>{text}</Text> },
+    { dataIndex: 'jumlah_mapel', key: 'jumlah_mapel', align: 'right', render: (jumlah) => <Tag color="blue">{`${jumlah} Mapel`}</Tag> },
   ];
 
-  if (isLoading) return <Spin size="large" style={{ display: 'block', marginTop: '50px' }}/>;
+  const tabItems = [
+    {
+        key: '1',
+        label: 'Kelas',
+        children: (
+            <KelasTab
+                tableData={tableData}
+                mainTableColumns={mainTableColumns}
+                expandedRowRender={expandedRowRender}
+                onDaftarkanKelasClick={() => setIsModalOpen(true)}
+                canDaftarkanKelas={!(!ujianDetail?.availableKelas || ujianDetail.availableKelas.length === 0)}
+            />
+        )
+    },
+    { key: '2', label: 'Peserta Ujian', children: <PlaceholderTab title="Peserta Ujian" /> },
+    { key: '3', label: 'Ruangan', children: <PlaceholderTab title="Ruangan" /> },
+    { key: '4', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
+    { key: '5', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
+  ];
+
+  if (isLoading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
   if (isError) {
-      message.error(`Gagal memuat detail: ${error.message}`);
-      return <Empty description="Gagal memuat detail paket ujian." />;
+    message.error(`Gagal memuat detail: ${error.message}`);
+    return <Empty description="Gagal memuat detail paket ujian." />;
   }
 
   return (
-    <Card>
-       <Breadcrumb 
-            items={[
-                { title: <a onClick={() => navigate('/admin/ujian')}>Manajemen Ujian</a> },
-                { title: 'Detail Paket Ujian' }
-            ]}
-            style={{ marginBottom: 16 }}
-        />
-      <Title level={4}>Detail Paket Ujian: {ujianDetail?.detail.nama_paket_ujian}</Title>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => setIsModalOpen(true)}
-        style={{ marginBottom: 16 }}
-        disabled={!ujianDetail?.availableKelas || ujianDetail.availableKelas.length === 0}
-      >
-        Daftarkan Kelas
-      </Button>
-
-      <Table
-        columns={columns}
-        dataSource={ujianDetail?.penugasan || []}
-        rowKey="pengajar_kelas_id"
-        pagination={false}
-        locale={{ emptyText: <Empty description="Belum ada kelas yang ditugaskan untuk paket ujian ini." /> }}
+    <>
+      <Breadcrumb
+        items={[
+          { title: <a onClick={() => navigate('/admin/ujian')}>Manajemen Ujian</a> },
+          { title: 'Detail Paket Ujian' }
+        ]}
       />
-      
+      <Title level={4} style={{ marginTop: 16, marginBottom: 16 }}>
+        {ujianDetail?.detail.nama_paket_ujian}
+      </Title>
+
+      <Card bordered={false} bodyStyle={{ paddingTop: 0 }}>
+         <Tabs defaultActiveKey="1" items={tabItems} />
+      </Card>
+
       <Modal
         title="Daftarkan Kelas untuk Ujian"
         open={isModalOpen}
@@ -106,7 +161,7 @@ const UjianDetailPage = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </>
   );
 };
 
