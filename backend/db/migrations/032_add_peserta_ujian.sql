@@ -10,5 +10,3 @@ CREATE TABLE peserta_ujian (
     CONSTRAINT uq_peserta_ujian UNIQUE (ujian_master_id, anggota_kelas_id)
 );
 
--- +migrate Down
-DROP TABLE IF EXISTS peserta_ujian;
