@@ -1,13 +1,12 @@
 package ujianmaster
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// UjianMaster merepresentasikan entitas di tabel 'ujian_master'.
+// UjianMaster represents the main exam package.
 type UjianMaster struct {
 	ID             uuid.UUID `json:"id"`
 	NamaPaketUjian string    `json:"nama_paket_ujian"`
@@ -16,54 +15,57 @@ type UjianMaster struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// PenugasanUjian merepresentasikan data penugasan ujian dari query.
+// PenugasanUjian represents a class and subject assigned to an exam.
+// PERBAIKAN: Menambahkan field KelasID.
 type PenugasanUjian struct {
 	PengajarKelasID string `json:"pengajar_kelas_id"`
+	KelasID         string `json:"kelas_id"`
 	NamaKelas       string `json:"nama_kelas"`
 	NamaMapel       string `json:"nama_mapel"`
 	NamaGuru        string `json:"nama_guru"`
 }
 
-// AvailableKelas adalah struktur untuk data kelas yang tersedia untuk penugasan.
+// AvailableMapel is a helper struct for the frontend.
+type AvailableMapel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// AvailableKelas is a helper struct for the frontend.
 type AvailableKelas struct {
 	Value    string           `json:"value"`
 	Label    string           `json:"label"`
 	Children []AvailableMapel `json:"children"`
 }
 
-// AvailableMapel adalah sub-struktur untuk mata pelajaran dalam AvailableKelas.
-type AvailableMapel struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-}
-
-// UjianMasterDetail adalah response gabungan untuk detail ujian master.
+// UjianMasterDetail is the comprehensive view of an exam package.
 type UjianMasterDetail struct {
 	Detail         UjianMaster      `json:"detail"`
 	Penugasan      []PenugasanUjian `json:"penugasan"`
 	AvailableKelas []AvailableKelas `json:"availableKelas"`
 }
 
-// PesertaUjian merepresentasikan entitas di tabel 'peserta_ujian'.
+// PesertaUjian represents a student registered for an exam.
 type PesertaUjian struct {
-	ID             uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	UjianMasterID  uuid.UUID      `gorm:"type:uuid;not null"`
-	AnggotaKelasID uuid.UUID      `gorm:"type:uuid;not null"`
-	Urutan         int            `gorm:"not null"`
-	NomorUjian     sql.NullString `gorm:"type:varchar(50)"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             uuid.UUID `db:"id"`
+	UjianMasterID  uuid.UUID `db:"ujian_master_id"`
+	AnggotaKelasID uuid.UUID `db:"anggota_kelas_id"`
+	Urutan         int       `db:"urutan"`
+	NomorUjian     *string   `db:"nomor_ujian"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
 }
 
-// PesertaUjianDetail adalah struct untuk response API yang berisi detail siswa.
+// PesertaUjianDetail represents detailed information of a participant.
+// PERBAIKAN: Mengubah tipe NISN dan NomorUjian menjadi pointer string (*string).
 type PesertaUjianDetail struct {
-	ID         uuid.UUID `json:"id"`
-	NamaSiswa  string    `json:"nama_siswa"`
-	NISN       string    `json:"nisn"`
-	Urutan     int       `json:"urutan"`
-	NomorUjian *string   `json:"nomor_ujian"`
-	NamaKelas  string    `json:"nama_kelas"`
+	ID         string  `json:"id"`
+	NamaSiswa  string  `json:"nama_siswa"`
+	NISN       *string `json:"nisn"`
+	Urutan     int     `json:"urutan"`
+	NomorUjian *string `json:"nomor_ujian"`
+	NamaKelas  string  `json:"nama_kelas"`
 }
 
-// GroupedPesertaUjian adalah struktur untuk mengelompokkan peserta berdasarkan nama kelas.
+// GroupedPesertaUjian groups participants by class name.
 type GroupedPesertaUjian map[string][]PesertaUjianDetail

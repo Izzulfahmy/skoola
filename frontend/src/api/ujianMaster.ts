@@ -4,13 +4,26 @@ import type {
   UjianMaster,
   UpsertUjianMasterInput,
   UjianDetail,
-  GroupedPesertaUjian, // <-- Tambahkan tipe baru
+  GroupedPesertaUjian,
 } from '../types';
 
-// Tipe untuk payload pendaftaran kelas
 interface AssignKelasPayload {
   pengajar_kelas_ids: string[];
 }
+
+// --- FUNGSI BARU ---
+interface AddPesertaFromKelasPayload {
+  kelas_id: string;
+}
+
+export const addPesertaFromKelas = async (
+  ujianMasterId: string,
+  data: AddPesertaFromKelasPayload
+): Promise<any> => {
+  const response = await apiClient.post(`/ujian-master/${ujianMasterId}/peserta`, data);
+  return response.data;
+};
+// --------------------
 
 // GET /ujian-master/tahun-ajaran/:tahun_ajaran_id
 export const getAllUjianMaster = async (tahunAjaranId: string): Promise<UjianMaster[]> => {
@@ -53,7 +66,7 @@ export const assignUjianToKelas = async (
   return response.data;
 };
 
-// GET /ujian-master/:id/peserta  <-- FUNGSI BARU
+// GET /ujian-master/:id/peserta
 export const getPesertaUjian = async (
   ujianMasterId: string
 ): Promise<GroupedPesertaUjian> => {

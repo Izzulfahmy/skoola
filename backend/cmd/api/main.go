@@ -143,7 +143,6 @@ func main() {
 	presensiService := presensi.NewService(presensiRepo, validate)
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
-	// --- PERBARUI INISIALISASI SERVICE UJIAN MASTER ---
 	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, rombelService)
 
 	// Handlers
@@ -388,8 +387,9 @@ func main() {
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
 			r.With(auth.Authorize("admin")).Post("/{id}/assign-kelas", ujianMasterHandler.AssignKelas)
-			// --- RUTE BARU DITAMBAHKAN SESUAI TUTORIAL ---
 			r.With(auth.Authorize("admin")).Get("/{id}/peserta", ujianMasterHandler.GetPesertaUjian)
+			// RUTE BARU: Ditambahkan sesuai tutorial
+			r.With(auth.Authorize("admin")).Post("/{id}/peserta", ujianMasterHandler.AddPesertaFromKelas)
 		})
 
 		r.Route("/presensi", func(r chi.Router) {

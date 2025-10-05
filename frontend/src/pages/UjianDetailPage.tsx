@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   message,
   Modal,
@@ -7,12 +7,12 @@ import {
   Cascader,
   Typography,
   Spin,
-  // Empty, // <-- Dihapus dari sini
   Card,
   Breadcrumb,
   Table,
   Tag,
   Tabs,
+  Button,
 } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUjianMasterById, assignUjianToKelas, getPesertaUjian } from '../api/ujianMaster';
@@ -59,7 +59,6 @@ const UjianDetailPage = () => {
     onSuccess: () => {
       message.success('Kelas berhasil ditugaskan untuk ujian ini!');
       queryClient.invalidateQueries({ queryKey: ['ujianDetail', ujianMasterId] });
-      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
       setIsModalOpen(false);
       form.resetFields();
     },
@@ -104,25 +103,32 @@ const UjianDetailPage = () => {
     { dataIndex: 'nama_kelas', key: 'nama_kelas', render: (text) => <Text strong>{text}</Text> },
     { dataIndex: 'jumlah_mapel', key: 'jumlah_mapel', align: 'right', render: (jumlah) => <Tag color="blue">{`${jumlah} Mapel`}</Tag> },
   ];
-
+  
   const tabItems = [
     {
-        key: '1',
-        label: 'Kelas',
-        children: (
-            <KelasTab
-                tableData={tableData}
-                mainTableColumns={mainTableColumns}
-                expandedRowRender={expandedRowRender}
-                onDaftarkanKelasClick={() => setIsModalOpen(true)}
-                canDaftarkanKelas={!(!ujianDetail?.availableKelas || ujianDetail.availableKelas.length === 0)}
-            />
-        )
+      key: '1',
+      label: 'Kelas',
+      children: (
+        <KelasTab
+          tableData={tableData}
+          mainTableColumns={mainTableColumns}
+          expandedRowRender={expandedRowRender}
+          onDaftarkanKelasClick={() => setIsModalOpen(true)}
+          canDaftarkanKelas={!!ujianDetail?.availableKelas && ujianDetail.availableKelas.length > 0}
+        />
+      ),
     },
-    { 
-        key: '2', 
-        label: 'Peserta Ujian', 
-        children: <PesertaUjianTab data={pesertaData} isLoading={isPesertaLoading} />
+    {
+      key: '2',
+      label: 'Peserta Ujian',
+      children: (
+        <PesertaUjianTab
+          ujianMasterId={ujianMasterId!}
+          data={pesertaData}
+          isLoading={isPesertaLoading}
+          penugasan={ujianDetail?.penugasan || []}
+        />
+      ),
     },
     { key: '3', label: 'Ruangan', children: <PlaceholderTab title="Ruangan" /> },
     { key: '4', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
@@ -130,21 +136,17 @@ const UjianDetailPage = () => {
   ];
 
   if (isUjianDetailLoading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;
-  
-  // Menambahkan kembali penanganan error di sini
+
   if (isError) {
     message.error("Gagal memuat detail paket ujian. Silakan coba lagi.");
-    // Kita bisa tampilkan Empty di sini, jadi importnya kita kembalikan
-    // Namun untuk sekarang, kita hapus saja agar sesuai dengan error
-    return <div>Gagal memuat data.</div>;
+    return <div>Gagal memuat data. <Button onClick={() => navigate(-1)}>Kembali</Button></div>;
   }
-
 
   return (
     <>
       <Breadcrumb
         items={[
-          { title: <a onClick={() => navigate('/admin/ujian')}>Manajemen Ujian</a> },
+          { title: <Link to='/admin/ujian'>Manajemen Ujian</Link> },
           { title: 'Detail Paket Ujian' }
         ]}
       />
@@ -153,7 +155,7 @@ const UjianDetailPage = () => {
       </Title>
 
       <Card bordered={false} bodyStyle={{ paddingTop: 0 }}>
-         <Tabs defaultActiveKey="1" items={tabItems} />
+        <Tabs defaultActiveKey="1" items={tabItems} />
       </Card>
 
       <Modal

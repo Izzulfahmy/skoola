@@ -759,6 +759,7 @@ export interface UpsertUjianMasterInput {
 // Tipe baru untuk data penugasan yang sudah ada
 export interface PenugasanUjian {
   pengajar_kelas_id: string;
+  kelas_id: string;
   nama_kelas: string;
   nama_mapel: string;
   nama_guru: string;

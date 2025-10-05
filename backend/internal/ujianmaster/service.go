@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"skoola/internal/rombel" // <-- Import baru
+	"skoola/internal/rombel"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,20 +18,57 @@ type Service interface {
 	UpdateUjianMaster(ctx context.Context, schemaName string, id string, req UjianMaster) (UjianMaster, error)
 	DeleteUjianMaster(ctx context.Context, schemaName string, id string) error
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error)
-	GetPesertaUjianByUjianID(ctx context.Context, schemaName string, ujianID string) (GroupedPesertaUjian, error) // <-- BARU
+	GetPesertaUjianByUjianID(ctx context.Context, schemaName string, ujianID string) (GroupedPesertaUjian, error)
+	AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error)
 }
 
 type service struct {
 	repo          Repository
-	rombelService rombel.Service // <-- Dependensi baru
+	rombelService rombel.Service
 }
 
 // NewService creates a new UjianMaster service.
-func NewService(repo Repository, rombelService rombel.Service) Service { // <-- Diperbarui
+func NewService(repo Repository, rombelService rombel.Service) Service {
 	return &service{
 		repo:          repo,
-		rombelService: rombelService, // <-- Inisialisasi dependensi
+		rombelService: rombelService,
 	}
+}
+
+func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return 0, errors.New("ID paket ujian tidak valid")
+	}
+
+	anggota, err := s.rombelService.GetAllAnggotaByKelas(ctx, schemaName, kelasID)
+	if err != nil {
+		return 0, fmt.Errorf("gagal mengambil anggota kelas: %w", err)
+	}
+
+	if len(anggota) == 0 {
+		return 0, nil
+	}
+
+	peserta := make([]PesertaUjian, len(anggota))
+	now := time.Now()
+	for i, anggotaKelas := range anggota {
+		anggotaID, _ := uuid.Parse(anggotaKelas.ID)
+		peserta[i] = PesertaUjian{
+			ID:             uuid.New(),
+			UjianMasterID:  umID,
+			AnggotaKelasID: anggotaID,
+			Urutan:         anggotaKelas.Urutan,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+	}
+
+	if err := s.repo.CreatePesertaUjianBatch(ctx, schemaName, peserta); err != nil {
+		return 0, fmt.Errorf("gagal membuat data peserta ujian: %w", err)
+	}
+
+	return len(peserta), nil
 }
 
 // CreateUjianMaster handles the creation of a new UjianMaster.
@@ -115,61 +152,17 @@ func (s *service) DeleteUjianMaster(ctx context.Context, schemaName string, id s
 	return s.repo.Delete(ctx, schemaName, umID)
 }
 
-// AssignKelasToUjian menugaskan kelas ke ujian master dan secara otomatis membuat
-// daftar peserta ujian dari semua siswa di kelas tersebut.
 func (s *service) AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error) {
-	// 1. Validasi dan konversi semua ID yang masuk
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
 		return 0, errors.New("ID paket ujian tidak valid")
 	}
 
-	var pids []uuid.UUID
-	for _, idStr := range pengajarKelasIDs {
-		pid, err := uuid.Parse(idStr)
-		if err != nil {
-			return 0, fmt.Errorf("ID pengajar kelas tidak valid: %s", idStr)
-		}
-		pids = append(pids, pid)
-	}
-
-	// 2. Buat entri penugasan ujian di database
 	if _, err := s.repo.AssignKelasToUjian(ctx, schemaName, umID, pengajarKelasIDs); err != nil {
 		return 0, fmt.Errorf("gagal menugaskan kelas ke ujian: %w", err)
 	}
 
-	// 3. Ambil semua anggota kelas dari kelas yang baru ditugaskan melalui rombelService
-	anggota, err := s.rombelService.GetAnggotaKelasByPengajarKelasIDs(ctx, schemaName, pids)
-	if err != nil {
-		// Jika gagal mengambil anggota, penugasan tetap terjadi.
-		// Pertimbangkan mekanisme rollback jika ini tidak diinginkan.
-		return 0, fmt.Errorf("gagal mengambil anggota kelas setelah penugasan: %w", err)
-	}
-
-	// 4. Transformasi data anggota kelas menjadi data peserta ujian
-	if len(anggota) == 0 {
-		return 0, nil // Tidak ada siswa di kelas tersebut, proses selesai.
-	}
-
-	peserta := make([]PesertaUjian, len(anggota))
-	now := time.Now()
-	for i, anggotaKelas := range anggota {
-		peserta[i] = PesertaUjian{
-			ID:             uuid.New(),
-			UjianMasterID:  umID,
-			AnggotaKelasID: uuid.MustParse(anggotaKelas.ID), // Asumsi ID anggota kelas adalah string UUID
-			Urutan:         anggotaKelas.Urutan,
-			CreatedAt:      now,
-			UpdatedAt:      now,
-		}
-	}
-
-	// 5. Simpan semua data peserta ujian baru ke database dalam satu batch
-	if err := s.repo.CreatePesertaUjianBatch(ctx, schemaName, peserta); err != nil {
-		return 0, fmt.Errorf("gagal membuat data peserta ujian: %w", err)
-	}
-
-	return len(peserta), nil
+	return len(pengajarKelasIDs), nil
 }
 
 // GetPesertaUjianByUjianID mengambil dan mengelompokkan data peserta berdasarkan kelas.
@@ -179,19 +172,14 @@ func (s *service) GetPesertaUjianByUjianID(ctx context.Context, schemaName strin
 		return nil, errors.New("ID ujian tidak valid")
 	}
 
-	// Ambil daftar peserta dalam bentuk flat list dari repository
 	peserta, err := s.repo.FindPesertaByUjianID(ctx, schemaName, uid)
 	if err != nil {
 		return nil, err
 	}
 
-	// Buat map untuk mengelompokkan peserta berdasarkan nama kelasnya
 	grouped := make(GroupedPesertaUjian)
 	for _, p := range peserta {
-		// Nama kelas akan menjadi key di map
 		namaKelas := p.NamaKelas
-
-		// Tambahkan peserta ke dalam slice yang sesuai dengan nama kelasnya
 		grouped[namaKelas] = append(grouped[namaKelas], p)
 	}
 

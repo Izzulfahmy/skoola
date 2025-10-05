@@ -16,10 +16,40 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// --- HANDLER BARU ---
 type AssignKelasInput struct {
 	PengajarKelasIDs []string `json:"pengajar_kelas_ids"`
 }
+
+// --- HANDLER BARU ---
+type AddPesertaFromKelasInput struct {
+	KelasID string `json:"kelas_id"`
+}
+
+func (h *Handler) AddPesertaFromKelas(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	var input AddPesertaFromKelasInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.service.AddPesertaFromKelas(r.Context(), schemaName, ujianMasterID, input.KelasID)
+	if err != nil {
+		http.Error(w, "Gagal menambah peserta ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":      "Berhasil menambahkan peserta.",
+		"successCount": count,
+	})
+}
+
+// -----------------
 
 func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
@@ -44,8 +74,6 @@ func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
 		"successCount": count,
 	})
 }
-
-// -----------------
 
 // Create handles the creation of a new UjianMaster.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -133,28 +161,21 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetPesertaUjian menangani permintaan untuk mengambil daftar peserta ujian berdasarkan ID ujian.
 func (h *Handler) GetPesertaUjian(w http.ResponseWriter, r *http.Request) {
-	// Mengambil schemaName dari context, sesuai dengan pola di handler lain
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-
-	// Mengambil parameter 'id' dari URL menggunakan chi
 	ujianID := chi.URLParam(r, "id")
 	if ujianID == "" {
 		http.Error(w, "Parameter id ujian tidak ditemukan di URL", http.StatusBadRequest)
 		return
 	}
 
-	// Memanggil service untuk mendapatkan data peserta yang sudah dikelompokkan
 	groupedPeserta, err := h.service.GetPesertaUjianByUjianID(r.Context(), schemaName, ujianID)
 	if err != nil {
-		// Menangani error dari service layer
 		http.Error(w, "Gagal mengambil data peserta ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Mengirim response JSON jika berhasil
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK) // Status 200 OK
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(groupedPeserta)
 }

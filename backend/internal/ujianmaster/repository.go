@@ -21,8 +21,6 @@ type Repository interface {
 	GetPenugasanByUjianMasterID(ctx context.Context, schemaName string, id uuid.UUID) ([]PenugasanUjian, error)
 	GetAvailableKelasForUjian(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID, ujianMasterID uuid.UUID) ([]AvailableKelas, error)
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, pengajarKelasIDs []string) (int, error)
-
-	// <-- FUNGSI BARU DARI TUTORIAL -->
 	CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error
 	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
 }
@@ -176,6 +174,7 @@ func (r *repository) GetPenugasanByUjianMasterID(ctx context.Context, schemaName
 	query := `
         SELECT
             pk.id as pengajar_kelas_id,
+            k.id as kelas_id,
             k.nama_kelas,
             mp.nama_mapel,
             t.nama_lengkap as nama_guru
@@ -196,7 +195,7 @@ func (r *repository) GetPenugasanByUjianMasterID(ctx context.Context, schemaName
 	var penugasan []PenugasanUjian
 	for rows.Next() {
 		var p PenugasanUjian
-		if err := rows.Scan(&p.PengajarKelasID, &p.NamaKelas, &p.NamaMapel, &p.NamaGuru); err != nil {
+		if err := rows.Scan(&p.PengajarKelasID, &p.KelasID, &p.NamaKelas, &p.NamaMapel, &p.NamaGuru); err != nil {
 			return nil, err
 		}
 		penugasan = append(penugasan, p)
@@ -290,9 +289,6 @@ func (r *repository) AssignKelasToUjian(ctx context.Context, schemaName string, 
 	return len(pengajarKelasIDs), nil
 }
 
-// --- IMPLEMENTASI FUNGSI BARU ---
-
-// CreatePesertaUjianBatch membuat banyak record peserta ujian secara efisien menggunakan COPY.
 func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -302,12 +298,11 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	if err != nil {
 		return fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
-	defer tx.Rollback() // Rollback jika ada error
+	defer tx.Rollback()
 
-	// Menggunakan pq.CopyIn untuk performa bulk insert yang tinggi
 	stmt, err := tx.PrepareContext(ctx, pq.CopyIn(
 		"peserta_ujian",
-		"id", "ujian_master_id", "anggota_kelas_id", "urutan", "nomor_ujian", "created_at", "updated_at",
+		"id", "ujian_master_id", "anggota_kelas_id", "urutan", "created_at", "updated_at",
 	))
 	if err != nil {
 		return fmt.Errorf("gagal mempersiapkan statement COPY: %w", err)
@@ -315,22 +310,19 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	defer stmt.Close()
 
 	for _, p := range peserta {
-		_, err = stmt.Exec(p.ID, p.UjianMasterID, p.AnggotaKelasID, p.Urutan, p.NomorUjian, p.CreatedAt, p.UpdatedAt)
+		_, err = stmt.Exec(p.ID, p.UjianMasterID, p.AnggotaKelasID, p.Urutan, p.CreatedAt, p.UpdatedAt)
 		if err != nil {
 			return fmt.Errorf("gagal mengeksekusi statement untuk peserta ID %s: %w", p.ID, err)
 		}
 	}
 
-	// Menutup statement untuk menyelesaikan operasi COPY
 	if _, err = stmt.Exec(); err != nil {
 		return fmt.Errorf("gagal menutup statement COPY: %w", err)
 	}
 
-	// Jika semua berhasil, commit transaksi
 	return tx.Commit()
 }
 
-// FindPesertaByUjianID mengambil semua peserta untuk ujian tertentu dengan detail siswa dan kelas.
 func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -347,8 +339,7 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
         FROM peserta_ujian pu
         JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
         JOIN students s ON s.id = ak.student_id
-        JOIN rombel r ON r.id = ak.rombel_id
-        JOIN kelas k ON k.id = r.kelas_id
+        JOIN kelas k ON k.id = ak.kelas_id
         WHERE pu.ujian_master_id = $1
         ORDER BY k.nama_kelas, pu.urutan
     `
@@ -362,24 +353,25 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 	var results []PesertaUjianDetail
 	for rows.Next() {
 		var detail PesertaUjianDetail
-		var nomorUjian sql.NullString // Gunakan sql.NullString untuk scan kolom yang bisa NULL
+		var nomorUjian sql.NullString
+		var nisn sql.NullString
 
 		if err := rows.Scan(
 			&detail.ID,
 			&detail.NamaSiswa,
-			&detail.NISN,
+			&nisn,
 			&detail.Urutan,
-			&nomorUjian, // Scan ke NullString
+			&nomorUjian,
 			&detail.NamaKelas,
 		); err != nil {
 			return nil, fmt.Errorf("gagal memindai baris peserta: %w", err)
 		}
 
-		// Konversi dari sql.NullString ke *string untuk response JSON
 		if nomorUjian.Valid {
 			detail.NomorUjian = &nomorUjian.String
-		} else {
-			detail.NomorUjian = nil // Eksplisit set nil jika NULL di DB
+		}
+		if nisn.Valid {
+			detail.NISN = &nisn.String
 		}
 
 		results = append(results, detail)
