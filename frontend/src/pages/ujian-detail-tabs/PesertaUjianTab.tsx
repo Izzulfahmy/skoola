@@ -3,7 +3,6 @@ import {
   Spin,
   Empty,
   Collapse,
-  Table,
   Typography,
   Button,
   Modal,
@@ -11,8 +10,11 @@ import {
   Select,
   message,
   Alert,
+  Tooltip,
+  Table,
+  Tag,
 } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, UsergroupAddOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
@@ -20,6 +22,15 @@ import { addPesertaFromKelas } from '../../api/ujianMaster';
 
 const { Panel } = Collapse;
 const { Text } = Typography;
+
+// Style inline untuk membuat sel dan header tabel lebih rapat/pendek
+const denseCellStyle = {
+  padding: '6px 8px',
+};
+const denseHeaderStyle = {
+  padding: '8px 8px',
+  backgroundColor: '#fafafa', // Memberi sedikit warna pada header
+};
 
 interface PesertaUjianTabProps {
   ujianMasterId: string;
@@ -38,6 +49,49 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
 
+  const columns: TableProps<PesertaUjian>['columns'] = [
+    {
+      title: '#',
+      dataIndex: 'urutan',
+      key: 'urutan',
+      width: 50,
+      align: 'center',
+      onHeaderCell: () => ({ style: denseHeaderStyle }),
+      onCell: () => ({ style: denseCellStyle }),
+    },
+    {
+      title: 'Nama Siswa',
+      dataIndex: 'nama_siswa',
+      key: 'nama_siswa',
+      render: (text) => <Text strong>{text}</Text>,
+      onHeaderCell: () => ({ style: denseHeaderStyle }),
+      onCell: () => ({ style: denseCellStyle }),
+    },
+    {
+      title: 'NISN',
+      dataIndex: 'nisn',
+      key: 'nisn',
+      width: 160,
+      responsive: ['md'],
+      render: (nisn) => nisn || <Text type="secondary">-</Text>,
+      onHeaderCell: () => ({ style: denseHeaderStyle }),
+      onCell: () => ({ style: denseCellStyle }),
+    },
+    {
+      title: 'Nomor Ujian',
+      dataIndex: 'nomor_ujian',
+      key: 'nomor_ujian',
+      align: 'center',
+      width: 180,
+      responsive: ['sm'],
+      render: (nomor) => (
+        nomor ? <Tag color="blue">{nomor}</Tag> : <Tag>Belum Ada</Tag>
+      ),
+      onHeaderCell: () => ({ style: denseHeaderStyle }),
+      onCell: () => ({ style: denseCellStyle }),
+    },
+  ];
+
   const addPesertaMutation = useMutation({
     mutationFn: (kelasId: string) => addPesertaFromKelas(ujianMasterId, { kelas_id: kelasId }),
     onSuccess: (response) => {
@@ -55,7 +109,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     addPesertaMutation.mutate(values.kelas_id);
   };
 
-  // Kode ini sekarang akan valid karena 'kelas_id' ada di tipe PenugasanUjian
   const uniqueKelas = useMemo(() => {
     const seen = new Set<string>();
     return penugasan.filter((p) => {
@@ -65,65 +118,69 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     });
   }, [penugasan]);
 
-  const columns: TableProps<PesertaUjian>['columns'] = [
-    {
-      title: 'No. Urut',
-      dataIndex: 'urutan',
-      key: 'urutan',
-      width: 100,
-      align: 'center',
-    },
-    {
-      title: 'Nama Siswa',
-      dataIndex: 'nama_siswa',
-      key: 'nama_siswa',
-    },
-    {
-      title: 'NISN',
-      dataIndex: 'nisn',
-      key: 'nisn',
-      render: (nisn) => nisn || '-',
-    },
-    {
-      title: 'Nomor Ujian',
-      dataIndex: 'nomor_ujian',
-      key: 'nomor_ujian',
-      render: (nomor) => nomor || <Text type="secondary">-</Text>,
-    },
-  ];
+  const renderContent = () => {
+    if (isLoading) {
+      return <div style={{ textAlign: 'center', padding: '48px 0' }}><Spin /></div>;
+    }
+
+    if (!data || Object.keys(data).length === 0) {
+      return (
+        <Empty
+          style={{ padding: '48px 0', background: '#fff' }}
+          description={
+            <Text type="secondary">Belum ada peserta ujian.</Text>
+          }
+        />
+      );
+    }
+
+    return (
+      <Collapse accordion ghost defaultActiveKey={Object.keys(data)[0]} style={{ padding: 0 }}>
+        {Object.entries(data).map(([namaKelas, pesertaList]) => (
+          <Panel
+            header={
+              <Text strong>
+                <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
+                {`${namaKelas} - ${pesertaList.length} Peserta`}
+              </Text>
+            }
+            key={namaKelas}
+            style={{ padding: '0 !important', margin: 0 }}
+          >
+            <Table
+              columns={columns}
+              dataSource={pesertaList}
+              rowKey="id"
+              size="small"
+              pagination={false} // Menghilangkan paginasi untuk tampilan yang lebih rapat per kelas
+              style={{ marginTop: '-16px', marginBottom: '-16px' }} // Trik mengurangi gap vertikal
+            />
+          </Panel>
+        ))}
+      </Collapse>
+    );
+  };
 
   return (
     <>
-      <div style={{ textAlign: 'right', marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setIsModalOpen(true)}
-          disabled={uniqueKelas.length === 0}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 16 }}>
+        <Tooltip
+          title={
+            uniqueKelas.length === 0 ? 'Daftarkan kelas di tab "Kelas" terlebih dahulu' : ''
+          }
         >
-          Tambah Peserta
-        </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsModalOpen(true)}
+            disabled={uniqueKelas.length === 0}
+          >
+            Tambah Peserta
+          </Button>
+        </Tooltip>
       </div>
-
-      {isLoading ? (
-        <Spin style={{ display: 'block', margin: '24px auto' }} />
-      ) : !data || Object.keys(data).length === 0 ? (
-        <Empty description="Klik 'Tambah Peserta' untuk memulai." />
-      ) : (
-        <Collapse accordion defaultActiveKey={Object.keys(data)[0]}>
-          {Object.entries(data).map(([namaKelas, pesertaList]) => (
-            <Panel header={`${namaKelas} (${pesertaList.length} Peserta)`} key={namaKelas}>
-              <Table
-                columns={columns}
-                dataSource={pesertaList}
-                pagination={false}
-                size="small"
-                rowKey="id"
-              />
-            </Panel>
-          ))}
-        </Collapse>
-      )}
+      
+      {renderContent()}
 
       <Modal
         title="Tambah Peserta dari Kelas"
@@ -142,13 +199,13 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
             <Select
               placeholder="Pilih kelas yang siswanya akan ditambahkan"
               options={uniqueKelas.map((k) => ({
-                value: k.kelas_id, // Baris ini juga sekarang valid
+                value: k.kelas_id,
                 label: k.nama_kelas,
               }))}
             />
           </Form.Item>
           <Alert
-            message="Semua siswa dari kelas yang dipilih akan ditambahkan sebagai peserta. Jika siswa sudah ada, data tidak akan digandakan."
+            message="Semua siswa dari kelas yang dipilih akan ditambahkan."
             type="info"
             showIcon
           />
