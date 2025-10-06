@@ -2,6 +2,7 @@ package ujianmaster
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"skoola/internal/middleware"
 
@@ -20,7 +21,7 @@ type AssignKelasInput struct {
 	PengajarKelasIDs []string `json:"pengajar_kelas_ids"`
 }
 
-// --- HANDLER BARU ---
+// --- HANDLER UNTUK PESERTA UJIAN ---
 type AddPesertaFromKelasInput struct {
 	KelasID string `json:"kelas_id"`
 }
@@ -46,6 +47,51 @@ func (h *Handler) AddPesertaFromKelas(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":      "Berhasil menambahkan peserta.",
 		"successCount": count,
+	})
+}
+
+// GetPesertaUjian mengambil data peserta dan mengelompokkannya
+func (h *Handler) GetPesertaUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianID := chi.URLParam(r, "id")
+	if ujianID == "" {
+		http.Error(w, "Parameter id ujian tidak ditemukan di URL", http.StatusBadRequest)
+		return
+	}
+
+	groupedPeserta, err := h.service.GetPesertaUjianByUjianID(r.Context(), schemaName, ujianID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data peserta ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(groupedPeserta)
+}
+
+// --- BARU: Handler untuk menghapus peserta per kelas ---
+func (h *Handler) DeletePesertaFromKelas(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+	kelasID := chi.URLParam(r, "kelasID")
+
+	if kelasID == "" {
+		http.Error(w, "Parameter kelasID tidak ditemukan di URL", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.service.RemovePesertaByKelas(r.Context(), schemaName, ujianMasterID, kelasID)
+	if err != nil {
+		http.Error(w, "Gagal menghapus peserta ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":      fmt.Sprintf("Berhasil menghapus %d peserta dari kelas.", count),
+		"deletedCount": count,
 	})
 }
 
@@ -159,23 +205,4 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) GetPesertaUjian(w http.ResponseWriter, r *http.Request) {
-	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	ujianID := chi.URLParam(r, "id")
-	if ujianID == "" {
-		http.Error(w, "Parameter id ujian tidak ditemukan di URL", http.StatusBadRequest)
-		return
-	}
-
-	groupedPeserta, err := h.service.GetPesertaUjianByUjianID(r.Context(), schemaName, ujianID)
-	if err != nil {
-		http.Error(w, "Gagal mengambil data peserta ujian: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(groupedPeserta)
 }

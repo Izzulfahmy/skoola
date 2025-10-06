@@ -23,6 +23,8 @@ type Repository interface {
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, pengajarKelasIDs []string) (int, error)
 	CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error
 	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
+	// --- BARU: Mendefinisikan fungsi hapus peserta per kelas ---
+	DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID string) (int64, error)
 }
 
 type repository struct {
@@ -382,4 +384,34 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 	}
 
 	return results, nil
+}
+
+// Implementasi DeletePesertaByMasterAndKelas
+//
+// Fungsi ini bertanggung jawab menghapus semua entri `peserta_ujian` yang terhubung ke `ujian_master` tertentu dan termasuk dalam `kelas` tertentu.
+func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID string) (int64, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return 0, err
+	}
+
+	query := `
+        DELETE FROM peserta_ujian
+        WHERE id IN (
+            SELECT pu.id
+            FROM peserta_ujian pu
+            JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
+            WHERE pu.ujian_master_id = $1 AND ak.kelas_id = $2
+        )
+    `
+	result, err := r.db.ExecContext(ctx, query, masterID, kelasID)
+	if err != nil {
+		return 0, fmt.Errorf("gagal menghapus peserta ujian berdasarkan kelas: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("gagal mendapatkan jumlah baris yang terpengaruh: %w", err)
+	}
+
+	return rowsAffected, nil
 }

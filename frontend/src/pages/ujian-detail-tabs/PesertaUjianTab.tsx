@@ -17,27 +17,43 @@ import {
   Card,
   Flex,
 } from 'antd';
-import { PlusOutlined, UsergroupAddOutlined } from '@ant-design/icons';
+// Mengimpor ikon yang dibutuhkan
+import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
-import { addPesertaFromKelas } from '../../api/ujianMaster';
+// Mengimpor fungsi API yang dibutuhkan
+import { addPesertaFromKelas, deletePesertaFromKelas } from '../../api/ujianMaster'; 
+import type { CSSProperties } from 'react'; // PENTING: Mengimpor tipe untuk style
+
+// --- Tipe untuk error dari Axios (FIX Code 2339) ---
+interface AxiosErrorResponse {
+  data?: {
+    message: string;
+    deletedCount?: number;
+  };
+}
+interface AxiosErrorType extends Error {
+  response?: AxiosErrorResponse;
+}
+// --------------------------------------------------
 
 const { Text } = Typography;
+const { confirm } = Modal;
 
-const denseCellStyle = {
+const denseCellStyle: CSSProperties = { // Tipe CSSProperties untuk style
   padding: '6px 8px',
 };
-const denseHeaderStyle = {
+const denseHeaderStyle: CSSProperties = {
   padding: '8px 8px',
   backgroundColor: '#fafafa',
 };
 
 // Style tambahan untuk kolom nama agar bisa wrap
-const nameCellStyle = {
+const nameCellStyle: CSSProperties = { // FIX Code 2322: Tipe eksplisit dan properti yang aman
   ...denseCellStyle,
-  whiteSpace: 'normal' as const, // Memaksa teks untuk wrap
-  wordBreak: 'break-word' as const,
+  whiteSpace: 'normal',
+  overflowWrap: 'break-word', // Mengganti 'wordBreak' yang bermasalah di TS
 };
 
 interface PesertaUjianTabProps {
@@ -71,8 +87,8 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       title: 'Nama Siswa',
       dataIndex: 'nama_siswa',
       key: 'nama_siswa',
+      render: (text) => text,
       onHeaderCell: () => ({ style: denseHeaderStyle }),
-      // --- PERUBAHAN DI SINI: Menerapkan style untuk text wrap ---
       onCell: () => ({ style: nameCellStyle }),
     },
     {
@@ -107,14 +123,45 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: (err: any) => {
+    onError: (err: AxiosErrorType) => { // FIX Code 2339
       message.error(err.response?.data?.message || 'Gagal menambahkan peserta.');
     },
   });
 
+  const deletePesertaMutation = useMutation({
+    mutationFn: (kelasId: string) => deletePesertaFromKelas(ujianMasterId, kelasId),
+    onSuccess: (response) => {
+      message.success(response.message || `Berhasil menghapus ${response.deletedCount || 0} peserta.`);
+      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+    },
+    onError: (err: AxiosErrorType) => { // FIX Code 2339
+      message.error(err.response?.data?.message || 'Gagal menghapus peserta ujian.');
+    },
+  });
+
+  // FIX Code 7006: Tambahkan tipe untuk 'values'
   const handleFinish = (values: { kelas_id: string }) => {
     addPesertaMutation.mutate(values.kelas_id);
   };
+
+  // --- Konfirmasi dan handler hapus ---
+  // FIX Code 7006: Tambahkan tipe untuk 'kelasID' dan 'namaKelas'
+  const handleRemovePeserta = (kelasID: string, namaKelas: string) => {
+    confirm({
+      title: `Hapus semua peserta dari kelas ${namaKelas}?`,
+      icon: <ExclamationCircleOutlined />,
+      content: 'Aksi ini akan menghapus semua siswa dari kelas ini dari daftar peserta ujian. Apakah Anda yakin?',
+      okText: 'Hapus',
+      okType: 'danger',
+      cancelText: 'Batal',
+      onOk() {
+        deletePesertaMutation.mutate(kelasID);
+      },
+      // PENTING: Menambahkan okButtonProps untuk loading state
+      okButtonProps: { loading: deletePesertaMutation.isPending }, 
+    });
+  };
+  // ------------------------------------
 
   const availableKelasForDropdown = useMemo(() => {
     const kelasSudahJadiPeserta = data ? Object.keys(data) : [];
@@ -129,6 +176,20 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       (kelas) => !kelasSudahJadiPeserta.includes(kelas.nama_kelas)
     );
   }, [penugasan, data]);
+
+  // --- Membuat map nama kelas ke ID kelas (PENTING) ---
+  const classNameToIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const seenKelas = new Set<string>();
+    penugasan.forEach(p => {
+      if (!seenKelas.has(p.nama_kelas)) {
+          map.set(p.nama_kelas, p.kelas_id);
+          seenKelas.add(p.nama_kelas);
+      }
+    });
+    return map;
+  }, [penugasan]);
+  // -----------------------------------------------------
 
   const renderContent = () => {
     if (isLoading) {
@@ -148,31 +209,63 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
 
     return (
       <Row gutter={[16, 16]}>
-        {Object.entries(data).map(([namaKelas, pesertaList]) => (
-          <Col xs={24} sm={24} md={12} key={namaKelas}>
-            <Card
-              size="small"
-              title={
-                <Flex justify="space-between" align="center">
-                  <Text strong>
-                    <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
-                    {namaKelas}
-                  </Text>
-                  <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
-                </Flex>
-              }
-              bodyStyle={{ padding: 0 }}
-            >
-              <Table
-                columns={columns}
-                dataSource={pesertaList}
-                rowKey="id"
+        {Object.entries(data).map(([namaKelas, pesertaList]) => {
+          // Mendapatkan kelasID dari map
+          const kelasID = classNameToIdMap.get(namaKelas) || ''; 
+          
+          return (
+            <Col xs={24} sm={24} md={12} key={namaKelas}>
+              <Card
                 size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
-        ))}
+                title={
+                  <Flex justify="space-between" align="center">
+                    <Text strong>
+                      <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
+                      {namaKelas}
+                    </Text>
+                    {/* --- KONTEN DELETE BUTTON --- */}
+                    <Flex align='center' gap={8}>
+                      <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
+                      <Tooltip title="Hapus semua peserta di kelas ini">
+                        <Button
+                          icon={<DeleteOutlined />}
+                          type="text"
+                          danger
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Mencegah event lain yang mungkin ada di Card
+                            
+                            // *** LOGIKA KRITIS: Pengecekan kelasID ***
+                            if (kelasID) {
+                                handleRemovePeserta(kelasID, namaKelas);
+                            } else {
+                                // Tampilkan pesan error jika ID tidak ditemukan, 
+                                // ini adalah indikator bahwa data 'penugasan' tidak sinkron
+                                console.error(`[DELETE ERROR] ID Kelas untuk ${namaKelas} tidak ditemukan. Periksa data penugasan.`, {namaKelas, penugasan});
+                                message.error(`Gagal menghapus: ID Kelas untuk ${namaKelas} tidak ditemukan.`);
+                            }
+                          }}
+                          // Nonaktifkan jika ID tidak ada atau sedang loading
+                          loading={deletePesertaMutation.isPending}
+                          disabled={!kelasID || deletePesertaMutation.isPending}
+                        />
+                      </Tooltip>
+                    </Flex>
+                  </Flex>
+                }
+                bodyStyle={{ padding: 0 }}
+              >
+                <Table
+                  columns={columns}
+                  dataSource={pesertaList}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                />
+              </Card>
+            </Col>
+          );
+        })}
       </Row>
     );
   };

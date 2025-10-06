@@ -23,6 +23,20 @@ export const addPesertaFromKelas = async (
   const response = await apiClient.post(`/ujian-master/${ujianMasterId}/peserta`, data);
   return response.data;
 };
+
+/**
+ * Menghapus semua peserta ujian yang terkait dengan Ujian Master ID dan Kelas ID tertentu.
+ * DELETE /ujian-master/:ujianMasterId/peserta/kelas/:kelasId
+ */
+export const deletePesertaFromKelas = async (
+  ujianMasterId: string,
+  kelasId: string
+): Promise<any> => {
+  const response = await apiClient.delete(
+    `/ujian-master/${ujianMasterId}/peserta/kelas/${kelasId}`
+  );
+  return response.data;
+};
 // --------------------
 
 // GET /ujian-master/tahun-ajaran/:tahun_ajaran_id

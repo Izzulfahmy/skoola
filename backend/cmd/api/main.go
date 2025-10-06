@@ -388,8 +388,10 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
 			r.With(auth.Authorize("admin")).Post("/{id}/assign-kelas", ujianMasterHandler.AssignKelas)
 			r.With(auth.Authorize("admin")).Get("/{id}/peserta", ujianMasterHandler.GetPesertaUjian)
-			// RUTE BARU: Ditambahkan sesuai tutorial
+			// RUTE BARU: Menambahkan peserta dari kelas (POST)
 			r.With(auth.Authorize("admin")).Post("/{id}/peserta", ujianMasterHandler.AddPesertaFromKelas)
+			// RUTE BARU: Menghapus peserta dari kelas (DELETE)
+			r.With(auth.Authorize("admin")).Delete("/{id}/peserta/kelas/{kelasID}", ujianMasterHandler.DeletePesertaFromKelas)
 		})
 
 		r.Route("/presensi", func(r chi.Router) {

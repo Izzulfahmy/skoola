@@ -20,6 +20,8 @@ type Service interface {
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error)
 	GetPesertaUjianByUjianID(ctx context.Context, schemaName string, ujianID string) (GroupedPesertaUjian, error)
 	AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error)
+	// --- BARU: Mendefinisikan fungsi hapus peserta per kelas ---
+	RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error)
 }
 
 type service struct {
@@ -34,6 +36,31 @@ func NewService(repo Repository, rombelService rombel.Service) Service {
 		rombelService: rombelService,
 	}
 }
+
+// --- Implementasi Fungsi Baru: RemovePesertaByKelas ---
+
+// RemovePesertaByKelas menghapus semua peserta ujian dari satu kelas tertentu
+// dalam suatu paket ujian (ujian_master) tertentu.
+func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return 0, errors.New("ID paket ujian tidak valid")
+	}
+
+	if kelasID == "" {
+		return 0, errors.New("ID kelas tidak boleh kosong")
+	}
+
+	// Memanggil fungsi Repository untuk eksekusi DELETE di database
+	rowsAffected, err := s.repo.DeletePesertaByMasterAndKelas(ctx, schemaName, umID, kelasID)
+	if err != nil {
+		return 0, fmt.Errorf("gagal menghapus peserta ujian: %w", err)
+	}
+
+	return rowsAffected, nil
+}
+
+// --- Implementasi Fungsi Lainnya ---
 
 func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error) {
 	umID, err := uuid.Parse(ujianMasterID)
