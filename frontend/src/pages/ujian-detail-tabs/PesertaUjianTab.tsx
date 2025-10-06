@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Spin,
   Empty,
@@ -88,7 +88,19 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
   const [kodeUjianPrefix, setKodeUjianPrefix] = useState<string>('');
+  const [isMobile, setIsMobile] = useState(false);
   const queryClient = useQueryClient();
+
+  // Responsive breakpoint detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize(); // Check initial size
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // SMART PADDING: Calculate total peserta and preview format
   const { totalPeserta, previewFormat } = useMemo(() => {
@@ -232,7 +244,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         // Show detailed error modal
         Modal.info({
           title: 'Import Summary',
-          width: 600,
+          width: isMobile ? '90%' : 600,
           content: (
             <div>
               <p><strong>✅ Berhasil: {result.updatedCount} data</strong></p>
@@ -412,51 +424,66 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'center', 
+        alignItems: isMobile ? 'stretch' : 'center',
         paddingBottom: 16, 
-        gap: 16, 
-        flexWrap: 'wrap' 
+        gap: 12, 
+        flexDirection: isMobile ? 'column' : 'row',
       }}>
-        {/* Generate Nomor Ujian Section */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Generate Section - ULTRA MINIMALIST */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 6,
+          justifyContent: isMobile ? 'center' : 'flex-start',
+        }}>
           <Input
-            placeholder="Kode (opsional)"
+            placeholder="Kode"
             value={kodeUjianPrefix}
             onChange={(e) => setKodeUjianPrefix(e.target.value.toUpperCase())}
             style={{ 
-              width: 120,
+              width: 70,
               borderRadius: '4px',
-              fontSize: '14px'
+              fontSize: '13px'
             }}
             maxLength={6}
             disabled={generateNomorUjianMutation.isPending || totalPeserta === 0}
           />
+          
+          {/* ICON-ONLY GENERATE BUTTON - NO TEXT */}
           <Button
             icon={<ThunderboltOutlined />}
             type="primary"
-            size="middle"
             onClick={handleGenerateNomorUjian}
             loading={generateNomorUjianMutation.isPending}
             disabled={totalPeserta === 0}
             style={{
               borderRadius: '4px',
+              minWidth: 32,
+              width: 32,
+              height: 32,
+              padding: 0,
             }}
-          >
-            Generate
-          </Button>
+            title="Generate Nomor Ujian"
+          />
+          
+          {/* SMART PREVIEW */}
           {totalPeserta > 0 && (
-            <Text type="secondary" style={{ fontSize: '11px' }}>
-              {kodeUjianPrefix ? (
-                `${kodeUjianPrefix}${previewFormat}...`
+            <Text type="secondary" style={{ fontSize: '10px', marginLeft: 4 }}>
+              {isMobile ? (
+                // Mobile: Short format
+                `(${totalPeserta})`
               ) : (
-                `${previewFormat}...`
-              )} ({totalPeserta.toLocaleString()})
+                // Desktop: Full format
+                <>
+                  {kodeUjianPrefix ? `${kodeUjianPrefix}${previewFormat}...` : `${previewFormat}...`} ({totalPeserta.toLocaleString()})
+                </>
+              )}
             </Text>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Action Buttons - CONDITIONAL TEXT */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: isMobile ? 'center' : 'flex-end' }}>
           {/* Export Dropdown */}
           <Dropdown
             menu={{
@@ -476,13 +503,17 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
               ],
             }}
             disabled={totalPeserta === 0}
+            placement="bottomRight"
           >
             <Button
               icon={<DownloadOutlined />}
               disabled={totalPeserta === 0}
               style={{ borderRadius: '4px' }}
+              title="Export Data"
             >
-              Export <DownOutlined style={{ fontSize: 12 }} />
+              {!isMobile && (
+                <>Export <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} /></>
+              )}
             </Button>
           </Dropdown>
 
@@ -497,8 +528,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
               icon={<UploadOutlined />}
               disabled={totalPeserta === 0}
               style={{ borderRadius: '4px' }}
+              title="Import Excel"
             >
-              Import Excel
+              {!isMobile && 'Import'}
             </Button>
           </Upload>
 
@@ -508,8 +540,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
             onClick={() => setIsModalOpen(true)}
             disabled={availableKelasForDropdown.length === 0}
             style={{ borderRadius: '4px' }}
+            title="Tambah Peserta"
           >
-            Tambah Peserta
+            {!isMobile && 'Tambah'}
           </Button>
         </div>
       </div>
@@ -523,6 +556,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         onOk={() => form.submit()}
         confirmLoading={addPesertaMutation.isPending}
         destroyOnClose
+        width={isMobile ? '90%' : 520}
       >
         <Form form={form} onFinish={handleFinish} layout="vertical" style={{ marginTop: 24 }}>
           <Form.Item
