@@ -724,7 +724,7 @@ export interface AddAnggotaInput {
   student_ids: string[];
 }
 
-// --- PERUBAHAN DIMULAI DI SINI ---
+// --- TIPE UJIAN (MASTER & DETAIL) ---
 
 export interface JenisUjian {
   id: number;
@@ -796,17 +796,17 @@ export interface PesertaUjian {
   id: string;
   nama_siswa: string;
   // FIX: Mengizinkan nisn dan nomor_ujian sebagai string atau null
-  nisn: string | null; 
+  nisn: string | null;
   urutan: number;
   nomor_ujian: string | null;
 }
 
-export type GroupedPesertaUjian = Record<string, PesertaUjianDetail[]>;
-
-
 // --- TIPE DATA RUANGAN UJIAN (BARU) ---
 
 // Ruangan Master (Ruangan Fisik Sekolah)
+/**
+ * Interface yang hilang untuk ruangan ujian
+ */
 export interface RuanganUjian {
   id: string;
   nama_ruangan: string;
@@ -866,3 +866,8 @@ export interface PesertaUjianDetail {
   kode_ruangan: string | null;
   nomor_kursi: string | null;
 }
+
+/**
+ * Tipe data ini masih relevan untuk fungsi lain (misalnya grouping di RuanganTab)
+ */
+export type GroupedPesertaUjian = Record<string, PesertaUjianDetail[]>;

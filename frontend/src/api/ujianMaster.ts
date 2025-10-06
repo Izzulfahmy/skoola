@@ -20,7 +20,10 @@ interface AssignKelasPayload {
   pengajar_kelas_ids: string[];
 }
 
-// --- FUNGSI PESERTA ---
+// ==============================================================================
+// FUNGSI PESERTA
+// ==============================================================================
+
 interface AddPesertaFromKelasPayload {
   kelas_id: string;
 }
@@ -60,7 +63,10 @@ export const deletePesertaFromKelas = async (
   }
 };
 
-// --- FUNGSI GENERATE NOMOR UJIAN ---
+// ==============================================================================
+// FUNGSI GENERATE NOMOR UJIAN
+// ==============================================================================
+
 interface GenerateNomorUjianPayload {
   prefix: string;
 }
@@ -90,7 +96,9 @@ export const generateNomorUjian = async (
   }
 };
 
-// --- FUNGSI BARU: EXCEL/CSV EXPORT & IMPORT ---
+// ==============================================================================
+// EXCEL/CSV EXPORT & IMPORT
+// ==============================================================================
 
 /**
  * Exports participant data to an Excel (.xlsx) or CSV (.csv) file.
@@ -127,18 +135,27 @@ export const importPesertaFromExcel = (ujianMasterId: string, file: File) => {
 // ==============================================================================
 
 // GET /ujian-master/ruangan
+/**
+ * Mengambil semua data ruangan ujian (master ruangan fisik).
+ */
 export const getAllRuanganMaster = async (): Promise<RuanganUjian[]> => {
   const response = await apiClient.get('/ujian-master/ruangan');
   return response.data;
 };
 
 // POST /ujian-master/ruangan
+/**
+ * Membuat ruangan ujian master baru.
+ */
 export const createRuanganMaster = async (data: UpsertRuanganInput): Promise<RuanganUjian> => {
   const response = await apiClient.post('/ujian-master/ruangan', data);
   return response.data;
 };
 
 // PUT /ujian-master/ruangan/{ruanganID}
+/**
+ * Memperbarui data ruangan ujian master.
+ */
 export const updateRuanganMaster = async (
   ruanganID: string,
   data: UpsertRuanganInput
@@ -148,6 +165,9 @@ export const updateRuanganMaster = async (
 };
 
 // DELETE /ujian-master/ruangan/{ruanganID}
+/**
+ * Menghapus ruangan ujian master.
+ */
 export const deleteRuanganMaster = async (ruanganID: string): Promise<void> => {
   await apiClient.delete(`/ujian-master/ruangan/${ruanganID}`);
 };
@@ -157,6 +177,9 @@ export const deleteRuanganMaster = async (ruanganID: string): Promise<void> => {
 // ==============================================================================
 
 // POST /ujian-master/{id}/alokasi-ruangan
+/**
+ * Mengalokasikan ruangan master ke paket ujian.
+ */
 export const assignRuanganToUjian = async (
   ujianMasterId: string,
   data: AssignRuanganPayload
@@ -166,6 +189,9 @@ export const assignRuanganToUjian = async (
 };
 
 // GET /ujian-master/{id}/alokasi-ruangan
+/**
+ * Mengambil daftar alokasi ruangan untuk paket ujian tertentu.
+ */
 export const getAlokasiRuanganByMasterId = async (
   ujianMasterId: string
 ): Promise<AlokasiRuanganUjian[]> => {
@@ -174,6 +200,9 @@ export const getAlokasiRuanganByMasterId = async (
 };
 
 // DELETE /ujian-master/{id}/alokasi-ruangan/{alokasiRuanganID}
+/**
+ * Menghapus alokasi ruangan dari paket ujian.
+ */
 export const removeAlokasiRuangan = async (alokasiRuanganID: string): Promise<void> => {
   // Catatan: endpoint DELETE ini hanya butuh alokasiRuanganID, ID ujianMaster diabaikan di handler Go, 
   // kita menggunakan dummy-id di URL agar sesuai dengan pola routing di main.go.
@@ -185,6 +214,9 @@ interface GetAlokasiKursiResponse {
   peserta: PesertaUjianDetail[];
   ruangan: AlokasiRuanganUjian[];
 }
+/**
+ * Mengambil data peserta dan ruangan yang telah dialokasikan kursinya.
+ */
 export const getAlokasiKursi = async (
   ujianMasterId: string
 ): Promise<GetAlokasiKursiResponse> => {
@@ -193,6 +225,9 @@ export const getAlokasiKursi = async (
 };
 
 // POST /ujian-master/{id}/alokasi-kursi/manual
+/**
+ * Memperbarui penempatan kursi peserta secara manual (drag/drop).
+ */
 export const updatePesertaSeating = async (
   ujianMasterId: string,
   data: UpdatePesertaSeatingPayload
@@ -203,12 +238,17 @@ export const updatePesertaSeating = async (
 };
 
 // POST /ujian-master/{id}/alokasi-kursi/smart
+/**
+ * Melakukan distribusi kursi secara otomatis/smart.
+ */
 export const distributeSmart = async (ujianMasterId: string): Promise<any> => {
   const response = await apiClient.post(`/ujian-master/${ujianMasterId}/alokasi-kursi/smart`);
   return response.data;
 };
 
-// --- FUNGSI UTAMA LAINNYA ---
+// ==============================================================================
+// FUNGSI UTAMA LAINNYA (Ujian Master CRUD & Penugasan Kelas)
+// ==============================================================================
 
 // GET /ujian-master/tahun-ajaran/:tahun_ajaran_id
 export const getAllUjianMaster = async (tahunAjaranId: string): Promise<UjianMaster[]> => {
