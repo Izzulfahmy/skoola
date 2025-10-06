@@ -9,20 +9,21 @@ import {
   Select,
   message,
   Alert,
-  Tooltip,
   Table,
   Tag,
   Row,
   Col,
   Card,
   Flex,
+  Popconfirm,
 } from 'antd';
-import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
 import { addPesertaFromKelas, deletePesertaFromKelas } from '../../api/ujianMaster'; 
-import type { CSSProperties } from 'react'; // PENTING: Mengimpor tipe untuk style
+import type { CSSProperties } from 'react';
+import DebugPesertaUjian from './DebugPesertaUjian';
 
 // --- Tipe untuk error dari Axios ---
 interface AxiosErrorResponse {
@@ -30,6 +31,7 @@ interface AxiosErrorResponse {
     message: string;
     deletedCount?: number;
   };
+  status?: number;
 }
 interface AxiosErrorType extends Error {
   response?: AxiosErrorResponse;
@@ -37,7 +39,6 @@ interface AxiosErrorType extends Error {
 // ------------------------------------
 
 const { Text } = Typography;
-const { confirm } = Modal;
 
 const denseCellStyle: CSSProperties = {
   padding: '6px 8px',
@@ -126,12 +127,20 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   });
 
   const deletePesertaMutation = useMutation({
-    mutationFn: (kelasId: string) => deletePesertaFromKelas(ujianMasterId, kelasId),
+    mutationFn: (kelasId: string) => {
+      console.log('🚀 MUTATION START: Calling deletePesertaFromKelas');
+      console.log('   ujianMasterId:', ujianMasterId);
+      console.log('   kelasId:', kelasId);
+      return deletePesertaFromKelas(ujianMasterId, kelasId);
+    },
     onSuccess: (response) => {
+      console.log('✅ DELETE SUCCESS: Response received:', response);
       message.success(response.message || `Berhasil menghapus ${response.deletedCount || 0} peserta.`);
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+      console.log('🔄 Query invalidated, UI should refresh');
     },
-    onError: (err: AxiosErrorType) => { 
+    onError: (err: AxiosErrorType) => {
+      console.error('❌ DELETE ERROR: Full error object:', err);
       message.error(err.response?.data?.message || 'Gagal menghapus peserta ujian.');
     },
   });
@@ -140,19 +149,24 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     addPesertaMutation.mutate(values.kelas_id);
   };
 
-  const handleRemovePeserta = (kelasID: string, namaKelas: string) => {
-    confirm({
-      title: `Hapus semua peserta dari kelas ${namaKelas}?`,
-      icon: <ExclamationCircleOutlined />,
-      content: 'Aksi ini akan menghapus semua siswa dari kelas ini dari daftar peserta ujian. Apakah Anda yakin?',
-      okText: 'Hapus',
-      okType: 'danger',
-      cancelText: 'Batal',
-      onOk() {
-        deletePesertaMutation.mutate(kelasID);
-      },
-      okButtonProps: { loading: deletePesertaMutation.isPending }, 
-    });
+  // Function to handle delete confirmation
+  const handleDeleteConfirmed = async (kelasID: string, namaKelas: string) => {
+    console.log('🚀 DELETE CONFIRMED: Starting API call...');
+    
+    try {
+      const hide = message.loading('Menghapus peserta...', 0);
+      const response = await deletePesertaFromKelas(ujianMasterId, kelasID);
+      hide();
+      
+      console.log('✅ DELETE SUCCESS:', response);
+      message.success(response.message || `Berhasil menghapus peserta dari kelas ${namaKelas}`);
+      await queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+      console.log('🔄 Data refreshed');
+      
+    } catch (error: any) {
+      console.error('❌ DELETE ERROR:', error);
+      message.error(`Gagal menghapus peserta: ${error.response?.data?.message || error.message}`);
+    }
   };
 
   const availableKelasForDropdown = useMemo(() => {
@@ -169,19 +183,29 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     );
   }, [penugasan, data]);
 
-  // --- Membuat map nama kelas ke ID kelas ---
   const classNameToIdMap = useMemo(() => {
+    console.log('[DEBUG] Membuat classNameToIdMap dari penugasan:', penugasan);
+    
     const map = new Map<string, string>();
     const seenKelas = new Set<string>();
-    penugasan.forEach(p => {
+    
+    penugasan.forEach((p, index) => {
+      console.log(`[DEBUG] Processing penugasan[${index}]:`, p);
+      
       if (!seenKelas.has(p.nama_kelas)) {
+        if (p.kelas_id && p.kelas_id.trim() !== '') {
           map.set(p.nama_kelas, p.kelas_id);
           seenKelas.add(p.nama_kelas);
+          console.log(`[DEBUG] Added mapping: "${p.nama_kelas}" -> "${p.kelas_id}"`);
+        } else {
+          console.warn(`[DEBUG] Kelas ID kosong untuk ${p.nama_kelas}:`, p);
+        }
       }
     });
+    
+    console.log('[DEBUG] Final classNameToIdMap:', Array.from(map.entries()));
     return map;
   }, [penugasan]);
-  // -----------------------------------------------------
 
   const renderContent = () => {
     if (isLoading) {
@@ -192,9 +216,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       return (
         <Empty
           style={{ padding: '48px 0' }}
-          description={
-            <Text type="secondary">Belum ada peserta ujian.</Text>
-          }
+          description={<Text type="secondary">Belum ada peserta ujian.</Text>}
         />
       );
     }
@@ -202,8 +224,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     return (
       <Row gutter={[16, 16]}>
         {Object.entries(data).map(([namaKelas, pesertaList]) => {
-          // Mendapatkan kelasID dari map
           const kelasID = classNameToIdMap.get(namaKelas) || ''; 
+          
+          console.log(`[DEBUG] Rendering kelas "${namaKelas}" dengan ID: "${kelasID}"`);
           
           return (
             <Col xs={24} sm={24} md={12} key={namaKelas}>
@@ -215,32 +238,46 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
                       <UsergroupAddOutlined style={{ marginRight: 8, color: '#1677ff' }}/>
                       {namaKelas}
                     </Text>
-                    {/* --- KONTEN DELETE BUTTON --- */}
                     <Flex align='center' gap={8}>
                       <Tag color="blue">{`${pesertaList.length} Peserta`}</Tag>
-                      <Tooltip title="Hapus semua peserta di kelas ini">
+                      <Popconfirm
+                        title="Hapus peserta?"
+                        onConfirm={() => {
+                          console.log('✅ POPCONFIRM CONFIRMED: User confirmed deletion');
+                          handleDeleteConfirmed(kelasID, namaKelas);
+                        }}
+                        onCancel={() => {
+                          console.log('❌ POPCONFIRM CANCELED: User canceled deletion');
+                        }}
+                        okText="Hapus"
+                        cancelText="Batal"
+                        okType="danger"
+                        placement="topRight"
+                        disabled={!kelasID || kelasID.trim() === '' || deletePesertaMutation.isPending}
+                      >
                         <Button
                           icon={<DeleteOutlined />}
                           type="text"
                           danger
                           size="small"
+                          loading={deletePesertaMutation.isPending}
+                          disabled={!kelasID || kelasID.trim() === '' || deletePesertaMutation.isPending}
+                          style={{
+                            opacity: (!kelasID || kelasID.trim() === '') ? 0.5 : 1
+                          }}
                           onClick={(e) => {
-                            e.stopPropagation(); 
+                            e.stopPropagation();
+                            console.log('[DELETE BUTTON] Kelas:', namaKelas, 'ID:', kelasID);
+                            console.log('[DELETE BUTTON] Button clicked, Popconfirm should show...');
                             
-                            // *** LOGIKA KRITIS: Pengecekan kelasID ***
-                            if (kelasID) {
-                                handleRemovePeserta(kelasID, namaKelas);
-                            } else {
-                                // Tampilkan pesan error jika ID tidak ditemukan di UI (lebih terlihat daripada konsol)
-                                message.error(`Gagal menghapus: ID Kelas untuk ${namaKelas} tidak ditemukan. Cek konsol browser untuk detail data penugasan.`);
-                                console.error(`[DELETE ERROR] ID Kelas untuk ${namaKelas} tidak ditemukan. Periksa data penugasan.`, {namaKelas, penugasan});
+                            if (!kelasID || kelasID.trim() === '') {
+                              const errorMsg = `Gagal menghapus: ID Kelas untuk "${namaKelas}" tidak ditemukan.`;
+                              console.error('[DELETE BUTTON ERROR]', errorMsg);
+                              message.error(errorMsg);
                             }
                           }}
-                          // Nonaktifkan jika ID tidak ada atau sedang loading
-                          loading={deletePesertaMutation.isPending}
-                          disabled={!kelasID || deletePesertaMutation.isPending}
                         />
-                      </Tooltip>
+                      </Popconfirm>
                     </Flex>
                   </Flex>
                 }
@@ -263,21 +300,21 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
 
   return (
     <>
+      <DebugPesertaUjian 
+        penugasan={penugasan}
+        data={data}
+        ujianMasterId={ujianMasterId}
+      />
+      
       <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 16 }}>
-        <Tooltip
-          title={
-            availableKelasForDropdown.length === 0 ? 'Semua kelas yang ditugaskan sudah menjadi peserta' : ''
-          }
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setIsModalOpen(true)}
+          disabled={availableKelasForDropdown.length === 0}
         >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setIsModalOpen(true)}
-            disabled={availableKelasForDropdown.length === 0}
-          >
-            Tambah Peserta
-          </Button>
-        </Tooltip>
+          Tambah Peserta
+        </Button>
       </div>
       
       {renderContent()}

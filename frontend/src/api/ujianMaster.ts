@@ -20,7 +20,9 @@ export const addPesertaFromKelas = async (
   ujianMasterId: string,
   data: AddPesertaFromKelasPayload
 ): Promise<any> => {
+  console.log('🟢 API CALL: addPesertaFromKelas', { ujianMasterId, data });
   const response = await apiClient.post(`/ujian-master/${ujianMasterId}/peserta`, data);
+  console.log('✅ addPesertaFromKelas response:', response.data);
   return response.data;
 };
 
@@ -32,10 +34,25 @@ export const deletePesertaFromKelas = async (
   ujianMasterId: string,
   kelasId: string
 ): Promise<any> => {
-  const response = await apiClient.delete(
-    `/ujian-master/${ujianMasterId}/peserta/kelas/${kelasId}`
-  );
-  return response.data;
+  const url = `/ujian-master/${ujianMasterId}/peserta/kelas/${kelasId}`;
+  console.log('🔴 API CALL: deletePesertaFromKelas');
+  console.log('   URL:', url);
+  console.log('   Method: DELETE');
+  console.log('   ujianMasterId:', ujianMasterId);
+  console.log('   kelasId:', kelasId);
+  
+  try {
+    const response = await apiClient.delete(url);
+    console.log('✅ deletePesertaFromKelas SUCCESS response:', response);
+    console.log('✅ deletePesertaFromKelas SUCCESS data:', response.data);
+    return response.data;
+  } catch (error: any) { // Fix TypeScript error
+    console.error('❌ deletePesertaFromKelas ERROR:', error);
+    console.error('❌ Error response:', error.response);
+    console.error('❌ Error status:', error.response?.status);
+    console.error('❌ Error data:', error.response?.data);
+    throw error;
+  }
 };
 // --------------------
 
