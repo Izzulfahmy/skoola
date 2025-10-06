@@ -292,6 +292,7 @@ func (r *repository) AssignKelasToUjian(ctx context.Context, schemaName string, 
 	return len(pengajarKelasIDs), nil
 }
 
+// Implementasi CreatePesertaUjianBatch (Diperbarui untuk kolom baru: kelas_id)
 func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -303,9 +304,10 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	}
 	defer tx.Rollback()
 
+	// PERUBAHAN: Menambahkan "kelas_id" di COPY IN
 	stmt, err := tx.PrepareContext(ctx, pq.CopyIn(
 		"peserta_ujian",
-		"id", "ujian_master_id", "anggota_kelas_id", "urutan", "created_at", "updated_at",
+		"id", "ujian_master_id", "anggota_kelas_id", "kelas_id", "urutan", "created_at", "updated_at",
 	))
 	if err != nil {
 		return fmt.Errorf("gagal mempersiapkan statement COPY: %w", err)
@@ -313,7 +315,8 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	defer stmt.Close()
 
 	for _, p := range peserta {
-		_, err = stmt.Exec(p.ID, p.UjianMasterID, p.AnggotaKelasID, p.Urutan, p.CreatedAt, p.UpdatedAt)
+		// PERUBAHAN: Menambahkan p.KelasID di Exec
+		_, err = stmt.Exec(p.ID, p.UjianMasterID, p.AnggotaKelasID, p.KelasID, p.Urutan, p.CreatedAt, p.UpdatedAt)
 		if err != nil {
 			return fmt.Errorf("gagal mengeksekusi statement untuk peserta ID %s: %w", p.ID, err)
 		}
@@ -387,23 +390,17 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 	return results, nil
 }
 
-// Implementasi DeletePesertaByMasterAndKelas
-//
-// Fungsi ini bertanggung jawab menghapus semua entri `peserta_ujian` yang terhubung ke `ujian_master` tertentu dan termasuk dalam `kelas` tertentu.
+// Implementasi DeletePesertaByMasterAndKelas (FINAL FIX)
+// Menggunakan kueri single-table yang dijamin berhasil karena adanya kolom kelas_id.
 func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return 0, err
 	}
 
-	// Kueri yang direfaktor kembali ke pola DELETE ... WHERE id IN (SELECT ...) untuk stabilitas.
+	// Kueri PENGHAPUSAN LANGSUNG (single-table delete)
 	query := `
         DELETE FROM peserta_ujian
-        WHERE id IN (
-            SELECT pu.id
-            FROM peserta_ujian pu
-            JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
-            WHERE pu.ujian_master_id = $1 AND ak.kelas_id = $2
-        )
+        WHERE ujian_master_id = $1 AND kelas_id = $2
     `
 
 	result, err := r.db.ExecContext(ctx, query, masterID, kelasID)
@@ -416,7 +413,6 @@ func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaNa
 		return 0, fmt.Errorf("gagal mendapatkan jumlah baris yang terpengaruh: %w", err)
 	}
 
-	// Logika tambahan untuk memastikan ada baris yang terhapus
 	if rowsAffected == 0 {
 		return 0, errors.New("tidak ada peserta ujian yang ditemukan untuk kelas ini, pastikan ID sudah benar")
 	}

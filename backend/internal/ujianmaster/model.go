@@ -50,10 +50,12 @@ type PesertaUjian struct {
 	ID             uuid.UUID `db:"id"`
 	UjianMasterID  uuid.UUID `db:"ujian_master_id"`
 	AnggotaKelasID uuid.UUID `db:"anggota_kelas_id"`
-	Urutan         int       `db:"urutan"`
-	NomorUjian     *string   `db:"nomor_ujian"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	// BARU: Field Denormalisasi
+	KelasID    uuid.UUID `db:"kelas_id"`
+	Urutan     int       `db:"urutan"`
+	NomorUjian *string   `db:"nomor_ujian"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 // PesertaUjianDetail represents detailed information of a participant.

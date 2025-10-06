@@ -37,7 +37,7 @@ func NewService(repo Repository, rombelService rombel.Service) Service {
 	}
 }
 
-// --- Implementasi Fungsi Baru: RemovePesertaByKelas ---
+// --- Implementasi Fungsi RemovePesertaByKelas ---
 
 // RemovePesertaByKelas menghapus semua peserta ujian dari satu kelas tertentu
 // dalam suatu paket ujian (ujian_master) tertentu.
@@ -51,7 +51,7 @@ func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, u
 		return 0, errors.New("ID kelas tidak boleh kosong")
 	}
 
-	// FIX: Parsing kelasID menjadi UUID sebelum memanggil repository
+	// Parsing kelasID menjadi UUID sebelum memanggil repository
 	kelasUUID, err := uuid.Parse(kelasID)
 	if err != nil {
 		return 0, errors.New("ID kelas tidak valid")
@@ -66,12 +66,18 @@ func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, u
 	return rowsAffected, nil
 }
 
-// --- Implementasi Fungsi Lainnya ---
+// --- Implementasi Fungsi AddPesertaFromKelas (Diperbarui) ---
 
 func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error) {
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
 		return 0, errors.New("ID paket ujian tidak valid")
+	}
+
+	// Pastikan kelasID diparse untuk digunakan di PesertaUjian struct
+	kelasUUID, err := uuid.Parse(kelasID)
+	if err != nil {
+		return 0, errors.New("ID kelas tidak valid")
 	}
 
 	anggota, err := s.rombelService.GetAllAnggotaByKelas(ctx, schemaName, kelasID)
@@ -91,9 +97,11 @@ func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, uj
 			ID:             uuid.New(),
 			UjianMasterID:  umID,
 			AnggotaKelasID: anggotaID,
-			Urutan:         anggotaKelas.Urutan,
-			CreatedAt:      now,
-			UpdatedAt:      now,
+			// PENGISIAN FIELD BARU: Mengisi KelasID
+			KelasID:   kelasUUID,
+			Urutan:    anggotaKelas.Urutan,
+			CreatedAt: now,
+			UpdatedAt: now,
 		}
 	}
 
