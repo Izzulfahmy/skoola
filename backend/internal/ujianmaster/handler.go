@@ -95,7 +95,7 @@ func (h *Handler) DeletePesertaFromKelas(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// --- GENERATE NOMOR UJIAN HANDLER - FIXED VERSION ---
+// --- GENERATE NOMOR UJIAN HANDLER ---
 func (h *Handler) GenerateNomorUjian(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	ujianMasterID := chi.URLParam(r, "id")
@@ -112,12 +112,9 @@ func (h *Handler) GenerateNomorUjian(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("🚀 HANDLER: Generate nomor ujian dengan prefix: '%s'\n", input.Prefix)
-
 	// Call service
 	count, err := h.service.GenerateNomorUjianForUjianMaster(r.Context(), schemaName, ujianMasterID, input.Prefix)
 	if err != nil {
-		fmt.Printf("❌ HANDLER ERROR: %v\n", err)
 		http.Error(w, "Gagal generate nomor ujian: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -136,14 +133,88 @@ func (h *Handler) GenerateNomorUjian(w http.ResponseWriter, r *http.Request) {
 		Prefix:         input.Prefix,
 	}
 
-	fmt.Printf("✅ HANDLER SUCCESS: Generated %d nomor ujian\n", count)
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-// -----------------
+// --- EXCEL EXPORT/IMPORT HANDLERS ---
+
+// ExportPesertaToExcel exports peserta data to Excel/CSV
+func (h *Handler) ExportPesertaToExcel(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	// Get format from query parameter (default: xlsx)
+	format := r.URL.Query().Get("format")
+	if format != "csv" && format != "xlsx" {
+		format = "xlsx"
+	}
+
+	// Call service to generate file
+	fileData, filename, err := h.service.ExportPesertaToExcel(r.Context(), schemaName, ujianMasterID, format)
+	if err != nil {
+		http.Error(w, "Gagal export data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set appropriate headers
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+	} else {
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fileData)))
+
+	// Send file
+	w.WriteHeader(http.StatusOK)
+	w.Write(fileData)
+}
+
+// ImportPesertaFromExcel imports peserta nomor ujian from Excel file
+func (h *Handler) ImportPesertaFromExcel(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(10 << 20) // 10MB max
+	if err != nil {
+		http.Error(w, "Gagal parsing form data", http.StatusBadRequest)
+		return
+	}
+
+	// Get uploaded file
+	file, fileHeader, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "File tidak ditemukan di form data", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read file data
+	fileData := make([]byte, fileHeader.Size)
+	_, err = file.Read(fileData)
+	if err != nil {
+		http.Error(w, "Gagal membaca file", http.StatusInternalServerError)
+		return
+	}
+
+	// Call service to process import
+	result, err := h.service.ImportPesertaFromExcel(r.Context(), schemaName, ujianMasterID, fileData)
+	if err != nil {
+		http.Error(w, "Gagal import data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Send response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// --- OTHER HANDLERS ---
 
 func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)

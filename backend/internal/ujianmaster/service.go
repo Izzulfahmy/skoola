@@ -1,13 +1,17 @@
 package ujianmaster
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"skoola/internal/rombel"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
 )
 
 // Service defines the business logic for UjianMaster.
@@ -20,10 +24,12 @@ type Service interface {
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error)
 	GetPesertaUjianByUjianID(ctx context.Context, schemaName string, ujianID string) (GroupedPesertaUjian, error)
 	AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error)
-	// Mendefinisikan fungsi hapus peserta per kelas
 	RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error)
-	// GenerateNomorUjianForUjianMaster generates sequential exam numbers for all participants
 	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID string, prefix string) (int, error)
+
+	// Excel Export/Import methods
+	ExportPesertaToExcel(ctx context.Context, schemaName string, ujianMasterID string, format string) ([]byte, string, error)
+	ImportPesertaFromExcel(ctx context.Context, schemaName string, ujianMasterID string, fileData []byte) (ExcelImportResponse, error)
 }
 
 type service struct {
@@ -39,9 +45,241 @@ func NewService(repo Repository, rombelService rombel.Service) Service {
 	}
 }
 
-// --- Implementasi Fungsi GenerateNomorUjianForUjianMaster ---
+// --- EXCEL EXPORT/IMPORT METHODS ---
 
-// GenerateNomorUjianForUjianMaster generates sequential exam numbers for all participants
+func (s *service) ExportPesertaToExcel(ctx context.Context, schemaName string, ujianMasterID string, format string) ([]byte, string, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return nil, "", errors.New("ID paket ujian tidak valid")
+	}
+
+	// Get peserta data
+	peserta, err := s.repo.FindPesertaByUjianID(ctx, schemaName, umID)
+	if err != nil {
+		return nil, "", fmt.Errorf("gagal mengambil data peserta: %w", err)
+	}
+
+	// Convert to Excel format
+	excelData := make([]PesertaUjianExcelRow, len(peserta))
+	for i, p := range peserta {
+		status := "Belum Ada Nomor"
+		if p.NomorUjian != nil && *p.NomorUjian != "" {
+			status = "Sudah Ada Nomor"
+		}
+
+		excelData[i] = PesertaUjianExcelRow{
+			No:          i + 1,
+			NamaLengkap: p.NamaSiswa,
+			NISN:        p.NISN,
+			NamaKelas:   p.NamaKelas,
+			NomorUjian:  p.NomorUjian,
+			Status:      status,
+		}
+	}
+
+	if format == "csv" {
+		return s.generateCSV(excelData)
+	} else {
+		return s.generateExcel(excelData)
+	}
+}
+
+func (s *service) generateExcel(data []PesertaUjianExcelRow) ([]byte, string, error) {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheetName := "Peserta Ujian"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Headers
+	headers := []string{"No", "Nama Lengkap", "NISN", "Kelas", "Nomor Ujian", "Status"}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Data
+	for i, row := range data {
+		rowNum := i + 2
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), row.No)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), row.NamaLengkap)
+
+		nisn := ""
+		if row.NISN != nil {
+			nisn = *row.NISN
+		}
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), nisn)
+
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), row.NamaKelas)
+
+		nomorUjian := ""
+		if row.NomorUjian != nil {
+			nomorUjian = *row.NomorUjian
+		}
+		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), nomorUjian)
+
+		f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), row.Status)
+	}
+
+	// Style headers
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"CCCCCC"}, Pattern: 1},
+	})
+	f.SetCellStyle(sheetName, "A1", "F1", headerStyle)
+
+	// Auto-width columns
+	f.SetColWidth(sheetName, "A", "A", 5)
+	f.SetColWidth(sheetName, "B", "B", 30)
+	f.SetColWidth(sheetName, "C", "C", 15)
+	f.SetColWidth(sheetName, "D", "D", 15)
+	f.SetColWidth(sheetName, "E", "E", 15)
+	f.SetColWidth(sheetName, "F", "F", 20)
+
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	buffer, err := f.WriteToBuffer()
+	if err != nil {
+		return nil, "", err
+	}
+
+	return buffer.Bytes(), "peserta_ujian.xlsx", nil
+}
+
+func (s *service) generateCSV(data []PesertaUjianExcelRow) ([]byte, string, error) {
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Headers
+	headers := []string{"No", "Nama Lengkap", "NISN", "Kelas", "Nomor Ujian", "Status"}
+	writer.Write(headers)
+
+	// Data
+	for _, row := range data {
+		record := make([]string, 6)
+		record[0] = fmt.Sprintf("%d", row.No)
+		record[1] = row.NamaLengkap
+
+		if row.NISN != nil {
+			record[2] = *row.NISN
+		}
+
+		record[3] = row.NamaKelas
+
+		if row.NomorUjian != nil {
+			record[4] = *row.NomorUjian
+		}
+
+		record[5] = row.Status
+
+		writer.Write(record)
+	}
+
+	writer.Flush()
+	return buf.Bytes(), "peserta_ujian.csv", nil
+}
+
+func (s *service) ImportPesertaFromExcel(ctx context.Context, schemaName string, ujianMasterID string, fileData []byte) (ExcelImportResponse, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return ExcelImportResponse{}, errors.New("ID paket ujian tidak valid")
+	}
+
+	// Parse Excel file
+	f, err := excelize.OpenReader(bytes.NewReader(fileData))
+	if err != nil {
+		return ExcelImportResponse{}, fmt.Errorf("gagal membaca file Excel: %w", err)
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+	if len(sheets) == 0 {
+		return ExcelImportResponse{}, errors.New("file Excel kosong")
+	}
+
+	rows, err := f.GetRows(sheets[0])
+	if err != nil {
+		return ExcelImportResponse{}, fmt.Errorf("gagal membaca data Excel: %w", err)
+	}
+
+	if len(rows) < 2 {
+		return ExcelImportResponse{}, errors.New("file Excel harus memiliki minimal header + 1 data")
+	}
+
+	// Skip header row
+	dataRows := rows[1:]
+	var errorRows []ExcelImportErrorRow
+	var validUpdates []struct {
+		NamaLengkap string
+		NomorUjian  string
+	}
+
+	for i, row := range dataRows {
+		rowNum := i + 2 // +2 because we start from row 1 and skip header
+
+		if len(row) < 5 {
+			errorRows = append(errorRows, ExcelImportErrorRow{
+				Row:         rowNum,
+				Error:       "Data tidak lengkap (minimal 5 kolom)",
+				NamaLengkap: "",
+			})
+			continue
+		}
+
+		namaLengkap := strings.TrimSpace(row[1])
+		nomorUjian := strings.TrimSpace(row[4])
+
+		if namaLengkap == "" {
+			errorRows = append(errorRows, ExcelImportErrorRow{
+				Row:         rowNum,
+				Error:       "Nama lengkap tidak boleh kosong",
+				NamaLengkap: namaLengkap,
+			})
+			continue
+		}
+
+		if nomorUjian == "" {
+			errorRows = append(errorRows, ExcelImportErrorRow{
+				Row:         rowNum,
+				Error:       "Nomor ujian tidak boleh kosong",
+				NamaLengkap: namaLengkap,
+			})
+			continue
+		}
+
+		validUpdates = append(validUpdates, struct {
+			NamaLengkap string
+			NomorUjian  string
+		}{
+			NamaLengkap: namaLengkap,
+			NomorUjian:  nomorUjian,
+		})
+	}
+
+	// Update database
+	updatedCount := 0
+	if len(validUpdates) > 0 {
+		count, err := s.repo.UpdatePesertaNomorUjianFromExcel(ctx, schemaName, umID, validUpdates)
+		if err != nil {
+			return ExcelImportResponse{}, fmt.Errorf("gagal update database: %w", err)
+		}
+		updatedCount = count
+	}
+
+	response := ExcelImportResponse{
+		Message:      fmt.Sprintf("Import selesai. %d data berhasil diupdate, %d error", updatedCount, len(errorRows)),
+		UpdatedCount: updatedCount,
+		ErrorRows:    errorRows,
+	}
+
+	return response, nil
+}
+
+// --- GENERATE NOMOR UJIAN SERVICE METHOD ---
 func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID string, prefix string) (int, error) {
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
@@ -62,10 +300,8 @@ func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaNa
 	return count, nil
 }
 
-// --- Implementasi Fungsi RemovePesertaByKelas ---
+// --- OTHER SERVICE METHODS ---
 
-// RemovePesertaByKelas menghapus semua peserta ujian dari satu kelas tertentu
-// dalam suatu paket ujian (ujian_master) tertentu.
 func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error) {
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
@@ -76,13 +312,11 @@ func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, u
 		return 0, errors.New("ID kelas tidak boleh kosong")
 	}
 
-	// Parsing kelasID menjadi UUID sebelum memanggil repository
 	kelasUUID, err := uuid.Parse(kelasID)
 	if err != nil {
 		return 0, errors.New("ID kelas tidak valid")
 	}
 
-	// Memanggil fungsi Repository, menggunakan kelasUUID
 	rowsAffected, err := s.repo.DeletePesertaByMasterAndKelas(ctx, schemaName, umID, kelasUUID)
 	if err != nil {
 		return 0, fmt.Errorf("gagal menghapus peserta ujian: %w", err)
@@ -91,15 +325,12 @@ func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, u
 	return rowsAffected, nil
 }
 
-// --- Implementasi Fungsi AddPesertaFromKelas (Diperbarui) ---
-
 func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error) {
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
 		return 0, errors.New("ID paket ujian tidak valid")
 	}
 
-	// Pastikan kelasID diparse untuk digunakan di PesertaUjian struct
 	kelasUUID, err := uuid.Parse(kelasID)
 	if err != nil {
 		return 0, errors.New("ID kelas tidak valid")
@@ -122,11 +353,10 @@ func (s *service) AddPesertaFromKelas(ctx context.Context, schemaName string, uj
 			ID:             uuid.New(),
 			UjianMasterID:  umID,
 			AnggotaKelasID: anggotaID,
-			// PENGISIAN FIELD BARU: Mengisi KelasID
-			KelasID:   kelasUUID,
-			Urutan:    anggotaKelas.Urutan,
-			CreatedAt: now,
-			UpdatedAt: now,
+			KelasID:        kelasUUID,
+			Urutan:         anggotaKelas.Urutan,
+			CreatedAt:      now,
+			UpdatedAt:      now,
 		}
 	}
 

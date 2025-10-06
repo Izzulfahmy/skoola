@@ -392,7 +392,11 @@ func main() {
 			r.With(auth.Authorize("admin")).Get("/{id}/peserta", ujianMasterHandler.GetPesertaUjian)
 			r.With(auth.Authorize("admin")).Post("/{id}/peserta", ujianMasterHandler.AddPesertaFromKelas)
 			r.With(auth.Authorize("admin")).Delete("/{id}/peserta/kelas/{kelasID}", ujianMasterHandler.DeletePesertaFromKelas)
-			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian) // TAMBAHAN
+			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian)
+
+			// NEW: Excel Export/Import routes
+			r.With(auth.Authorize("admin")).Get("/{id}/export-excel", ujianMasterHandler.ExportPesertaToExcel)    // Export
+			r.With(auth.Authorize("admin")).Post("/{id}/import-excel", ujianMasterHandler.ImportPesertaFromExcel) // Import
 		})
 		// =================================================================================
 

@@ -51,7 +51,7 @@ export const deletePesertaFromKelas = async (
   }
 };
 
-// --- FUNGSI BARU: GENERATE NOMOR UJIAN ---
+// --- FUNGSI GENERATE NOMOR UJIAN ---
 interface GenerateNomorUjianPayload {
   prefix: string;
 }
@@ -80,7 +80,40 @@ export const generateNomorUjian = async (
     throw error;
   }
 };
-// --- AKHIR FUNGSI BARU ---
+
+// --- FUNGSI BARU: EXCEL/CSV EXPORT & IMPORT ---
+
+/**
+ * Exports participant data to an Excel (.xlsx) or CSV (.csv) file.
+ * @param ujianMasterId The ID of the UjianMaster.
+ * @param format The desired file format ('xlsx' or 'csv'). Defaults to 'xlsx'.
+ * @returns A Blob object containing the file data.
+ */
+export const exportPesertaToExcel = async (ujianMasterId: string, format: 'xlsx' | 'csv' = 'xlsx') => {
+  const response = await apiClient.get(`/ujian-master/${ujianMasterId}/export-excel?format=${format}`, {
+    responseType: 'blob', // Important for downloading files
+  });
+  return response.data;
+};
+
+/**
+ * Imports exam numbers from an Excel file and updates participant data.
+ * @param ujianMasterId The ID of the UjianMaster.
+ * @param file The file (Blob) to upload.
+ * @returns The API response, usually containing update summary and errors.
+ */
+export const importPesertaFromExcel = (ujianMasterId: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return apiClient.post(`/ujian-master/${ujianMasterId}/import-excel`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data', // Must be set for correct file upload
+    },
+  });
+};
+
+// --- FUNGSI UTAMA LAINNYA ---
 
 // GET /ujian-master/tahun-ajaran/:tahun_ajaran_id
 export const getAllUjianMaster = async (tahunAjaranId: string): Promise<UjianMaster[]> => {

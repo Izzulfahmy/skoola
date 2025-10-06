@@ -69,7 +69,7 @@ type PesertaUjianDetail struct {
 // GroupedPesertaUjian groups participants by class name.
 type GroupedPesertaUjian map[string][]PesertaUjianDetail
 
-// --- STRUCTS FOR GENERATE NOMOR UJIAN - HANYA DI MODEL.GO ---
+// --- STRUCTS FOR GENERATE NOMOR UJIAN ---
 type GenerateNomorUjianInput struct {
 	Prefix string `json:"prefix"`
 }
@@ -78,4 +78,34 @@ type GenerateNomorUjianResponse struct {
 	Message        string `json:"message"`
 	GeneratedCount int    `json:"generatedCount"`
 	Prefix         string `json:"prefix"`
+}
+
+// --- STRUCTS FOR EXCEL EXPORT/IMPORT ---
+type ExcelExportRequest struct {
+	Format string `json:"format"` // "xlsx" or "csv"
+}
+
+type ExcelImportRequest struct {
+	// File akan dikirim via multipart/form-data
+}
+
+type ExcelImportResponse struct {
+	Message      string                `json:"message"`
+	UpdatedCount int                   `json:"updatedCount"`
+	ErrorRows    []ExcelImportErrorRow `json:"errorRows,omitempty"`
+}
+
+type ExcelImportErrorRow struct {
+	Row         int    `json:"row"`
+	Error       string `json:"error"`
+	NamaLengkap string `json:"namaLengkap"`
+}
+
+type PesertaUjianExcelRow struct {
+	No          int     `json:"no"`
+	NamaLengkap string  `json:"namaLengkap"`
+	NISN        *string `json:"nisn"`
+	NamaKelas   string  `json:"namaKelas"`
+	NomorUjian  *string `json:"nomorUjian"`
+	Status      string  `json:"status"`
 }

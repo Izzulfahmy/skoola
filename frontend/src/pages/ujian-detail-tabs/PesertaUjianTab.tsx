@@ -17,12 +17,29 @@ import {
   Flex,
   Popconfirm,
   Input,
+  Upload,
+  Dropdown,
 } from 'antd';
-import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, 
+  UsergroupAddOutlined, 
+  DeleteOutlined, 
+  ThunderboltOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+  FileExcelOutlined,
+  DownOutlined
+} from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
-import { addPesertaFromKelas, deletePesertaFromKelas, generateNomorUjian } from '../../api/ujianMaster'; 
+import { 
+  addPesertaFromKelas, 
+  deletePesertaFromKelas, 
+  generateNomorUjian,
+  exportPesertaToExcel,
+  importPesertaFromExcel
+} from '../../api/ujianMaster'; 
 import type { CSSProperties } from 'react';
 import DebugPesertaUjian from './DebugPesertaUjian';
 
@@ -38,7 +55,6 @@ interface AxiosErrorResponse {
 interface AxiosErrorType extends Error {
   response?: AxiosErrorResponse;
 }
-// ------------------------------------
 
 const { Text } = Typography;
 
@@ -74,9 +90,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   const [kodeUjianPrefix, setKodeUjianPrefix] = useState<string>('');
   const queryClient = useQueryClient();
 
-  // SMART PADDING: Calculate digits based on total peserta
-  const { totalPeserta, paddingDigits, previewFormat } = useMemo(() => {
-    if (!data) return { totalPeserta: 0, paddingDigits: 3, previewFormat: '001' };
+  // SMART PADDING: Calculate total peserta and preview format
+  const { totalPeserta, previewFormat } = useMemo(() => {
+    if (!data) return { totalPeserta: 0, previewFormat: '001' };
     
     const total = Object.values(data).reduce((sum, pesertaList) => sum + pesertaList.length, 0);
     let digits: number;
@@ -94,7 +110,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     }
 
     const format = '0'.repeat(digits) + '1';
-    return { totalPeserta: total, paddingDigits: digits, previewFormat: format };
+    return { totalPeserta: total, previewFormat: format };
   }, [data]);
 
   const columns: TableProps<PesertaUjian>['columns'] = [
@@ -154,53 +170,112 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
 
   const deletePesertaMutation = useMutation({
     mutationFn: (kelasId: string) => {
-      console.log('🚀 MUTATION START: Calling deletePesertaFromKelas');
-      console.log('   ujianMasterId:', ujianMasterId);
-      console.log('   kelasId:', kelasId);
       return deletePesertaFromKelas(ujianMasterId, kelasId);
     },
     onSuccess: (response) => {
-      console.log('✅ DELETE SUCCESS: Response received:', response);
       message.success(response.message || `Berhasil menghapus ${response.deletedCount || 0} peserta.`);
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
-      console.log('🔄 Query invalidated, UI should refresh');
     },
     onError: (err: AxiosErrorType) => {
-      console.error('❌ DELETE ERROR: Full error object:', err);
       message.error(err.response?.data?.message || 'Gagal menghapus peserta ujian.');
     },
   });
 
-  // NEW: Generate nomor ujian mutation
   const generateNomorUjianMutation = useMutation({
     mutationFn: (prefix: string) => {
-      console.log('🎯 GENERATE NOMOR UJIAN: Starting generation');
-      console.log('   ujianMasterId:', ujianMasterId);
-      console.log('   prefix:', prefix);
-      console.log('   totalPeserta:', totalPeserta);
-      console.log('   paddingDigits:', paddingDigits);
       return generateNomorUjian(ujianMasterId, { prefix });
     },
     onSuccess: (response) => {
-      console.log('✅ GENERATE SUCCESS: Response received:', response);
       message.success(response.message || `Berhasil generate ${response.generatedCount || response.generated_count || 0} nomor ujian!`);
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
-      console.log('🔄 Query invalidated, UI should refresh');
       setKodeUjianPrefix('');
     },
     onError: (err: AxiosErrorType) => {
-      console.error('❌ GENERATE ERROR: Full error object:', err);
       message.error(err.response?.data?.message || 'Gagal generate nomor ujian.');
     },
   });
+
+  // Excel Export/Import functions
+  const exportToExcel = async (format: 'xlsx' | 'csv') => {
+    try {
+      const blob = await exportPesertaToExcel(ujianMasterId, format);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const filename = `peserta_ujian_${new Date().toISOString().split('T')[0]}.${format}`;
+      link.setAttribute('download', filename);
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      message.success(`File ${format.toUpperCase()} berhasil didownload!`);
+    } catch (error: any) {
+      message.error(`Gagal export ke ${format.toUpperCase()}: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    const hide = message.loading('Mengimport data...', 0);
+    
+    try {
+      const response = await importPesertaFromExcel(ujianMasterId, file);
+      hide();
+      
+      const result = response.data;
+      
+      if (result.errorRows && result.errorRows.length > 0) {
+        // Show detailed error modal
+        Modal.info({
+          title: 'Import Summary',
+          width: 600,
+          content: (
+            <div>
+              <p><strong>✅ Berhasil: {result.updatedCount} data</strong></p>
+              <p><strong>❌ Error: {result.errorRows.length} data</strong></p>
+              
+              {result.errorRows.length > 0 && (
+                <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 16 }}>
+                  <strong>Detail Error:</strong>
+                  <ul style={{ marginTop: 8 }}>
+                    {result.errorRows.map((error: any, index: number) => (
+                      <li key={index}>
+                        <Text type="danger">
+                          Baris {error.row}: {error.error}
+                          {error.namaLengkap && ` (${error.namaLengkap})`}
+                        </Text>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ),
+        });
+      } else {
+        message.success(result.message);
+      }
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+      
+    } catch (error: any) {
+      hide();
+      message.error(`Gagal import: ${error.response?.data?.message || error.message}`);
+    }
+    
+    return false; // Prevent auto upload
+  };
 
   const handleFinish = (values: { kelas_id: string }) => {
     addPesertaMutation.mutate(values.kelas_id);
   };
 
   const handleDeleteConfirmed = async (kelasID: string) => {
-    console.log('🚀 DELETE CONFIRMED: Starting API call...');
-    
     try {
       const hide = message.loading('Menghapus peserta...', 0);
       await deletePesertaMutation.mutateAsync(kelasID);
@@ -212,7 +287,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
 
   const handleGenerateNomorUjian = () => {
     const prefix = kodeUjianPrefix.trim();
-    console.log('🎯 Generate button clicked with prefix:', prefix || '(empty - numbers only)');
     generateNomorUjianMutation.mutate(prefix);
   };
 
@@ -231,26 +305,18 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   }, [penugasan, data]);
 
   const classNameToIdMap = useMemo(() => {
-    console.log('[DEBUG] Membuat classNameToIdMap dari penugasan:', penugasan);
-    
     const map = new Map<string, string>();
     const seenKelas = new Set<string>();
     
-    penugasan.forEach((p, index) => {
-      console.log(`[DEBUG] Processing penugasan[${index}]:`, p);
-      
+    penugasan.forEach((p) => {
       if (!seenKelas.has(p.nama_kelas)) {
         if (p.kelas_id && p.kelas_id.trim() !== '') {
           map.set(p.nama_kelas, p.kelas_id);
           seenKelas.add(p.nama_kelas);
-          console.log(`[DEBUG] Added mapping: "${p.nama_kelas}" -> "${p.kelas_id}"`);
-        } else {
-          console.warn(`[DEBUG] Kelas ID kosong untuk ${p.nama_kelas}:`, p);
         }
       }
     });
     
-    console.log('[DEBUG] Final classNameToIdMap:', Array.from(map.entries()));
     return map;
   }, [penugasan]);
 
@@ -273,8 +339,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         {Object.entries(data).map(([namaKelas, pesertaList]) => {
           const kelasID = classNameToIdMap.get(namaKelas) || ''; 
           
-          console.log(`[DEBUG] Rendering kelas "${namaKelas}" dengan ID: "${kelasID}"`);
-          
           return (
             <Col xs={24} sm={24} md={12} key={namaKelas}>
               <Card
@@ -290,11 +354,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
                       <Popconfirm
                         title="Hapus peserta?"
                         onConfirm={() => {
-                          console.log('✅ POPCONFIRM CONFIRMED: User confirmed deletion');
                           handleDeleteConfirmed(kelasID);
-                        }}
-                        onCancel={() => {
-                          console.log('❌ POPCONFIRM CANCELED: User canceled deletion');
                         }}
                         okText="Hapus"
                         cancelText="Batal"
@@ -314,12 +374,8 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('[DELETE BUTTON] Kelas:', namaKelas, 'ID:', kelasID);
-                            console.log('[DELETE BUTTON] Button clicked, Popconfirm should show...');
-                            
                             if (!kelasID || kelasID.trim() === '') {
                               const errorMsg = `Gagal menghapus: ID Kelas untuk "${namaKelas}" tidak ditemukan.`;
-                              console.error('[DELETE BUTTON ERROR]', errorMsg);
                               message.error(errorMsg);
                             }
                           }}
@@ -361,7 +417,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         gap: 16, 
         flexWrap: 'wrap' 
       }}>
-        {/* Generate Nomor Ujian Section - MINIMALIST BLUE */}
+        {/* Generate Nomor Ujian Section */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Input
             placeholder="Kode (opsional)"
@@ -399,7 +455,53 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
           )}
         </div>
 
-        <div>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Export Dropdown */}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'excel',
+                  label: 'Export Excel (.xlsx)',
+                  icon: <FileExcelOutlined />,
+                  onClick: () => exportToExcel('xlsx'),
+                },
+                {
+                  key: 'csv',
+                  label: 'Export CSV (.csv)',
+                  icon: <DownloadOutlined />,
+                  onClick: () => exportToExcel('csv'),
+                },
+              ],
+            }}
+            disabled={totalPeserta === 0}
+          >
+            <Button
+              icon={<DownloadOutlined />}
+              disabled={totalPeserta === 0}
+              style={{ borderRadius: '4px' }}
+            >
+              Export <DownOutlined style={{ fontSize: 12 }} />
+            </Button>
+          </Dropdown>
+
+          {/* Import Button */}
+          <Upload
+            accept=".xlsx,.xls"
+            showUploadList={false}
+            beforeUpload={handleImportFile}
+            disabled={totalPeserta === 0}
+          >
+            <Button
+              icon={<UploadOutlined />}
+              disabled={totalPeserta === 0}
+              style={{ borderRadius: '4px' }}
+            >
+              Import Excel
+            </Button>
+          </Upload>
+
           <Button
             type="primary"
             icon={<PlusOutlined />}
