@@ -23,6 +23,9 @@ import KelasTab from './ujian-detail-tabs/KelasTab';
 import PesertaUjianTab from './ujian-detail-tabs/PesertaUjianTab';
 import PlaceholderTab from './ujian-detail-tabs/PlaceholderTab';
 
+// --- IMPORT KOMPONEN BARU ---
+import RuanganTab from './ujian-detail-tabs/RuanganTab';
+
 const { Title, Text } = Typography;
 
 interface DataType {
@@ -86,6 +89,7 @@ const UjianDetailPage = () => {
     return Object.entries(grouped).map(([namaKelas, penugasanList]) => ({
       key: namaKelas,
       nama_kelas: namaKelas,
+      // FIX: Mengganti penugusanList menjadi penugasanList
       jumlah_mapel: penugasanList.length,
       penugasan: penugasanList,
     }));
@@ -130,9 +134,15 @@ const UjianDetailPage = () => {
         />
       ),
     },
-    { key: '3', label: 'Ruangan', children: <PlaceholderTab title="Ruangan" /> },
+    {
+      key: '3',
+      label: 'Ruangan',
+      // Menggunakan komponen RuanganTab yang baru
+      children: <RuanganTab ujianMasterId={ujianMasterId!} ujianDetail={ujianDetail} />
+    },
     { key: '4', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
-    { key: '5', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
+    { key: '5', label: 'Kartu Ujian', children: <PlaceholderTab title="Kartu Ujian" /> },
+    { key: '6', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
   ];
 
   if (isUjianDetailLoading) return <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />;

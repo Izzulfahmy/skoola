@@ -13,6 +13,7 @@ import (
 
 // Repository defines the operations for UjianMaster and its related entities.
 type Repository interface {
+	// Ujian Master Core
 	Create(ctx context.Context, schemaName string, um UjianMaster) (UjianMaster, error)
 	GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID) ([]UjianMaster, error)
 	GetByID(ctx context.Context, schemaName string, id uuid.UUID) (UjianMaster, error)
@@ -22,13 +23,34 @@ type Repository interface {
 	GetAvailableKelasForUjian(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID, ujianMasterID uuid.UUID) ([]AvailableKelas, error)
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, pengajarKelasIDs []string) (int, error)
 	CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error
-	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
 	DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error)
 
-	// Generate nomor ujian
-	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, prefix string) (int, error)
+	// Peserta & Seating
+	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)                  // Updated to include seating/room info
+	FindPesertaDetailByUjianIDWithSeating(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) // Alias/Mirror of FindPesertaByUjianID for clarity
+	FindAllPesertaByUjianID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]PesertaUjian, error)
+	UpdatePesertaSeating(ctx context.Context, schemaName string, pesertaID uuid.UUID, alokasiRuanganID uuid.UUID, nomorKursi string) error
+	UpdatePesertaSeatingBatch(ctx context.Context, schemaName string, assignments []struct {
+		PesertaID        uuid.UUID
+		AlokasiRuanganID uuid.UUID
+		NomorKursi       string
+	}) error
+	ClearAllSeatingByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error
 
-	// Excel import
+	// Room Master
+	CreateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error)
+	GetAllRuangan(ctx context.Context, schemaName string) ([]RuanganUjian, error)
+	UpdateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error)
+	DeleteRuangan(ctx context.Context, schemaName string, ruanganID uuid.UUID) error
+
+	// Room Allocation
+	CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error)
+	GetAlokasiRuanganByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]AlokasiRuanganUjian, error)
+	DeleteAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error
+	ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error // Helper for cleanup
+
+	// Generate & Import
+	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, prefix string) (int, error)
 	UpdatePesertaNomorUjianFromExcel(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, updates []struct {
 		NamaLengkap string
 		NomorUjian  string
@@ -59,9 +81,9 @@ func (r *repository) Create(ctx context.Context, schemaName string, um UjianMast
 	um.UpdatedAt = time.Now()
 
 	query := `
-		INSERT INTO ujian_master (id, nama_paket_ujian, tahun_ajaran_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`
+        INSERT INTO ujian_master (id, nama_paket_ujian, tahun_ajaran_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5)
+    `
 	_, err := r.db.ExecContext(ctx, query, um.ID, um.NamaPaketUjian, um.TahunAjaranID, um.CreatedAt, um.UpdatedAt)
 	if err != nil {
 		return UjianMaster{}, fmt.Errorf("gagal membuat paket ujian: %w", err)
@@ -76,16 +98,16 @@ func (r *repository) GetAllByTahunAjaran(ctx context.Context, schemaName string,
 	}
 	var results []UjianMaster
 	query := `
-		SELECT
-			id,
-			nama_paket_ujian,
-			created_at,
-			updated_at,
-			tahun_ajaran_id
-		FROM ujian_master
-		WHERE tahun_ajaran_id = $1
-		ORDER BY created_at DESC
-	`
+        SELECT
+            id,
+            nama_paket_ujian,
+            created_at,
+            updated_at,
+            tahun_ajaran_id
+        FROM ujian_master
+        WHERE tahun_ajaran_id = $1
+        ORDER BY created_at DESC
+    `
 	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID)
 	if err != nil {
 		return nil, fmt.Errorf("gagal menjalankan query: %w", err)
@@ -116,12 +138,12 @@ func (r *repository) GetByID(ctx context.Context, schemaName string, id uuid.UUI
 	}
 	var um UjianMaster
 	query := `
-		SELECT
-			id, nama_paket_ujian, tahun_ajaran_id,
-			created_at, updated_at
-		FROM ujian_master
-		WHERE id = $1
-	`
+        SELECT
+            id, nama_paket_ujian, tahun_ajaran_id,
+            created_at, updated_at
+        FROM ujian_master
+        WHERE id = $1
+    `
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&um.ID, &um.NamaPaketUjian, &um.TahunAjaranID,
 		&um.CreatedAt, &um.UpdatedAt,
@@ -143,10 +165,10 @@ func (r *repository) Update(ctx context.Context, schemaName string, um UjianMast
 	}
 	um.UpdatedAt = time.Now()
 	query := `
-		UPDATE ujian_master SET
-			nama_paket_ujian = $2, updated_at = $3
-		WHERE id = $1
-	`
+        UPDATE ujian_master SET
+            nama_paket_ujian = $2, updated_at = $3
+        WHERE id = $1
+    `
 	_, err := r.db.ExecContext(ctx, query, um.ID, um.NamaPaketUjian, um.UpdatedAt)
 	if err != nil {
 		return UjianMaster{}, fmt.Errorf("gagal memperbarui paket ujian: %w", err)
@@ -182,20 +204,20 @@ func (r *repository) GetPenugasanByUjianMasterID(ctx context.Context, schemaName
 		return nil, err
 	}
 	query := `
-		SELECT
-			pk.id as pengajar_kelas_id,
-			k.id as kelas_id,
-			k.nama_kelas,
-			mp.nama_mapel,
-			t.nama_lengkap as nama_guru
-		FROM ujian u
-		JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
-		JOIN kelas k ON pk.kelas_id = k.id
-		JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
-		JOIN teachers t ON pk.teacher_id = t.id
-		WHERE u.ujian_master_id = $1
-		ORDER BY k.nama_kelas, mp.nama_mapel
-	`
+        SELECT
+            pk.id as pengajar_kelas_id,
+            k.id as kelas_id,
+            k.nama_kelas,
+            mp.nama_mapel,
+            t.nama_lengkap as nama_guru
+        FROM ujian u
+        JOIN pengajar_kelas pk ON u.pengajar_kelas_id = pk.id
+        JOIN kelas k ON pk.kelas_id = k.id
+        JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
+        JOIN teachers t ON pk.teacher_id = t.id
+        WHERE u.ujian_master_id = $1
+        ORDER BY k.nama_kelas, mp.nama_mapel
+    `
 	rows, err := r.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, err
@@ -218,21 +240,21 @@ func (r *repository) GetAvailableKelasForUjian(ctx context.Context, schemaName s
 		return nil, err
 	}
 	query := `
-		SELECT
-			k.id as kelas_id,
-			k.nama_kelas,
-			pk.id as pengajar_kelas_id,
-			mp.nama_mapel || ' (' || t.nama_lengkap || ')' as mapel_guru
-		FROM pengajar_kelas pk
-		JOIN kelas k ON pk.kelas_id = k.id
-		JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
-		JOIN teachers t ON pk.teacher_id = t.id
-		WHERE k.tahun_ajaran_id = $1
-		AND pk.id NOT IN (
-			SELECT pengajar_kelas_id FROM ujian WHERE ujian_master_id = $2
-		)
-		ORDER BY k.nama_kelas, mp.nama_mapel
-	`
+        SELECT
+            k.id as kelas_id,
+            k.nama_kelas,
+            pk.id as pengajar_kelas_id,
+            mp.nama_mapel || ' (' || t.nama_lengkap || ')' as mapel_guru
+        FROM pengajar_kelas pk
+        JOIN kelas k ON pk.kelas_id = k.id
+        JOIN mata_pelajaran mp ON pk.mata_pelajaran_id = mp.id
+        JOIN teachers t ON pk.teacher_id = t.id
+        WHERE k.tahun_ajaran_id = $1
+        AND pk.id NOT IN (
+            SELECT pengajar_kelas_id FROM ujian WHERE ujian_master_id = $2
+        )
+        ORDER BY k.nama_kelas, mp.nama_mapel
+    `
 
 	rows, err := r.db.QueryContext(ctx, query, tahunAjaranID, ujianMasterID)
 	if err != nil {
@@ -334,26 +356,33 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	return tx.Commit()
 }
 
+// FindPesertaByUjianID retrieves detailed participant data, now including seating info.
 func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
 
 	query := `
-		SELECT
-			pu.id,
-			s.nama_lengkap as nama_siswa,
-			s.nisn,
-			pu.urutan,
-			pu.nomor_ujian,
-			k.nama_kelas
-		FROM peserta_ujian pu
-		JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
-		JOIN students s ON s.id = ak.student_id
-		JOIN kelas k ON k.id = pu.kelas_id
-		WHERE pu.ujian_master_id = $1
-		ORDER BY k.nama_kelas, pu.urutan
-	`
+        SELECT
+            pu.id,
+            s.nama_lengkap as nama_siswa,
+            s.nisn,
+            pu.urutan,
+            pu.nomor_ujian,
+            k.nama_kelas,
+            -- --- KOLOM BARU UNTUK RUANGAN ---
+            aru.id AS alokasi_ruangan_id,
+            aru.kode_ruangan,
+            pu.nomor_kursi
+            -- -------------------------------
+        FROM peserta_ujian pu
+        JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
+        JOIN students s ON s.id = ak.student_id
+        JOIN kelas k ON k.id = pu.kelas_id
+        LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id -- LEFT JOIN ke tabel alokasi baru
+        WHERE pu.ujian_master_id = $1
+        ORDER BY k.nama_kelas, pu.urutan
+    `
 
 	rows, err := r.db.QueryContext(ctx, query, ujianID)
 	if err != nil {
@@ -366,6 +395,11 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 		var detail PesertaUjianDetail
 		var nomorUjian sql.NullString
 		var nisn sql.NullString
+		// --- BARU ---
+		var alokasiRuanganID sql.NullString
+		var kodeRuangan sql.NullString
+		var nomorKursi sql.NullString
+		// ------------
 
 		if err := rows.Scan(
 			&detail.ID,
@@ -374,6 +408,11 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 			&detail.Urutan,
 			&nomorUjian,
 			&detail.NamaKelas,
+			// --- BARU ---
+			&alokasiRuanganID,
+			&kodeRuangan,
+			&nomorKursi,
+			// ------------
 		); err != nil {
 			return nil, fmt.Errorf("gagal memindai baris peserta: %w", err)
 		}
@@ -384,6 +423,17 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 		if nisn.Valid {
 			detail.NISN = &nisn.String
 		}
+		// --- BARU ---
+		if alokasiRuanganID.Valid {
+			detail.AlokasiRuanganID = &alokasiRuanganID.String
+		}
+		if kodeRuangan.Valid {
+			detail.KodeRuangan = &kodeRuangan.String
+		}
+		if nomorKursi.Valid {
+			detail.NomorKursi = &nomorKursi.String
+		}
+		// ------------
 
 		results = append(results, detail)
 	}
@@ -395,6 +445,345 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 	return results, nil
 }
 
+// FindPesertaDetailByUjianIDWithSeating is a mirror/alias of the updated FindPesertaByUjianID
+func (r *repository) FindPesertaDetailByUjianIDWithSeating(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) {
+	return r.FindPesertaByUjianID(ctx, schemaName, ujianID)
+}
+
+// FindAllPesertaByUjianID retrieves only the core PesertaUjian records.
+func (r *repository) FindAllPesertaByUjianID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]PesertaUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	query := `
+        SELECT 
+            id, ujian_master_id, anggota_kelas_id, kelas_id, urutan, nomor_ujian, created_at, updated_at
+        FROM peserta_ujian 
+        WHERE ujian_master_id = $1
+        ORDER BY kelas_id, urutan
+    `
+	rows, err := r.db.QueryContext(ctx, query, ujianMasterID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal query semua peserta ujian: %w", err)
+	}
+	defer rows.Close()
+
+	var results []PesertaUjian
+	for rows.Next() {
+		var p PesertaUjian
+		var nomorUjian sql.NullString
+
+		if err := rows.Scan(
+			&p.ID, &p.UjianMasterID, &p.AnggotaKelasID, &p.KelasID, &p.Urutan, &nomorUjian, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("gagal memindai baris PesertaUjian: %w", err)
+		}
+
+		if nomorUjian.Valid {
+			p.NomorUjian = &nomorUjian.String
+		}
+		results = append(results, p)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error pada baris hasil PesertaUjian: %w", err)
+	}
+
+	return results, nil
+}
+
+// UpdatePesertaSeating updates the room allocation and seat number for a single participant.
+func (r *repository) UpdatePesertaSeating(ctx context.Context, schemaName string, pesertaID uuid.UUID, alokasiRuanganID uuid.UUID, nomorKursi string) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	query := `
+        UPDATE peserta_ujian
+        SET alokasi_ruangan_id = $2, nomor_kursi = $3, updated_at = NOW()
+        WHERE id = $1
+    `
+	_, err := r.db.ExecContext(ctx, query, pesertaID, alokasiRuanganID, nomorKursi)
+	if err != nil {
+		return fmt.Errorf("gagal memperbarui penempatan kursi peserta: %w", err)
+	}
+	return nil
+}
+
+// UpdatePesertaSeatingBatch updates seating for multiple participants.
+func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName string, assignments []struct {
+	PesertaID        uuid.UUID
+	AlokasiRuanganID uuid.UUID
+	NomorKursi       string
+}) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	// Use a transaction with multiple UPDATE statements for batch operation.
+	// NOTE: For very large batches (>1000 records), consider using pq.CopyIn with a temporary table for better performance.
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi batch update seating: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+        UPDATE peserta_ujian
+        SET alokasi_ruangan_id = $2, nomor_kursi = $3, updated_at = NOW()
+        WHERE id = $1
+    `
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("gagal mempersiapkan statement batch update seating: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, assignment := range assignments {
+		// Konversi data dari struct anonim ke ExecContext
+		_, err := stmt.ExecContext(ctx, assignment.PesertaID, assignment.AlokasiRuanganID, assignment.NomorKursi)
+		if err != nil {
+			return fmt.Errorf("gagal mengeksekusi batch update seating untuk peserta %s: %w", assignment.PesertaID, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// ClearAllSeatingByUjianMasterID sets alokasi_ruangan_id and nomor_kursi to NULL for all participants in an exam.
+func (r *repository) ClearAllSeatingByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	query := `
+        UPDATE peserta_ujian
+        SET alokasi_ruangan_id = NULL, nomor_kursi = NULL, updated_at = NOW()
+        WHERE ujian_master_id = $1
+    `
+	_, err := r.db.ExecContext(ctx, query, ujianMasterID)
+	if err != nil {
+		return fmt.Errorf("gagal membersihkan semua penempatan kursi untuk ujian %s: %w", ujianMasterID, err)
+	}
+	return nil
+}
+
+// ClearSeatingByAlokasiRuanganID clears seating for participants assigned to a specific room allocation.
+func (r *repository) ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	query := `
+        UPDATE peserta_ujian
+        SET alokasi_ruangan_id = NULL, nomor_kursi = NULL, updated_at = NOW()
+        WHERE alokasi_ruangan_id = $1
+    `
+	_, err := r.db.ExecContext(ctx, query, alokasiRuanganID)
+	if err != nil {
+		return fmt.Errorf("gagal membersihkan penempatan kursi untuk alokasi ruangan %s: %w", alokasiRuanganID, err)
+	}
+	return nil
+}
+
+// --- ROOM MASTER CRUD (STUBBED FOR COMPLETENESS) ---
+
+func (r *repository) CreateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return RuanganUjian{}, err
+	}
+	// Simplified INSERT query
+	query := `
+        INSERT INTO ruangan_ujian (id, nama_ruangan, kapasitas, layout_metadata, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, created_at, updated_at
+    `
+	// Assume IDs and timestamps are set in service/handler if not returned
+	ruangan.ID = uuid.New()
+	ruangan.CreatedAt = time.Now()
+	ruangan.UpdatedAt = time.Now()
+	_, err := r.db.ExecContext(ctx, query, ruangan.ID, ruangan.NamaRuangan, ruangan.Kapasitas, ruangan.LayoutMetadata, ruangan.CreatedAt, ruangan.UpdatedAt)
+	if err != nil {
+		return RuanganUjian{}, fmt.Errorf("gagal membuat ruangan: %w", err)
+	}
+	return ruangan, nil
+}
+
+func (r *repository) GetAllRuangan(ctx context.Context, schemaName string) ([]RuanganUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	query := `SELECT id, nama_ruangan, kapasitas, layout_metadata, created_at, updated_at FROM ruangan_ujian ORDER BY nama_ruangan`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil semua ruangan: %w", err)
+	}
+	defer rows.Close()
+
+	var results []RuanganUjian
+	for rows.Next() {
+		var ru RuanganUjian
+		if err := rows.Scan(&ru.ID, &ru.NamaRuangan, &ru.Kapasitas, &ru.LayoutMetadata, &ru.CreatedAt, &ru.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("gagal memindai baris ruangan: %w", err)
+		}
+		results = append(results, ru)
+	}
+	return results, nil
+}
+
+func (r *repository) UpdateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return RuanganUjian{}, err
+	}
+	ruangan.UpdatedAt = time.Now()
+	query := `
+        UPDATE ruangan_ujian SET
+            nama_ruangan = $2, kapasitas = $3, layout_metadata = $4, updated_at = $5
+        WHERE id = $1
+    `
+	_, err := r.db.ExecContext(ctx, query, ruangan.ID, ruangan.NamaRuangan, ruangan.Kapasitas, ruangan.LayoutMetadata, ruangan.UpdatedAt)
+	if err != nil {
+		return RuanganUjian{}, fmt.Errorf("gagal memperbarui ruangan: %w", err)
+	}
+	return ruangan, nil
+}
+
+func (r *repository) DeleteRuangan(ctx context.Context, schemaName string, ruanganID uuid.UUID) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	query := "DELETE FROM ruangan_ujian WHERE id = $1"
+	result, err := r.db.ExecContext(ctx, query, ruanganID)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus ruangan: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return errors.New("ruangan tidak ditemukan")
+	}
+	return nil
+}
+
+// --- ROOM ALLOCATION (STUBBED FOR COMPLETENESS) ---
+
+func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memulai transaksi: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Get Room details for KodeRuangan and Kapasitas
+	ruanganDetails := make(map[uuid.UUID]RuanganUjian)
+	queryDetails := `SELECT id, nama_ruangan, kapasitas, layout_metadata FROM ruangan_ujian WHERE id = ANY($1)`
+	rows, err := tx.QueryContext(ctx, queryDetails, pq.Array(ruanganIDs))
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil detail ruangan: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ru RuanganUjian
+		if err := rows.Scan(&ru.ID, &ru.NamaRuangan, &ru.Kapasitas, &ru.LayoutMetadata); err != nil {
+			return nil, fmt.Errorf("gagal memindai detail ruangan: %w", err)
+		}
+		ruanganDetails[ru.ID] = ru
+	}
+
+	// 2. Insert Batch
+	var createdAlokasi []AlokasiRuanganUjian
+	now := time.Now()
+	insertQuery := `
+        INSERT INTO alokasi_ruangan_ujian (id, ujian_master_id, ruangan_id, kode_ruangan, jumlah_kursi_terpakai, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, 0, $5, $6)
+    `
+	for i, rID := range ruanganIDs {
+		detail, ok := ruanganDetails[rID]
+		if !ok {
+			continue // Skip if room not found
+		}
+
+		ar := AlokasiRuanganUjian{
+			ID:            uuid.New(),
+			UjianMasterID: ujianMasterID,
+			RuanganID:     rID,
+			// Simplified KodeRuangan generation based on index (in a real app, this should be a robust unique code)
+			KodeRuangan:         fmt.Sprintf("R%02d", i+1),
+			JumlahKursiTerpakai: 0,
+			NamaRuangan:         detail.NamaRuangan,
+			KapasitasRuangan:    detail.Kapasitas,
+			LayoutMetadata:      detail.LayoutMetadata,
+			CreatedAt:           now,
+			UpdatedAt:           now,
+		}
+
+		_, err := tx.ExecContext(ctx, insertQuery, ar.ID, ar.UjianMasterID, ar.RuanganID, ar.KodeRuangan, ar.CreatedAt, ar.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("gagal insert alokasi ruangan: %w", err)
+		}
+		createdAlokasi = append(createdAlokasi, ar)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("gagal commit transaksi alokasi: %w", err)
+	}
+	return createdAlokasi, nil
+}
+
+func (r *repository) GetAlokasiRuanganByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]AlokasiRuanganUjian, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+	query := `
+        SELECT
+            aru.id, aru.ujian_master_id, aru.ruangan_id, aru.kode_ruangan, aru.jumlah_kursi_terpakai,
+            aru.created_at, aru.updated_at, ru.nama_ruangan, ru.kapasitas, ru.layout_metadata
+        FROM alokasi_ruangan_ujian aru
+        JOIN ruangan_ujian ru ON aru.ruangan_id = ru.id
+        WHERE aru.ujian_master_id = $1
+        ORDER BY aru.kode_ruangan
+    `
+	rows, err := r.db.QueryContext(ctx, query, ujianMasterID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil alokasi ruangan: %w", err)
+	}
+	defer rows.Close()
+
+	var results []AlokasiRuanganUjian
+	for rows.Next() {
+		var ar AlokasiRuanganUjian
+		if err := rows.Scan(
+			&ar.ID, &ar.UjianMasterID, &ar.RuanganID, &ar.KodeRuangan, &ar.JumlahKursiTerpakai,
+			&ar.CreatedAt, &ar.UpdatedAt, &ar.NamaRuangan, &ar.KapasitasRuangan, &ar.LayoutMetadata,
+		); err != nil {
+			return nil, fmt.Errorf("gagal memindai baris alokasi ruangan: %w", err)
+		}
+		results = append(results, ar)
+	}
+	return results, nil
+}
+
+func (r *repository) DeleteAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+	query := "DELETE FROM alokasi_ruangan_ujian WHERE id = $1"
+	result, err := r.db.ExecContext(ctx, query, alokasiRuanganID)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus alokasi ruangan: %w", err)
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return errors.New("alokasi ruangan tidak ditemukan")
+	}
+	return nil
+}
+
+// --- OTHER EXISTING METHODS ---
+
 // DeletePesertaByMasterAndKelas deletes peserta ujian by kelas
 func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
@@ -402,9 +791,9 @@ func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaNa
 	}
 
 	query := `
-		DELETE FROM peserta_ujian
-		WHERE ujian_master_id = $1 AND kelas_id = $2
-	`
+        DELETE FROM peserta_ujian
+        WHERE ujian_master_id = $1 AND kelas_id = $2
+    `
 
 	result, err := r.db.ExecContext(ctx, query, masterID, kelasID)
 	if err != nil {
@@ -438,12 +827,12 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 
 	// Get all peserta for this ujian_master, ordered by kelas and urutan
 	queryGetPeserta := `
-		SELECT pu.id 
-		FROM peserta_ujian pu
-		JOIN kelas k ON k.id = pu.kelas_id
-		WHERE pu.ujian_master_id = $1
-		ORDER BY k.nama_kelas ASC, pu.urutan ASC
-	`
+        SELECT pu.id 
+        FROM peserta_ujian pu
+        JOIN kelas k ON k.id = pu.kelas_id
+        WHERE pu.ujian_master_id = $1
+        ORDER BY k.nama_kelas ASC, pu.urutan ASC
+    `
 
 	rows, err := tx.QueryContext(ctx, queryGetPeserta, ujianMasterID)
 	if err != nil {
@@ -540,15 +929,15 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 
 	// Prepare update statement
 	updateQuery := `
-		UPDATE peserta_ujian 
-		SET nomor_ujian = $1, updated_at = NOW() 
-		WHERE ujian_master_id = $2 
-		AND anggota_kelas_id IN (
-			SELECT ak.id FROM anggota_kelas ak 
-			JOIN students s ON ak.student_id = s.id 
-			WHERE s.nama_lengkap = $3
-		)
-	`
+        UPDATE peserta_ujian 
+        SET nomor_ujian = $1, updated_at = NOW() 
+        WHERE ujian_master_id = $2 
+        AND anggota_kelas_id IN (
+            SELECT ak.id FROM anggota_kelas ak 
+            JOIN students s ON ak.student_id = s.id 
+            WHERE s.nama_lengkap = $3
+        )
+    `
 
 	updateStmt, err := tx.PrepareContext(ctx, updateQuery)
 	if err != nil {

@@ -14,6 +14,13 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// SeatingAssignment is a helper struct for batch seating updates.
+type SeatingAssignment struct {
+	PesertaID        uuid.UUID
+	AlokasiRuanganID uuid.UUID
+	NomorKursi       string
+}
+
 // Service defines the business logic for UjianMaster.
 type Service interface {
 	CreateUjianMaster(ctx context.Context, schemaName string, req UjianMaster) (UjianMaster, error)
@@ -30,6 +37,24 @@ type Service interface {
 	// Excel Export/Import methods
 	ExportPesertaToExcel(ctx context.Context, schemaName string, ujianMasterID string, format string) ([]byte, string, error)
 	ImportPesertaFromExcel(ctx context.Context, schemaName string, ujianMasterID string, fileData []byte) (ExcelImportResponse, error)
+
+	// --- NEW: ROOM MASTER CRUD ---
+	CreateRuangan(ctx context.Context, schemaName string, input UpsertRuanganInput) (RuanganUjian, error)
+	GetAllRuangan(ctx context.Context, schemaName string) ([]RuanganUjian, error)
+	UpdateRuangan(ctx context.Context, schemaName string, ruanganID string, input UpsertRuanganInput) (RuanganUjian, error)
+	DeleteRuangan(ctx context.Context, schemaName string, ruanganID string) error
+
+	// --- NEW: ROOM ALLOCATION & SEATING ---
+	AssignRuangan(ctx context.Context, schemaName string, ujianMasterID string, ruanganIDs []string) ([]AlokasiRuanganUjian, error)
+	GetAlokasiRuanganByMasterID(ctx context.Context, schemaName string, ujianMasterID string) ([]AlokasiRuanganUjian, error)
+	RemoveAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID string) error
+
+	// Phase 1: Get data for visual layout
+	GetAlokasiKursi(ctx context.Context, schemaName string, ujianMasterID string) ([]PesertaUjianDetail, []AlokasiRuanganUjian, error)
+	UpdatePesertaSeating(ctx context.Context, schemaName string, input UpdatePesertaSeatingInput) error
+
+	// Phase 3: Smart distribution
+	DistributePesertaSmart(ctx context.Context, schemaName string, ujianMasterID string) error
 }
 
 type service struct {
@@ -45,7 +70,251 @@ func NewService(repo Repository, rombelService rombel.Service) Service {
 	}
 }
 
-// --- EXCEL EXPORT/IMPORT METHODS ---
+// =================================================================================
+// ROOM MASTER CRUD METHODS (NEW)
+// =================================================================================
+
+func (s *service) CreateRuangan(ctx context.Context, schemaName string, input UpsertRuanganInput) (RuanganUjian, error) {
+	// Pengecekan input validasi dilakukan di layer handler
+	ruangan := RuanganUjian{
+		ID:             uuid.New(),
+		NamaRuangan:    input.NamaRuangan,
+		Kapasitas:      input.Kapasitas,
+		LayoutMetadata: input.LayoutMetadata,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	createdRuangan, err := s.repo.CreateRuangan(ctx, schemaName, ruangan)
+	if err != nil {
+		return RuanganUjian{}, fmt.Errorf("gagal membuat ruangan: %w", err)
+	}
+
+	return createdRuangan, nil
+}
+
+func (s *service) GetAllRuangan(ctx context.Context, schemaName string) ([]RuanganUjian, error) {
+	return s.repo.GetAllRuangan(ctx, schemaName)
+}
+
+func (s *service) UpdateRuangan(ctx context.Context, schemaName string, ruanganID string, input UpsertRuanganInput) (RuanganUjian, error) {
+	rID, err := uuid.Parse(ruanganID)
+	if err != nil {
+		return RuanganUjian{}, errors.New("ID ruangan tidak valid")
+	}
+
+	// Cek keberadaan ruangan (Opsional, tapi disarankan)
+	// _, err = s.repo.GetRuanganByID(ctx, schemaName, rID)
+	// if err != nil {
+	// 	return RuanganUjian{}, errors.New("ruangan tidak ditemukan")
+	// }
+
+	ruangan := RuanganUjian{
+		ID:             rID,
+		NamaRuangan:    input.NamaRuangan,
+		Kapasitas:      input.Kapasitas,
+		LayoutMetadata: input.LayoutMetadata,
+		UpdatedAt:      time.Now(),
+	}
+
+	updatedRuangan, err := s.repo.UpdateRuangan(ctx, schemaName, ruangan)
+	if err != nil {
+		return RuanganUjian{}, fmt.Errorf("gagal memperbarui ruangan: %w", err)
+	}
+
+	return updatedRuangan, nil
+}
+
+func (s *service) DeleteRuangan(ctx context.Context, schemaName string, ruanganID string) error {
+	rID, err := uuid.Parse(ruanganID)
+	if err != nil {
+		return errors.New("ID ruangan tidak valid")
+	}
+
+	// Cek apakah ruangan sedang dialokasikan untuk ujian
+	// ... (Implementasi pengecekan di repository)
+
+	return s.repo.DeleteRuangan(ctx, schemaName, rID)
+}
+
+// =================================================================================
+// ROOM ALLOCATION & SEATING METHODS (NEW)
+// =================================================================================
+
+func (s *service) AssignRuangan(ctx context.Context, schemaName string, ujianMasterID string, ruanganIDs []string) ([]AlokasiRuanganUjian, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return nil, errors.New("ID paket ujian tidak valid")
+	}
+
+	if len(ruanganIDs) == 0 {
+		return nil, errors.New("daftar ruangan tidak boleh kosong")
+	}
+
+	ruanganUUIDs := make([]uuid.UUID, len(ruanganIDs))
+	for i, id := range ruanganIDs {
+		rID, err := uuid.Parse(id)
+		if err != nil {
+			return nil, fmt.Errorf("ID ruangan ke-%d tidak valid: %w", i+1, err)
+		}
+		ruanganUUIDs[i] = rID
+	}
+
+	alokasi, err := s.repo.CreateAlokasiRuanganBatch(ctx, schemaName, umID, ruanganUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengalokasikan ruangan: %w", err)
+	}
+
+	return alokasi, nil
+}
+
+func (s *service) GetAlokasiRuanganByMasterID(ctx context.Context, schemaName string, ujianMasterID string) ([]AlokasiRuanganUjian, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return nil, errors.New("ID paket ujian tidak valid")
+	}
+
+	return s.repo.GetAlokasiRuanganByUjianMasterID(ctx, schemaName, umID)
+}
+
+func (s *service) RemoveAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID string) error {
+	arID, err := uuid.Parse(alokasiRuanganID)
+	if err != nil {
+		return errors.New("ID alokasi ruangan tidak valid")
+	}
+
+	// Tambahkan logika untuk membersihkan penempatan peserta (kursi) yang terkait
+	if err := s.repo.ClearSeatingByAlokasiRuanganID(ctx, schemaName, arID); err != nil {
+		// Log error tapi biarkan proses berlanjut, atau return error
+		// Di sini, kita akan return error.
+		return fmt.Errorf("gagal membersihkan penempatan kursi: %w", err)
+	}
+
+	return s.repo.DeleteAlokasiRuangan(ctx, schemaName, arID)
+}
+
+func (s *service) GetAlokasiKursi(ctx context.Context, schemaName string, ujianMasterID string) ([]PesertaUjianDetail, []AlokasiRuanganUjian, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return nil, nil, errors.New("ID paket ujian tidak valid")
+	}
+
+	// 1. Ambil semua peserta ujian (dengan info kelas/detail)
+	peserta, err := s.repo.FindPesertaDetailByUjianIDWithSeating(ctx, schemaName, umID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("gagal mengambil peserta: %w", err)
+	}
+
+	// 2. Ambil semua alokasi ruangan (dengan info ruangan master)
+	alokasiRuangan, err := s.repo.GetAlokasiRuanganByUjianMasterID(ctx, schemaName, umID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("gagal mengambil alokasi ruangan: %w", err)
+	}
+
+	return peserta, alokasiRuangan, nil
+}
+
+func (s *service) UpdatePesertaSeating(ctx context.Context, schemaName string, input UpdatePesertaSeatingInput) error {
+	pID, err := uuid.Parse(input.PesertaID)
+	if err != nil {
+		return errors.New("ID peserta tidak valid")
+	}
+	arID, err := uuid.Parse(input.AlokasiRuanganID)
+	if err != nil {
+		return errors.New("ID alokasi ruangan tidak valid")
+	}
+
+	return s.repo.UpdatePesertaSeating(ctx, schemaName, pID, arID, input.NomorKursi)
+}
+
+func (s *service) DistributePesertaSmart(ctx context.Context, schemaName string, ujianMasterID string) error {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return errors.New("ID paket ujian tidak valid")
+	}
+
+	// 1. Ambil data semua peserta, alokasi ruangan, dan kapasitas total
+	peserta, err := s.repo.FindAllPesertaByUjianID(ctx, schemaName, umID)
+	if err != nil {
+		return fmt.Errorf("gagal mengambil peserta: %w", err)
+	}
+
+	alokasiRuangan, err := s.repo.GetAlokasiRuanganByUjianMasterID(ctx, schemaName, umID)
+	if err != nil {
+		return fmt.Errorf("gagal mengambil alokasi ruangan: %w", err)
+	}
+
+	// Cek ketersediaan
+	totalKapasitas := 0
+	for _, ar := range alokasiRuangan {
+		totalKapasitas += ar.KapasitasRuangan
+	}
+
+	if len(peserta) > totalKapasitas {
+		return errors.New("jumlah peserta melebihi total kapasitas ruangan yang dialokasikan")
+	}
+	if len(alokasiRuangan) == 0 {
+		return errors.New("belum ada ruangan yang dialokasikan")
+	}
+
+	// 2. Clear semua penempatan kursi yang ada
+	if err := s.repo.ClearAllSeatingByUjianMasterID(ctx, schemaName, umID); err != nil {
+		return fmt.Errorf("gagal membersihkan penempatan lama: %w", err)
+	}
+
+	// 3. Implementasi Algoritma Cerdas
+	var assignments []SeatingAssignment
+	pesertaIndex := 0
+
+	for _, ar := range alokasiRuangan {
+		kursiDiisi := 0
+		for kursi := 1; kursi <= ar.KapasitasRuangan && pesertaIndex < len(peserta); kursi++ {
+			// Asumsi penomoran kursi sederhana: "K01", "K02", dst.
+			nomorKursi := fmt.Sprintf("K%03d", kursi)
+
+			assignments = append(assignments, SeatingAssignment{
+				PesertaID:        peserta[pesertaIndex].ID,
+				AlokasiRuanganID: ar.ID,
+				NomorKursi:       nomorKursi,
+			})
+			pesertaIndex++
+			kursiDiisi++
+		}
+		// Update jumlah kursi terpakai di AlokasiRuanganUjian (Opsional)
+		// ...
+	}
+
+	// 4. Lakukan update batch ke database
+	// Casting/konversi ke tipe struct anonim yang diterima oleh Repository
+	repoAssignments := make([]struct {
+		PesertaID        uuid.UUID
+		AlokasiRuanganID uuid.UUID
+		NomorKursi       string
+	}, len(assignments))
+
+	for i, a := range assignments {
+		repoAssignments[i] = struct {
+			PesertaID        uuid.UUID
+			AlokasiRuanganID uuid.UUID
+			NomorKursi       string
+		}{
+			PesertaID:        a.PesertaID,
+			AlokasiRuanganID: a.AlokasiRuanganID,
+			NomorKursi:       a.NomorKursi,
+		}
+	}
+
+	err = s.repo.UpdatePesertaSeatingBatch(ctx, schemaName, repoAssignments)
+	if err != nil {
+		return fmt.Errorf("gagal menyimpan penempatan kursi cerdas: %w", err)
+	}
+
+	return nil
+}
+
+// =================================================================================
+// EXCEL EXPORT/IMPORT METHODS
+// =================================================================================
 
 func (s *service) ExportPesertaToExcel(ctx context.Context, schemaName string, ujianMasterID string, format string) ([]byte, string, error) {
 	umID, err := uuid.Parse(ujianMasterID)
@@ -279,7 +548,10 @@ func (s *service) ImportPesertaFromExcel(ctx context.Context, schemaName string,
 	return response, nil
 }
 
-// --- GENERATE NOMOR UJIAN SERVICE METHOD ---
+// =================================================================================
+// GENERATE NOMOR UJIAN SERVICE METHOD
+// =================================================================================
+
 func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID string, prefix string) (int, error) {
 	umID, err := uuid.Parse(ujianMasterID)
 	if err != nil {
@@ -300,7 +572,9 @@ func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaNa
 	return count, nil
 }
 
-// --- OTHER SERVICE METHODS ---
+// =================================================================================
+// OTHER CORE SERVICE METHODS
+// =================================================================================
 
 func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error) {
 	umID, err := uuid.Parse(ujianMasterID)

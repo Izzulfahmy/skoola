@@ -54,9 +54,13 @@ type PesertaUjian struct {
 	NomorUjian     *string   `db:"nomor_ujian"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
+	// Field baru untuk penempatan ruangan dan kursi
+	AlokasiRuanganID *uuid.UUID `db:"alokasi_ruangan_id"`
+	NomorKursi       *string    `db:"nomor_kursi"`
 }
 
 // PesertaUjianDetail represents detailed information of a participant.
+// Diperbarui untuk menyertakan info penempatan.
 type PesertaUjianDetail struct {
 	ID         string  `json:"id"`
 	NamaSiswa  string  `json:"nama_siswa"`
@@ -64,6 +68,10 @@ type PesertaUjianDetail struct {
 	Urutan     int     `json:"urutan"`
 	NomorUjian *string `json:"nomor_ujian"`
 	NamaKelas  string  `json:"nama_kelas"`
+	// --- FIELD BARU UNTUK PENEMPATAN ---
+	AlokasiRuanganID *string `json:"alokasi_ruangan_id"`
+	KodeRuangan      *string `json:"kode_ruangan"`
+	NomorKursi       *string `json:"nomor_kursi"`
 }
 
 // GroupedPesertaUjian groups participants by class name.
@@ -108,4 +116,51 @@ type PesertaUjianExcelRow struct {
 	NamaKelas   string  `json:"namaKelas"`
 	NomorUjian  *string `json:"nomorUjian"`
 	Status      string  `json:"status"`
+}
+
+// ----------------------------------------------------------------------
+// --- STRUCTS BARU UNTUK RUANGAN DAN ALOKASI ---
+// ----------------------------------------------------------------------
+
+// RuanganUjian represents the main exam room master data.
+type RuanganUjian struct {
+	ID             uuid.UUID `json:"id"`
+	NamaRuangan    string    `json:"nama_ruangan"`
+	Kapasitas      int       `json:"kapasitas"`
+	LayoutMetadata string    `json:"layout_metadata"` // JSON string
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// AlokasiRuanganUjian represents an assigned room for a specific UjianMaster.
+type AlokasiRuanganUjian struct {
+	ID                  uuid.UUID `json:"id"`
+	UjianMasterID       uuid.UUID `json:"ujian_master_id"`
+	RuanganID           uuid.UUID `json:"ruangan_id"`
+	KodeRuangan         string    `json:"kode_ruangan"`
+	JumlahKursiTerpakai int       `json:"jumlah_kursi_terpakai"`
+	NamaRuangan         string    `json:"nama_ruangan"`      // Hasil Join dari RuanganUjian
+	KapasitasRuangan    int       `json:"kapasitas_ruangan"` // Hasil Join
+	LayoutMetadata      string    `json:"layout_metadata"`   // Hasil Join
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+// Tambahkan DTO untuk input detail ruangan (CRUD Ruangan Fisik)
+type UpsertRuanganInput struct {
+	NamaRuangan    string `json:"nama_ruangan" validate:"required,min=3"`
+	Kapasitas      int    `json:"kapasitas" validate:"required,min=1,max=1000"`
+	LayoutMetadata string `json:"layout_metadata" validate:"omitempty"`
+}
+
+// Tambahkan DTO untuk input alokasi ruangan ke paket ujian
+type AssignRuanganInput struct {
+	RuanganIDs []string `json:"ruangan_ids" validate:"required,min=1,dive,uuid"`
+}
+
+// Tambahkan DTO untuk mengupdate penempatan per peserta (untuk implementasi drag/drop manual)
+type UpdatePesertaSeatingInput struct {
+	PesertaID        string `json:"peserta_id" validate:"required,uuid"`
+	AlokasiRuanganID string `json:"alokasi_ruangan_id" validate:"required,uuid"`
+	NomorKursi       string `json:"nomor_kursi" validate:"required,max=10"`
 }

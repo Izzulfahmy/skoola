@@ -395,8 +395,26 @@ func main() {
 			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian)
 
 			// NEW: Excel Export/Import routes
-			r.With(auth.Authorize("admin")).Get("/{id}/export-excel", ujianMasterHandler.ExportPesertaToExcel)    // Export
-			r.With(auth.Authorize("admin")).Post("/{id}/import-excel", ujianMasterHandler.ImportPesertaFromExcel) // Import
+			r.With(auth.Authorize("admin")).Get("/{id}/export-excel", ujianMasterHandler.ExportPesertaToExcel)
+			r.With(auth.Authorize("admin")).Post("/{id}/import-excel", ujianMasterHandler.ImportPesertaFromExcel)
+
+			// --- NEW: ROOM ENDPOINTS ---
+			// Room Master Data (CRUD Ruangan Fisik)
+			r.With(auth.Authorize("admin")).Get("/ruangan", ujianMasterHandler.GetAllRuangan)
+			r.With(auth.Authorize("admin")).Post("/ruangan", ujianMasterHandler.CreateRuangan)
+			r.With(auth.Authorize("admin")).Put("/ruangan/{ruanganID}", ujianMasterHandler.UpdateRuangan)
+			r.With(auth.Authorize("admin")).Delete("/ruangan/{ruanganID}", ujianMasterHandler.DeleteRuangan)
+
+			// Room Allocation for Exam (Alokasi Ruangan ke Paket Ujian)
+			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-ruangan", ujianMasterHandler.AssignRuangan)
+			r.With(auth.Authorize("admin")).Get("/{id}/alokasi-ruangan", ujianMasterHandler.GetAlokasiRuangan)
+			r.With(auth.Authorize("admin")).Delete("/{id}/alokasi-ruangan/{alokasiRuanganID}", ujianMasterHandler.RemoveAlokasiRuangan)
+
+			// Seating Allocation & Algorithms (Phase 1 & 3)
+			r.With(auth.Authorize("admin")).Get("/{id}/alokasi-kursi", ujianMasterHandler.GetAlokasiKursi)
+			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/manual", ujianMasterHandler.UpdateSeating)  // Untuk drag/drop manual
+			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/smart", ujianMasterHandler.DistributeSmart) // Untuk algoritma cerdas
+			// --- END NEW ROOM ENDPOINTS ---
 		})
 		// =================================================================================
 

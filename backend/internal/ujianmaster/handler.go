@@ -5,17 +5,235 @@ import (
 	"fmt"
 	"net/http"
 	"skoola/internal/middleware"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 )
 
 type Handler struct {
-	service Service
+	service   Service
+	validator *validator.Validate
 }
 
 func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+	return &Handler{
+		service:   service,
+		validator: validator.New(), // Inisialisasi validator
+	}
 }
+
+// =================================================================================
+// ROOM MASTER CRUD HANDLERS
+// =================================================================================
+
+// GetAllRuangan handles GET /ujian-master/ruangan
+func (h *Handler) GetAllRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+
+	results, err := h.service.GetAllRuangan(r.Context(), schemaName)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+// CreateRuangan handles POST /ujian-master/ruangan
+func (h *Handler) CreateRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	var input UpsertRuanganInput
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.validator.Struct(input); err != nil {
+		http.Error(w, "Validasi input gagal: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ruangan, err := h.service.CreateRuangan(r.Context(), schemaName, input)
+	if err != nil {
+		http.Error(w, "Gagal membuat ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(ruangan)
+}
+
+// UpdateRuangan handles PUT /ujian-master/ruangan/{ruanganID}
+func (h *Handler) UpdateRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ruanganID := chi.URLParam(r, "ruanganID")
+	var input UpsertRuanganInput
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.validator.Struct(input); err != nil {
+		http.Error(w, "Validasi input gagal: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ruangan, err := h.service.UpdateRuangan(r.Context(), schemaName, ruanganID, input)
+	if err != nil {
+		http.Error(w, "Gagal memperbarui ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ruangan)
+}
+
+// DeleteRuangan handles DELETE /ujian-master/ruangan/{ruanganID}
+func (h *Handler) DeleteRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ruanganID := chi.URLParam(r, "ruanganID")
+
+	err := h.service.DeleteRuangan(r.Context(), schemaName, ruanganID)
+	if err != nil {
+		http.Error(w, "Gagal menghapus ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// =================================================================================
+// ROOM ALLOCATION & SEATING HANDLERS
+// =================================================================================
+
+// AssignRuangan handles POST /ujian-master/{id}/alokasi-ruangan
+func (h *Handler) AssignRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+	var input AssignRuanganInput
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.validator.Struct(input); err != nil {
+		http.Error(w, "Validasi input gagal: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	alokasi, err := h.service.AssignRuangan(r.Context(), schemaName, ujianMasterID, input.RuanganIDs)
+	if err != nil {
+		http.Error(w, "Gagal mengalokasikan ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(alokasi)
+}
+
+// GetAlokasiRuangan handles GET /ujian-master/{id}/alokasi-ruangan
+func (h *Handler) GetAlokasiRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	results, err := h.service.GetAlokasiRuanganByMasterID(r.Context(), schemaName, ujianMasterID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil alokasi ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+// RemoveAlokasiRuangan handles DELETE /ujian-master/{id}/alokasi-ruangan/{alokasiRuanganID}
+func (h *Handler) RemoveAlokasiRuangan(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	alokasiRuanganID := chi.URLParam(r, "alokasiRuanganID")
+
+	err := h.service.RemoveAlokasiRuangan(r.Context(), schemaName, alokasiRuanganID)
+	if err != nil {
+		http.Error(w, "Gagal menghapus alokasi ruangan: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetAlokasiKursi handles GET /ujian-master/{id}/alokasi-kursi (Data untuk visualisasi seating)
+func (h *Handler) GetAlokasiKursi(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	peserta, ruangan, err := h.service.GetAlokasiKursi(r.Context(), schemaName, ujianMasterID)
+	if err != nil {
+		http.Error(w, "Gagal mengambil data alokasi kursi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"peserta": peserta,
+		"ruangan": ruangan,
+	})
+}
+
+// UpdateSeating handles POST /ujian-master/{id}/alokasi-kursi/manual (Drag/Drop manual)
+func (h *Handler) UpdateSeating(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	// ujianMasterID := chi.URLParam(r, "id") // ID UjianMaster tidak digunakan langsung di sini
+
+	var input UpdatePesertaSeatingInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.validator.Struct(input); err != nil {
+		http.Error(w, "Validasi input gagal: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.UpdatePesertaSeating(r.Context(), schemaName, input)
+	if err != nil {
+		http.Error(w, "Gagal memperbarui penempatan kursi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Penempatan kursi berhasil diperbarui"})
+}
+
+// DistributeSmart handles POST /ujian-master/{id}/alokasi-kursi/smart (Algoritma otomatis)
+func (h *Handler) DistributeSmart(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	err := h.service.DistributePesertaSmart(r.Context(), schemaName, ujianMasterID)
+	if err != nil {
+		// Menangkap error bisnis (misal: kapasitas kurang)
+		if strings.Contains(err.Error(), "kapasitas") || strings.Contains(err.Error(), "ruangan") {
+			http.Error(w, "Gagal distribusi: "+err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		http.Error(w, "Gagal melakukan distribusi cerdas: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Distribusi peserta ke ruangan/kursi berhasil dilakukan"})
+}
+
+// =================================================================================
+// OTHER HANDLERS (Tetap sama)
+// =================================================================================
 
 type AssignKelasInput struct {
 	PengajarKelasIDs []string `json:"pengajar_kelas_ids"`
@@ -213,8 +431,6 @@ func (h *Handler) ImportPesertaFromExcel(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
-
-// --- OTHER HANDLERS ---
 
 func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
