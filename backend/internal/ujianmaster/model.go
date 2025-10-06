@@ -16,7 +16,6 @@ type UjianMaster struct {
 }
 
 // PenugasanUjian represents a class and subject assigned to an exam.
-// PERBAIKAN: Menambahkan field KelasID.
 type PenugasanUjian struct {
 	PengajarKelasID string `json:"pengajar_kelas_id"`
 	KelasID         string `json:"kelas_id"`
@@ -50,16 +49,14 @@ type PesertaUjian struct {
 	ID             uuid.UUID `db:"id"`
 	UjianMasterID  uuid.UUID `db:"ujian_master_id"`
 	AnggotaKelasID uuid.UUID `db:"anggota_kelas_id"`
-	// BARU: Field Denormalisasi
-	KelasID    uuid.UUID `db:"kelas_id"`
-	Urutan     int       `db:"urutan"`
-	NomorUjian *string   `db:"nomor_ujian"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	KelasID        uuid.UUID `db:"kelas_id"`
+	Urutan         int       `db:"urutan"`
+	NomorUjian     *string   `db:"nomor_ujian"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
 }
 
 // PesertaUjianDetail represents detailed information of a participant.
-// PERBAIKAN: Mengubah tipe NISN dan NomorUjian menjadi pointer string (*string).
 type PesertaUjianDetail struct {
 	ID         string  `json:"id"`
 	NamaSiswa  string  `json:"nama_siswa"`
@@ -72,7 +69,7 @@ type PesertaUjianDetail struct {
 // GroupedPesertaUjian groups participants by class name.
 type GroupedPesertaUjian map[string][]PesertaUjianDetail
 
-// --- BARU: Model untuk Generate Nomor Ujian ---
+// --- STRUCTS FOR GENERATE NOMOR UJIAN - HANYA DI MODEL.GO ---
 type GenerateNomorUjianInput struct {
 	Prefix string `json:"prefix"`
 }

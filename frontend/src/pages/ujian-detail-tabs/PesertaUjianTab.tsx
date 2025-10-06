@@ -74,6 +74,29 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
   const [kodeUjianPrefix, setKodeUjianPrefix] = useState<string>('');
   const queryClient = useQueryClient();
 
+  // SMART PADDING: Calculate digits based on total peserta
+  const { totalPeserta, paddingDigits, previewFormat } = useMemo(() => {
+    if (!data) return { totalPeserta: 0, paddingDigits: 3, previewFormat: '001' };
+    
+    const total = Object.values(data).reduce((sum, pesertaList) => sum + pesertaList.length, 0);
+    let digits: number;
+    
+    if (total < 1000) {
+      digits = 3;  // 001
+    } else if (total < 10000) {
+      digits = 4;  // 0001
+    } else if (total < 100000) {
+      digits = 5;  // 00001
+    } else if (total < 1000000) {
+      digits = 6;  // 000001
+    } else {
+      digits = 7;  // 0000001
+    }
+
+    const format = '0'.repeat(digits) + '1';
+    return { totalPeserta: total, paddingDigits: digits, previewFormat: format };
+  }, [data]);
+
   const columns: TableProps<PesertaUjian>['columns'] = [
     {
       title: '#',
@@ -154,6 +177,8 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       console.log('🎯 GENERATE NOMOR UJIAN: Starting generation');
       console.log('   ujianMasterId:', ujianMasterId);
       console.log('   prefix:', prefix);
+      console.log('   totalPeserta:', totalPeserta);
+      console.log('   paddingDigits:', paddingDigits);
       return generateNomorUjian(ujianMasterId, { prefix });
     },
     onSuccess: (response) => {
@@ -161,7 +186,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       message.success(response.message || `Berhasil generate ${response.generatedCount || response.generated_count || 0} nomor ujian!`);
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
       console.log('🔄 Query invalidated, UI should refresh');
-      // Reset input after success
       setKodeUjianPrefix('');
     },
     onError: (err: AxiosErrorType) => {
@@ -174,7 +198,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     addPesertaMutation.mutate(values.kelas_id);
   };
 
-  // Function to handle delete confirmation
   const handleDeleteConfirmed = async (kelasID: string) => {
     console.log('🚀 DELETE CONFIRMED: Starting API call...');
     
@@ -187,15 +210,10 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     }
   };
 
-  // NEW: Handle generate nomor ujian - IMPROVED
   const handleGenerateNomorUjian = () => {
     const prefix = kodeUjianPrefix.trim();
-    
-    // Jika tidak ada prefix, gunakan default "EXAM"
-    const finalPrefix = prefix || 'EXAM';
-
-    console.log('🎯 Generate button clicked with prefix:', finalPrefix);
-    generateNomorUjianMutation.mutate(finalPrefix.toUpperCase());
+    console.log('🎯 Generate button clicked with prefix:', prefix || '(empty - numbers only)');
+    generateNomorUjianMutation.mutate(prefix);
   };
 
   const availableKelasForDropdown = useMemo(() => {
@@ -235,12 +253,6 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     console.log('[DEBUG] Final classNameToIdMap:', Array.from(map.entries()));
     return map;
   }, [penugasan]);
-
-  // Calculate total peserta for generate button state
-  const totalPeserta = useMemo(() => {
-    if (!data) return 0;
-    return Object.values(data).reduce((total, pesertaList) => total + pesertaList.length, 0);
-  }, [data]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -349,17 +361,18 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         gap: 16, 
         flexWrap: 'wrap' 
       }}>
-        {/* IMPROVED: Generate Nomor Ujian Section - Minimalis & Blue */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Generate Nomor Ujian Section - MINIMALIST BLUE */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Input
-            placeholder="Kode ujian (opsional)"
+            placeholder="Kode (opsional)"
             value={kodeUjianPrefix}
             onChange={(e) => setKodeUjianPrefix(e.target.value.toUpperCase())}
             style={{ 
-              width: 160,
-              borderRadius: '6px'
+              width: 120,
+              borderRadius: '4px',
+              fontSize: '14px'
             }}
-            maxLength={8}
+            maxLength={6}
             disabled={generateNomorUjianMutation.isPending || totalPeserta === 0}
           />
           <Button
@@ -370,30 +383,29 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
             loading={generateNomorUjianMutation.isPending}
             disabled={totalPeserta === 0}
             style={{
-              borderRadius: '6px',
-              fontWeight: 500,
+              borderRadius: '4px',
             }}
           >
-            {generateNomorUjianMutation.isPending ? 'Generating...' : 'Generate'}
+            Generate
           </Button>
           {totalPeserta > 0 && (
-            <Text type="secondary" style={{ fontSize: '12px', marginLeft: 4 }}>
+            <Text type="secondary" style={{ fontSize: '11px' }}>
               {kodeUjianPrefix ? (
-                <>Preview: {kodeUjianPrefix}001, {kodeUjianPrefix}002...</>
+                `${kodeUjianPrefix}${previewFormat}...`
               ) : (
-                <>Default: EXAM001, EXAM002... ({totalPeserta} peserta)</>
-              )}
+                `${previewFormat}...`
+              )} ({totalPeserta.toLocaleString()})
             </Text>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setIsModalOpen(true)}
             disabled={availableKelasForDropdown.length === 0}
-            style={{ borderRadius: '6px' }}
+            style={{ borderRadius: '4px' }}
           >
             Tambah Peserta
           </Button>

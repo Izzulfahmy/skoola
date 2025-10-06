@@ -194,7 +194,6 @@ func main() {
 	r.Route("/", func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
 
-		// ... (semua route lain tetap sama) ...
 		r.Route("/naungan", func(r chi.Router) {
 			r.With(auth.AuthorizeSuperadmin).Get("/", naunganHandler.GetAll)
 			r.With(auth.AuthorizeSuperadmin).Get("/{naunganID}", naunganHandler.GetByID)
@@ -380,21 +379,22 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
 
+		// =================================================================================
+		// UJIAN MASTER ROUTING (UPDATED)
+		// =================================================================================
 		r.Route("/ujian-master", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Get("/tahun-ajaran/{taID}", ujianMasterHandler.GetAllByTA)
 			r.With(auth.Authorize("admin")).Get("/{id}", ujianMasterHandler.GetByID)
-			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", ujianMasterHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", ujianMasterHandler.Delete)
 			r.With(auth.Authorize("admin")).Post("/{id}/assign-kelas", ujianMasterHandler.AssignKelas)
 			r.With(auth.Authorize("admin")).Get("/{id}/peserta", ujianMasterHandler.GetPesertaUjian)
-			// RUTE BARU: Menambahkan peserta dari kelas (POST)
 			r.With(auth.Authorize("admin")).Post("/{id}/peserta", ujianMasterHandler.AddPesertaFromKelas)
-			// RUTE BARU: Menghapus peserta dari kelas (DELETE)
 			r.With(auth.Authorize("admin")).Delete("/{id}/peserta/kelas/{kelasID}", ujianMasterHandler.DeletePesertaFromKelas)
-			// TAMBAHAN: Generate Nomor Ujian (POST)
-			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian)
+			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian) // TAMBAHAN
 		})
+		// =================================================================================
 
 		r.Route("/presensi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)

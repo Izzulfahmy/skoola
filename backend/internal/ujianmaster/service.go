@@ -48,16 +48,12 @@ func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaNa
 		return 0, errors.New("ID paket ujian tidak valid")
 	}
 
-	// UPDATED: Allow empty prefix and use default "EXAM"
-	if prefix == "" {
-		prefix = "EXAM"
-	}
-
+	// ✅ ALLOW EMPTY PREFIX - no validation needed
 	if len(prefix) > 10 {
 		return 0, errors.New("prefix terlalu panjang, maksimal 10 karakter")
 	}
 
-	// Memanggil fungsi repository untuk melakukan generasi dan update
+	// Call repository to generate
 	count, err := s.repo.GenerateNomorUjianForUjianMaster(ctx, schemaName, umID, prefix)
 	if err != nil {
 		return 0, fmt.Errorf("gagal generate nomor ujian: %w", err)

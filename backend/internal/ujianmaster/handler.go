@@ -29,6 +29,7 @@ type AddPesertaFromKelasInput struct {
 func (h *Handler) AddPesertaFromKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	ujianMasterID := chi.URLParam(r, "id")
+
 	var input AddPesertaFromKelasInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
@@ -69,11 +70,12 @@ func (h *Handler) GetPesertaUjian(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(groupedPeserta)
 }
 
-// --- BARU: Handler untuk menghapus peserta per kelas ---
+// --- Handler untuk menghapus peserta per kelas ---
 func (h *Handler) DeletePesertaFromKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	ujianMasterID := chi.URLParam(r, "id")
 	kelasID := chi.URLParam(r, "kelasID")
+
 	if kelasID == "" {
 		http.Error(w, "Parameter kelasID tidak ditemukan di URL", http.StatusBadRequest)
 		return
@@ -93,10 +95,60 @@ func (h *Handler) DeletePesertaFromKelas(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// --- GENERATE NOMOR UJIAN HANDLER - FIXED VERSION ---
+func (h *Handler) GenerateNomorUjian(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterID := chi.URLParam(r, "id")
+
+	var input GenerateNomorUjianInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	// ✅ ALLOW EMPTY PREFIX - hanya validasi panjang maksimal
+	if len(input.Prefix) > 10 {
+		http.Error(w, "Prefix maksimal 10 karakter", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("🚀 HANDLER: Generate nomor ujian dengan prefix: '%s'\n", input.Prefix)
+
+	// Call service
+	count, err := h.service.GenerateNomorUjianForUjianMaster(r.Context(), schemaName, ujianMasterID, input.Prefix)
+	if err != nil {
+		fmt.Printf("❌ HANDLER ERROR: %v\n", err)
+		http.Error(w, "Gagal generate nomor ujian: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Response dengan info apakah menggunakan prefix atau tidak
+	message := ""
+	if input.Prefix == "" {
+		message = fmt.Sprintf("Berhasil generate %d nomor ujian (hanya angka)", count)
+	} else {
+		message = fmt.Sprintf("Berhasil generate %d nomor ujian dengan prefix '%s'", count, input.Prefix)
+	}
+
+	response := GenerateNomorUjianResponse{
+		Message:        message,
+		GeneratedCount: count,
+		Prefix:         input.Prefix,
+	}
+
+	fmt.Printf("✅ HANDLER SUCCESS: Generated %d nomor ujian\n", count)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
 // -----------------
+
 func (h *Handler) AssignKelas(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
 	ujianMasterID := chi.URLParam(r, "id")
+
 	var input AssignKelasInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
@@ -201,42 +253,4 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// GenerateNomorUjian generates sequential exam numbers for all participants
-func (h *Handler) GenerateNomorUjian(w http.ResponseWriter, r *http.Request) {
-	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	ujianMasterID := chi.URLParam(r, "id")
-	var input GenerateNomorUjianInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
-		return
-	}
-
-	// Validasi input
-	if input.Prefix == "" {
-		http.Error(w, "Prefix tidak boleh kosong", http.StatusBadRequest)
-		return
-	}
-
-	if len(input.Prefix) < 2 || len(input.Prefix) > 10 {
-		http.Error(w, "Prefix harus 2-10 karakter", http.StatusBadRequest)
-		return
-	}
-
-	count, err := h.service.GenerateNomorUjianForUjianMaster(r.Context(), schemaName, ujianMasterID, input.Prefix)
-	if err != nil {
-		http.Error(w, "Gagal generate nomor ujian: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	response := GenerateNomorUjianResponse{
-		Message:        fmt.Sprintf("Berhasil generate %d nomor ujian", count),
-		GeneratedCount: count,
-		Prefix:         input.Prefix,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
 }
