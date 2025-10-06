@@ -5,6 +5,15 @@ import type {
   UpsertUjianMasterInput,
   UjianDetail,
   GroupedPesertaUjian,
+
+  // --- TIPE BARU DARI index.ts ---
+  RuanganUjian,
+  UpsertRuanganInput,
+  AlokasiRuanganUjian,
+  AssignRuanganPayload,
+  UpdatePesertaSeatingPayload,
+  PesertaUjianDetail,
+  // --- END TIPE BARU ---
 } from '../types';
 
 interface AssignKelasPayload {
@@ -111,6 +120,92 @@ export const importPesertaFromExcel = (ujianMasterId: string, file: File) => {
       'Content-Type': 'multipart/form-data', // Must be set for correct file upload
     },
   });
+};
+
+// ==============================================================================
+// RUANGAN MASTER CRUD API (New)
+// ==============================================================================
+
+// GET /ujian-master/ruangan
+export const getAllRuanganMaster = async (): Promise<RuanganUjian[]> => {
+  const response = await apiClient.get('/ujian-master/ruangan');
+  return response.data;
+};
+
+// POST /ujian-master/ruangan
+export const createRuanganMaster = async (data: UpsertRuanganInput): Promise<RuanganUjian> => {
+  const response = await apiClient.post('/ujian-master/ruangan', data);
+  return response.data;
+};
+
+// PUT /ujian-master/ruangan/{ruanganID}
+export const updateRuanganMaster = async (
+  ruanganID: string,
+  data: UpsertRuanganInput
+): Promise<RuanganUjian> => {
+  const response = await apiClient.put(`/ujian-master/ruangan/${ruanganID}`, data);
+  return response.data;
+};
+
+// DELETE /ujian-master/ruangan/{ruanganID}
+export const deleteRuanganMaster = async (ruanganID: string): Promise<void> => {
+  await apiClient.delete(`/ujian-master/ruangan/${ruanganID}`);
+};
+
+// ==============================================================================
+// RUANGAN ALLOCATION & SEATING API (New)
+// ==============================================================================
+
+// POST /ujian-master/{id}/alokasi-ruangan
+export const assignRuanganToUjian = async (
+  ujianMasterId: string,
+  data: AssignRuanganPayload
+): Promise<AlokasiRuanganUjian[]> => {
+  const response = await apiClient.post(`/ujian-master/${ujianMasterId}/alokasi-ruangan`, data);
+  return response.data;
+};
+
+// GET /ujian-master/{id}/alokasi-ruangan
+export const getAlokasiRuanganByMasterId = async (
+  ujianMasterId: string
+): Promise<AlokasiRuanganUjian[]> => {
+  const response = await apiClient.get(`/ujian-master/${ujianMasterId}/alokasi-ruangan`);
+  return response.data;
+};
+
+// DELETE /ujian-master/{id}/alokasi-ruangan/{alokasiRuanganID}
+export const removeAlokasiRuangan = async (alokasiRuanganID: string): Promise<void> => {
+  // Catatan: endpoint DELETE ini hanya butuh alokasiRuanganID, ID ujianMaster diabaikan di handler Go, 
+  // kita menggunakan dummy-id di URL agar sesuai dengan pola routing di main.go.
+  await apiClient.delete(`/ujian-master/dummy-id/alokasi-ruangan/${alokasiRuanganID}`);
+};
+
+// GET /ujian-master/{id}/alokasi-kursi
+interface GetAlokasiKursiResponse {
+  peserta: PesertaUjianDetail[];
+  ruangan: AlokasiRuanganUjian[];
+}
+export const getAlokasiKursi = async (
+  ujianMasterId: string
+): Promise<GetAlokasiKursiResponse> => {
+  const response = await apiClient.get(`/ujian-master/${ujianMasterId}/alokasi-kursi`);
+  return response.data;
+};
+
+// POST /ujian-master/{id}/alokasi-kursi/manual
+export const updatePesertaSeating = async (
+  ujianMasterId: string,
+  data: UpdatePesertaSeatingPayload
+): Promise<any> => {
+  // ID ujianMaster digunakan untuk routing, tapi logicnya hanya butuh data.
+  const response = await apiClient.post(`/ujian-master/${ujianMasterId}/alokasi-kursi/manual`, data);
+  return response.data;
+};
+
+// POST /ujian-master/{id}/alokasi-kursi/smart
+export const distributeSmart = async (ujianMasterId: string): Promise<any> => {
+  const response = await apiClient.post(`/ujian-master/${ujianMasterId}/alokasi-kursi/smart`);
+  return response.data;
 };
 
 // --- FUNGSI UTAMA LAINNYA ---

@@ -66,7 +66,7 @@ export interface UpsertPrestasiInput {
 
 // --- TIPE BARU UNTUK PENILAIAN SUMATIF ---
 export interface PenilaianSumatif {
-  id: string;
+  id: string; // Menggunakan string karena UUID
   tujuan_pembelajaran_id?: number;
   ujian_id?: number;
   jenis_ujian_id: number;
@@ -347,8 +347,6 @@ export interface Kelas {
   jumlah_pengajar: number;
   nama_tahun_ajaran?: string;
   semester?: string;
-
-  // HAPUS STRUKTUR NESTED: tingkatan?: { ... } karena sudah diganti field flat di atas.
 }
 
 export interface AnggotaKelas {
@@ -746,11 +744,12 @@ export interface UjianMaster {
   id: string;
   tahun_ajaran_id: string;
   nama_paket_ujian: string;
+  jumlah_peserta: number; // BARU: Menambahkan field ini
   created_at: string;
   updated_at: string;
 }
 
-// UpsertUjianMasterInput diperbarui sesuai instruksi
+// UpsertUjianMasterInput tetap sama
 export interface UpsertUjianMasterInput {
   tahun_ajaran_id: string;
   nama_paket_ujian: string;
@@ -791,14 +790,79 @@ export interface CreateBulkUjianInput {
   pengajar_kelas_ids: string[];
 }
 
-// --- TIPE BARU UNTUK PESERTA UJIAN ---
+
+// Tipe PesertaUjian yang digunakan di PesertaUjianTab.tsx
 export interface PesertaUjian {
   id: string;
   nama_siswa: string;
-  nisn: string;
+  // FIX: Mengizinkan nisn dan nomor_ujian sebagai string atau null
+  nisn: string | null; 
   urutan: number;
   nomor_ujian: string | null;
 }
 
-export type GroupedPesertaUjian = Record<string, PesertaUjian[]>;
-// --- AKHIR PERUBAHAN ---
+export type GroupedPesertaUjian = Record<string, PesertaUjianDetail[]>;
+
+
+// --- TIPE DATA RUANGAN UJIAN (BARU) ---
+
+// Ruangan Master (Ruangan Fisik Sekolah)
+export interface RuanganUjian {
+  id: string;
+  nama_ruangan: string;
+  kapasitas: number;
+  layout_metadata: string; // JSON string for seat layout configuration
+  created_at: string;
+  updated_at: string;
+}
+
+// Input untuk membuat/mengubah Ruangan Master
+export interface UpsertRuanganInput {
+  nama_ruangan: string;
+  kapasitas: number;
+  layout_metadata: string;
+}
+
+// Alokasi Ruangan (Menghubungkan Ruangan Master ke Paket Ujian)
+export interface AlokasiRuanganUjian {
+  id: string;
+  ujian_master_id: string;
+  ruangan_id: string;
+  kode_ruangan: string; // Example: R01, R02
+  jumlah_kursi_terpakai: number;
+  
+  // Data dari Join Ruangan Master:
+  nama_ruangan: string;
+  kapasitas_ruangan: number;
+  layout_metadata: string;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+// Payload untuk Assign Ruangan dari Master ke Ujian
+export interface AssignRuanganPayload {
+  ruangan_ids: string[];
+}
+
+// Payload untuk update seating manual (drag/drop)
+export interface UpdatePesertaSeatingPayload {
+  peserta_id: string;
+  alokasi_ruangan_id: string;
+  nomor_kursi: string;
+}
+
+// PesertaUjianDetail (Tipe dengan info ruangan/kursi, digunakan di RuanganTab)
+export interface PesertaUjianDetail {
+  id: string;
+  nama_siswa: string;
+  nisn: string | null;
+  urutan: number;
+  nomor_ujian: string | null;
+  nama_kelas: string;
+  
+  // Field Ruangan Baru
+  alokasi_ruangan_id: string | null;
+  kode_ruangan: string | null;
+  nomor_kursi: string | null;
+}

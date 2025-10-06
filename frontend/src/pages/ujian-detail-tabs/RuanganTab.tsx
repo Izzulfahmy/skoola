@@ -1,15 +1,49 @@
 // file: frontend/src/pages/ujian-detail-tabs/RuanganTab.tsx
 
-import React, { useState, useMemo } from 'react';
-import { 
-  Typography, Card, Button, Divider, Row, Col, Empty, message, Spin, Space, Tag, Modal, 
-  Form, Input, InputNumber, Popconfirm, Descriptions, List, Transfer 
-} from 'antd'; 
-import { PlusOutlined, DeleteOutlined, EditOutlined, UserOutlined, ApartmentOutlined, SettingOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { UjianDetail } from '../../types';
-import type { TransferDirection } from 'antd/es/transfer'; 
-import type { Key } from 'react'; 
+import React, { useState } from 'react';
+import {
+  Typography,
+  Card,
+  Button,
+  Divider,
+  Row,
+  Col,
+  Empty,
+  message,
+  Spin,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Popconfirm,
+  List,
+  Descriptions,
+  Transfer,
+} from 'antd';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  UserOutlined,
+  ApartmentOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UjianDetail, RuanganUjian, AlokasiRuanganUjian, UpsertRuanganInput } from '../../types';
+import {
+  getAllRuanganMaster,
+  createRuanganMaster,
+  updateRuanganMaster,
+  deleteRuanganMaster,
+  getAlokasiRuanganByMasterId,
+  assignRuanganToUjian,
+  removeAlokasiRuangan,
+  distributeSmart,
+} from '../../api/ujianMaster';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -18,184 +52,215 @@ interface RuanganTabProps {
   ujianDetail: UjianDetail | undefined;
 }
 
-// --- TIPE DATA ---
-interface RuanganUjian {
-  id: string;
-  nama_ruangan: string;
-  kapasitas: number;
-  layout_metadata: string;
-  is_used: boolean;
-}
+// ==============================================================================
+// KOMPONEN UTAMA RuanganTab
+// ==============================================================================
 
-interface AlokasiRuangan {
-  id: string;
-  kode_ruangan: string;
-  nama_ruangan: string;
-  kapasitas_ruangan: number;
-  jumlah_kursi_terpakai: number;
-  layout_metadata: string;
-}
-
-interface RuanganTransferItem extends RuanganUjian {
-    key: string;
-    description: string;
-    disabled: boolean;
-}
-
-// --- API STUBS (Ganti dengan API service nyata Anda) ---
-const mockFetchRuanganMaster = async (): Promise<RuanganUjian[]> => {
-  return [
-    { id: 'ruang1', nama_ruangan: 'Ruang Kelas 7A', kapasitas: 30, layout_metadata: '{"rows": 6, "cols": 5}', is_used: false },
-    { id: 'ruang2', nama_ruangan: 'Lab Komputer', kapasitas: 20, layout_metadata: '{"rows": 5, "cols": 4}', is_used: false },
-    { id: 'ruang3', nama_ruangan: 'Auditorium Kecil', kapasitas: 50, layout_metadata: '{"rows": 10, "cols": 5}', is_used: true },
-  ];
-};
-
-const mockFetchAlokasi = async (id: string): Promise<AlokasiRuangan[]> => {
-    // Simulasi data alokasi yang sudah ada untuk ujian ini
-    if (id === 'some-valid-id') {
-        return [
-            { id: 'alok1', kode_ruangan: 'R1', nama_ruangan: 'Ruang Kelas 7A', kapasitas_ruangan: 30, jumlah_kursi_terpakai: 25, layout_metadata: '{"rows": 6, "cols": 5}' },
-            { id: 'alok2', kode_ruangan: 'R2', nama_ruangan: 'Lab Komputer', kapasitas_ruangan: 20, jumlah_kursi_terpakai: 0, layout_metadata: '{"rows": 5, "cols": 4}' },
-        ];
-    }
-    return []; 
-}
-
-// --- KOMPONEN UTAMA ---
 const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) => {
   const queryClient = useQueryClient();
   const [ruanganForm] = Form.useForm();
   
   const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [editingRuangan, setEditingRuangan] = useState<RuanganUjian | null>(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   
-  const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false); 
-  const [targetKeys, setTargetKeys] = useState<string[]>([]); 
-
-  // --- QUERY ---
-  // 1. Deklarasi ruanganMaster
+  // --- Query Data ---
+  
+  // 1. Ambil Master Ruangan (Data Ruangan Fisik Sekolah)
   const { data: ruanganMaster, isLoading: isRuanganMasterLoading } = useQuery<RuanganUjian[]>({
     queryKey: ['ruanganMaster'],
-    queryFn: mockFetchRuanganMaster,
+    queryFn: getAllRuanganMaster,
   });
   
-  const { data: alokasiRuangan, isLoading: isAlokasiLoading } = useQuery<AlokasiRuangan[]>({
+  // 2. Ambil Alokasi Ruangan (Ruangan yang ditugaskan ke Paket Ujian ini)
+  const { 
+    data: alokasiRuangan, // Jangan gunakan = [] di sini, biarkan query handle null, lalu gunakan fallback saat map/reduce
+    isLoading: isAlokasiLoading 
+  } = useQuery<AlokasiRuanganUjian[]>({
     queryKey: ['alokasiRuangan', ujianMasterId],
-    queryFn: () => mockFetchAlokasi(ujianMasterId),
+    queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId),
     enabled: !!ujianMasterId,
   });
 
-  // --- DERIVED STATE (useMemo) ---
-  // 2. Gunakan ruanganMaster setelah deklarasinya (FIXED ORDER)
-  const masterRuanganTransferData = useMemo<RuanganTransferItem[]>(() => {
-    return ruanganMaster?.map(r => ({
-        key: r.id,
-        ...r,
-        description: `${r.nama_ruangan} (${r.kapasitas} kursi)`,
-        // Menonaktifkan ruangan yang sudah digunakan di ujian lain (Simulasi)
-        disabled: r.is_used, 
-    })) || [];
-  }, [ruanganMaster]);
+  // --- Mutasi CRUD Master Ruangan (tetap sama) ---
+  
+  const createMutation = useMutation({
+    mutationFn: createRuanganMaster,
+    onSuccess: () => {
+      message.success('Ruangan baru berhasil dibuat.');
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
+      setIsMasterModalOpen(false);
+    },
+    onError: (error: any) => {
+      message.error(`Gagal membuat ruangan: ${error.response?.data || error.message}`);
+    },
+  });
+  
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; input: UpsertRuanganInput }) =>
+      updateRuanganMaster(data.id, data.input),
+    onSuccess: () => {
+      message.success('Ruangan berhasil diperbarui.');
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
+      setIsMasterModalOpen(false);
+    },
+    onError: (error: any) => {
+      message.error(`Gagal memperbarui ruangan: ${error.response?.data || error.message}`);
+    },
+  });
 
-  // --- HANDLERS RUANGAN MASTER CRUD ---
+  const deleteMasterMutation = useMutation({
+    mutationFn: deleteRuanganMaster,
+    onSuccess: () => {
+      message.success('Ruangan master berhasil dihapus.');
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
+    },
+    onError: (error: any) => {
+      message.error(`Gagal menghapus ruangan: ${error.response?.data || error.message}`);
+    },
+  });
+
+  // --- Mutasi Alokasi Ruangan (tetap sama) ---
+
+  const assignMutation = useMutation({
+    mutationFn: (data: { ujianMasterId: string; ruangan_ids: string[] }) =>
+      assignRuanganToUjian(data.ujianMasterId, { ruangan_ids: data.ruangan_ids }),
+    onSuccess: () => {
+      message.success('Ruangan berhasil dialokasikan.');
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); // Update status is_used
+      setIsAssignModalOpen(false);
+    },
+    onError: (error: any) => {
+      message.error(`Gagal mengalokasikan ruangan: ${error.response?.data || error.message}`);
+    },
+  });
+
+  const removeAlokasiMutation = useMutation({
+    mutationFn: removeAlokasiRuangan,
+    onSuccess: () => {
+      message.success('Alokasi ruangan berhasil dihapus.');
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); // Update status is_used
+    },
+    onError: (error: any) => {
+      message.error(`Gagal menghapus alokasi: ${error.response?.data || error.message}`);
+    },
+  });
+  
+  const smartDistributeMutation = useMutation({
+    mutationFn: distributeSmart,
+    onMutate: () => {
+        message.loading({ content: 'Menjalankan Algoritma Distribusi Cerdas...', key: 'smartDistro', duration: 0 });
+    },
+    onSuccess: () => {
+      message.success({ content: 'Distribusi berhasil! Kursi telah dialokasikan.', key: 'smartDistro' });
+      // Refetch data kursi dan alokasi
+      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
+    },
+    onError: (error: any) => {
+      message.error({ content: `Gagal distribusi: ${error.response?.data || error.message}`, key: 'smartDistro' });
+    },
+  });
+
+  // --- Handlers (tetap sama) ---
+  
   const showMasterModal = (ruangan: RuanganUjian | null = null) => {
     setEditingRuangan(ruangan);
     if (ruangan) {
-        let layoutString = ruangan.layout_metadata;
-        try {
-            layoutString = JSON.stringify(JSON.parse(ruangan.layout_metadata), null, 2);
-        } catch (e) {}
-        ruanganForm.setFieldsValue({ ...ruangan, layout_metadata: layoutString });
+      ruanganForm.setFieldsValue({ ...ruangan, layout_metadata: ruangan.layout_metadata });
     } else {
-        ruanganForm.setFieldsValue({ nama_ruangan: '', kapasitas: 30, layout_metadata: '{"rows": 6, "cols": 5}' });
+      ruanganForm.setFieldsValue({ nama_ruangan: '', kapasitas: 30, layout_metadata: JSON.stringify({ rows: 6, cols: 5 }, null, 2) });
     }
     setIsMasterModalOpen(true);
   };
   
-  const handleSaveRuangan = () => {
-      message.success('Simulasi: Ruangan master berhasil disimpan/diperbarui.');
-      setIsMasterModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-  };
+  const handleSaveRuangan = (values: any) => {
+    const input: UpsertRuanganInput = {
+      nama_ruangan: values.nama_ruangan,
+      kapasitas: values.kapasitas,
+      layout_metadata: values.layout_metadata,
+    };
 
-  // --- HANDLERS ALOKASI RUANGAN ---
-
-  // Dipanggil saat tombol "Alokasikan Ruangan" diklik
-  const handleOpenAllocationModal = () => {
-    // Menemukan ID master ruangan yang sudah dialokasikan untuk ujian ini (berdasarkan nama ruangan)
-    const allocatedMasterIDs = alokasiRuangan?.map(a => masterRuanganTransferData.find(r => r.nama_ruangan === a.nama_ruangan)?.key).filter((id): id is string => !!id) || [];
-    setTargetKeys(allocatedMasterIDs);
-    setIsAllocationModalOpen(true);
-  }
-
-  // Dipanggil saat Transfer diubah
-  const handleTransferChange = (nextTargetKeys: Key[], _direction: TransferDirection, _moveKeys: Key[]) => {
-    // Suppressed warnings for direction and moveKeys with underscore prefix
-    setTargetKeys(nextTargetKeys.filter((key): key is string => typeof key === 'string')); 
-  };
-  
-  // Dipanggil saat modal alokasi OK
-  const handleAssignRuangan = () => {
-    if (targetKeys.length === 0) {
-        message.warning('Pilih setidaknya satu ruangan untuk dialokasikan.');
+    // Simple JSON check (optional, tapi baik)
+    try {
+        JSON.parse(input.layout_metadata);
+    } catch (e) {
+        message.error('Format Layout Metadata harus JSON yang valid.');
         return;
     }
-    
-    // Logic nyata: Panggil mutation API AssignRuangan (menggunakan targetKeys sebagai RuanganIDs)
-    message.loading({ content: 'Mengalokasikan ruangan...', key: 'assignRoom' });
-    
-    // Simulasi mutasi
-    setTimeout(() => {
-        message.success({ content: `Berhasil mengalokasikan ${targetKeys.length} ruangan.`, key: 'assignRoom', duration: 2 });
-        queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
-        setIsAllocationModalOpen(false);
-    }, 1500);
+
+    if (editingRuangan) {
+      updateMutation.mutate({ id: editingRuangan.id, input });
+    } else {
+      createMutation.mutate(input);
+    }
+  };
+  
+  const handleDeleteMaster = (ruanganID: string) => {
+    deleteMasterMutation.mutate(ruanganID);
+  };
+
+  const handleAssignRuangan = (targetKeys: string[]) => {
+    if (targetKeys.length === 0) {
+        message.warning('Pilih minimal satu ruangan untuk dialokasikan.');
+        return;
+    }
+    assignMutation.mutate({ ujianMasterId, ruangan_ids: targetKeys });
   };
   
   const handleRemoveAlokasi = (alokasiID: string) => {
-    // Logic nyata: Panggil mutation API RemoveAlokasiRuangan(alokasiID)
-    message.loading({ content: 'Menghapus alokasi...', key: 'removeRoom' });
-    // Simulasi mutasi
-    setTimeout(() => {
-        message.success({ content: 'Alokasi ruangan berhasil dihapus.', key: 'removeRoom', duration: 1.5 });
-        queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
-    }, 1000);
-    // alokasiID is now intentionally unused in the handler scope (Suppressing warning)
+    removeAlokasiMutation.mutate(alokasiID);
   };
   
-  // --- HANDLERS DISTRIBUSI & SEATING ---
   const handleSmartDistribution = () => {
-      // Logic nyata: Panggil API DistributePesertaSmart(ujianMasterId)
-      message.loading({ content: 'Menjalankan Algoritma Distribusi Cerdas...', key: 'smartDistro', duration: 0 });
-      setTimeout(() => {
-          message.success({ content: 'Distribusi berhasil! Kursi telah dialokasikan.', key: 'smartDistro', duration: 2 });
-          queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
-          queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
-      }, 2000);
+      if (!alokasiRuangan || alokasiRuangan.length === 0) {
+          message.error('Silakan alokasikan ruangan terlebih dahulu.');
+          return;
+      }
+      smartDistributeMutation.mutate(ujianMasterId);
   };
+  
+  // --- Data untuk Transfer (Alokasi) - Menggunakan fallback array untuk keamanan ---
+  const alokasiList = alokasiRuangan || []; // Fallback untuk alokasiRuangan
+  const ruanganMasterList = ruanganMaster || []; // Fallback untuk ruanganMaster
+
+  const targetIDs = alokasiList.map(ar => ar.ruangan_id);
+  
+  const sourceData = ruanganMasterList.map(r => ({
+      key: r.id,
+      title: r.nama_ruangan,
+      description: `Kapasitas: ${r.kapasitas} kursi`,
+      isAllocated: targetIDs.includes(r.id), // Penanda yang sudah dialokasikan
+      ruangan: r,
+  }));
   
   if (!ujianDetail) return <Spin />;
 
-  // Estimate total participants
-  const totalPesertaEstimate = (ujianDetail.penugasan?.length || 0) * 10;
-  const totalKapasitasAllocated = alokasiRuangan?.reduce((sum, a) => sum + a.kapasitas_ruangan, 0) || 0;
-  const isKapasitasSufficient = totalKapasitasAllocated >= totalPesertaEstimate;
-
+  const totalPeserta = ujianDetail.detail.jumlah_peserta;
+  // FIX UTAMA: Menerapkan fallback || [] pada variabel sebelum memanggil .reduce()
+  const totalKapasitasAlokasi = alokasiList.reduce((sum, ar) => sum + ar.kapasitas_ruangan, 0);
 
   return (
     <div style={{ paddingTop: '24px' }}>
       <Title level={5}>Ruangan Ujian</Title>
       <Paragraph type="secondary">
-        Atur alokasi ruangan dan penempatan kursi untuk peserta ujian ini.
-        Total peserta: <Text strong>{totalPesertaEstimate}</Text>. Total Kapasitas dialokasikan: <Text strong type={isKapasitasSufficient ? 'success' : 'danger'}>{totalKapasitasAllocated}</Text>.
+        Kelola master ruangan fisik dan alokasikan ruangan untuk ujian **{ujianDetail.detail.nama_paket_ujian}**.
+        Terdapat total **{totalPeserta}** peserta yang terdaftar.
       </Paragraph>
       
       {/* --- Aksi Utama --- */}
       <Card size="small" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
         <Row justify="space-between" align="middle" gutter={[8, 8]}>
           <Col>
-            <Button icon={<SettingOutlined />} onClick={() => showMasterModal(null)}>
+            <Button 
+                icon={<SettingOutlined />} 
+                onClick={() => showMasterModal(null)}
+                loading={isRuanganMasterLoading}
+            >
                 Kelola Master Ruangan
             </Button>
           </Col>
@@ -204,8 +269,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                 <Button 
                     type="primary" 
                     icon={<PlusOutlined />} 
-                    onClick={handleOpenAllocationModal}
-                    disabled={isRuanganMasterLoading || (masterRuanganTransferData.length === 0)}
+                    onClick={() => setIsAssignModalOpen(true)}
+                    disabled={isRuanganMasterLoading || (ruanganMasterList.length === 0)}
                 >
                     Alokasikan Ruangan
                 </Button>
@@ -213,7 +278,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                     icon={<ThunderboltOutlined />} 
                     onClick={handleSmartDistribution} 
                     type="default"
-                    disabled={alokasiRuangan?.length === 0}
+                    loading={smartDistributeMutation.isPending}
+                    disabled={alokasiList.length === 0 || smartDistributeMutation.isPending}
                 >
                     Distribusi Cerdas
                 </Button>
@@ -222,35 +288,76 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         </Row>
       </Card>
       
+      <Divider orientation="left">Daftar Alokasi Ruangan Ujian ({alokasiList.length} Ruangan)</Divider>
+      
+      {/* --- Visualisasi Alokasi & Kapasitas --- */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12}>
+            <Card title="Total Kapasitas" size="small" bordered={false}>
+                <Text strong style={{ fontSize: 24, color: totalKapasitasAlokasi < totalPeserta ? 'red' : 'green' }}>
+                    {totalKapasitasAlokasi} Kursi
+                </Text>
+                <Paragraph type="secondary">
+                    Status: {totalKapasitasAlokasi < totalPeserta ? <Tag color="red">Kapasitas Kurang</Tag> : <Tag color="green">Kapasitas Cukup</Tag>}
+                </Paragraph>
+            </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+            <Card title="Sisa Kursi" size="small" bordered={false}>
+                 <Text strong style={{ fontSize: 24, color: (totalKapasitasAlokasi - totalPeserta) < 0 ? 'red' : 'blue' }}>
+                    {totalKapasitasAlokasi - totalPeserta}
+                </Text>
+                <Paragraph type="secondary">
+                    {Math.max(0, totalPeserta)} Peserta Membutuhkan Kursi.
+                </Paragraph>
+            </Card>
+        </Col>
+      </Row>
+
+      {/* --- Daftar Alokasi Ruangan --- */}
       <Spin spinning={isAlokasiLoading}>
-        {alokasiRuangan && alokasiRuangan.length > 0 ? (
+        {alokasiList.length > 0 ? (
             <Row gutter={[16, 16]}>
-                {alokasiRuangan.map(alokasi => (
+                {alokasiList.map(alokasi => (
                     <Col xs={24} md={12} key={alokasi.id}>
                         <Card 
                             title={<Space><ApartmentOutlined /> {alokasi.kode_ruangan} - {alokasi.nama_ruangan}</Space>}
                             extra={
-                                <Popconfirm title="Hapus alokasi ini? Penempatan kursi akan direset." onConfirm={() => handleRemoveAlokasi(alokasi.id)}>
-                                    <Button type="text" danger icon={<DeleteOutlined />} size="small" />
+                                <Popconfirm 
+                                    title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
+                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)}
+                                    okText="Ya, Hapus"
+                                    cancelText="Batal"
+                                >
+                                    <Button 
+                                        type="text" 
+                                        danger 
+                                        icon={<DeleteOutlined />} 
+                                        size="small" 
+                                        loading={removeAlokasiMutation.isPending && removeAlokasiMutation.variables === alokasi.id}
+                                    />
                                 </Popconfirm>
                             }
                         >
                             <Descriptions column={1} size="small" style={{ marginBottom: 12 }}>
-                                <Descriptions.Item label="Kode">
-                                    <Text code>{alokasi.kode_ruangan}</Text>
-                                </Descriptions.Item>
                                 <Descriptions.Item label="Kapasitas">
                                     <Tag color="blue">{alokasi.kapasitas_ruangan} Kursi</Tag>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Terisi">
                                     <Tag color={alokasi.jumlah_kursi_terpakai > 0 ? 'green' : 'red'}>{alokasi.jumlah_kursi_terpakai} Peserta</Tag>
                                 </Descriptions.Item>
+                                <Descriptions.Item label="Kode Ruangan">
+                                    <Text copyable>{alokasi.kode_ruangan}</Text>
+                                </Descriptions.Item>
                             </Descriptions>
                             
                             {/* --- Placeholder untuk Visual Layout (Fase 1) --- */}
                             <div style={{ padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4, textAlign: 'center' }}>
-                                <Text type="secondary">Visual Seat Layout akan muncul di sini</Text>
+                                <Text strong type="secondary">VISUAL SEAT LAYOUT</Text>
                                 <Paragraph style={{ margin: '8px 0', fontSize: 12 }}>Metadata: <code>{alokasi.layout_metadata}</code></Paragraph>
+                                <Button type="link" icon={<EditOutlined />} disabled>
+                                    Atur Penempatan Kursi (Fase 1)
+                                </Button>
                             </div>
                         </Card>
                     </Col>
@@ -261,86 +368,129 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         )}
       </Spin>
       
-      {/* Modal Kelola Master Ruangan */}
+      {/* ==============================================================================
+      MODAL KELOLA MASTER RUANGAN
+      ============================================================================== */}
       <Modal
-        title={editingRuangan ? 'Edit Ruangan Fisik' : 'Kelola Master Ruangan'}
+        title={editingRuangan ? `Edit Ruangan Fisik: ${editingRuangan.nama_ruangan}` : 'Buat Ruangan Fisik Baru'}
         open={isMasterModalOpen}
         onCancel={() => setIsMasterModalOpen(false)}
         footer={null}
-        width={600}
         destroyOnClose
+        width={700}
       >
-        <Form form={ruanganForm} layout="vertical" onFinish={handleSaveRuangan}>
-            <Form.Item name="nama_ruangan" label="Nama Ruangan" rules={[{ required: true }]}>
-                <Input />
-            </Form.Item>
-            <Form.Item name="kapasitas" label="Kapasitas (Kursi)" rules={[{ required: true, type: 'number', min: 1 }]}>
-                <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="layout_metadata" label="Layout Metadata (JSON)" rules={[{ 
-                required: true, 
-                message: 'Wajib diisi, minimal {"rows": 1, "cols": 1}',
-            }]}>
-                <Input.TextArea rows={4} placeholder="Contoh: {'rows': 6, 'cols': 5}" />
-            </Form.Item>
-            <div style={{ border: '1px dashed #ccc', padding: 8, marginBottom: 24 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>Data ini adalah master ruangan. Anda harus mengalokasikannya ke paket ujian di halaman sebelumnya.</Text>
-            </div>
-            <Form.Item style={{ textAlign: 'right' }}>
-                <Button onClick={() => setIsMasterModalOpen(false)} style={{ marginRight: 8 }}>Batal</Button>
-                <Button type="primary" htmlType="submit">Simpan</Button>
-            </Form.Item>
-        </Form>
-        <Divider>Daftar Master Ruangan</Divider>
+        <Spin spinning={createMutation.isPending || updateMutation.isPending}>
+            <Form form={ruanganForm} layout="vertical" onFinish={handleSaveRuangan}>
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item name="nama_ruangan" label="Nama Ruangan" rules={[{ required: true }]}>
+                            <Input placeholder="Contoh: Ruang 7A, Lab Komputer 1" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="kapasitas" label="Kapasitas (Kursi)" rules={[{ required: true, type: 'number', min: 1 }]}>
+                            <InputNumber min={1} max={500} style={{ width: '100%' }} />
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item 
+                    name="layout_metadata" 
+                    label="Layout Metadata (JSON)" 
+                    rules={[{ required: true, message: 'Wajib diisi, minimal {"rows": 1, "cols": 1}' }]}
+                    tooltip="Digunakan untuk Visual Seat Layout (Fase 1). Contoh: {'rows': 6, 'cols': 5}"
+                >
+                    <Input.TextArea rows={4} placeholder="Contoh: {'rows': 6, 'cols': 5}" />
+                </Form.Item>
+                
+                <Form.Item style={{ textAlign: 'right', marginTop: 24 }}>
+                    <Button onClick={() => setIsMasterModalOpen(false)} style={{ marginRight: 8 }}>Batal</Button>
+                    <Button type="primary" htmlType="submit">
+                        <SaveOutlined /> {editingRuangan ? 'Perbarui Ruangan' : 'Buat Ruangan'}
+                    </Button>
+                </Form.Item>
+            </Form>
+        </Spin>
+        
+        <Divider>Daftar Master Ruangan Sekolah</Divider>
         <Spin spinning={isRuanganMasterLoading}>
-             {ruanganMaster && ruanganMaster.length > 0 ? (
+             {ruanganMasterList.length > 0 ? (
                  <List
-                    dataSource={masterRuanganTransferData}
-                    renderItem={item => (
-                        <List.Item
-                            actions={[
-                                <Button key="edit" type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item)} />,
-                                <Popconfirm key="delete" title="Hapus Master Ruangan? Ini akan merusak alokasi." onConfirm={() => message.warning('Simulasi: Menghapus Ruangan Master')}>
-                                    <Button type='text' danger icon={<DeleteOutlined />} disabled={item.is_used}/>
-                                </Popconfirm>
-                            ]}
-                        >
-                            <List.Item.Meta
-                                title={<Text strong>{item.nama_ruangan}</Text>}
-                                description={<Space size="middle"><Tag icon={<UserOutlined />}>{item.kapasitas} Kursi</Tag><Tag color={item.is_used ? 'volcano' : 'blue'}>{item.is_used ? 'Digunakan Ujian Lain' : 'Tersedia'}</Tag></Space>}
-                            />
-                        </List.Item>
-                    )}
+                    dataSource={ruanganMasterList}
+                    renderItem={item => {
+                        const isAllocated = alokasiList.some(ar => ar.ruangan_id === item.id);
+                        return (
+                            <List.Item
+                                actions={[
+                                    <Button type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item)} key="edit" />,
+                                    <Popconfirm 
+                                        title={isAllocated ? 'Ruangan sedang digunakan! Hapus akan membatalkan semua alokasi yang terkait.' : 'Hapus Master Ruangan?'}
+                                        onConfirm={() => handleDeleteMaster(item.id)}
+                                        okText="Ya, Hapus"
+                                        cancelText="Batal"
+                                        disabled={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.id}
+                                        key="delete"
+                                    >
+                                        <Button type='text' danger icon={<DeleteOutlined />} 
+                                            loading={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.id}
+                                        />
+                                    </Popconfirm>
+                                ]}
+                            >
+                                <List.Item.Meta
+                                    title={<Text strong>{item.nama_ruangan}</Text>}
+                                    description={<Space size="middle">
+                                        <Tag icon={<UserOutlined />}>{item.kapasitas} Kursi</Tag>
+                                        <Tag color={isAllocated ? 'warning' : 'green'}>
+                                            {isAllocated ? 'Dialokasikan' : 'Tersedia'}
+                                        </Tag>
+                                    </Space>}
+                                />
+                            </List.Item>
+                        );
+                    }}
                  />
              ) : <Empty description="Belum ada master ruangan ujian." />}
         </Spin>
       </Modal>
-
-      {/* Modal Alokasi Ruangan */}
+      
+      {/* ==============================================================================
+      MODAL ALOKASI RUANGAN
+      ============================================================================== */}
       <Modal
-        title="Alokasikan Ruangan ke Paket Ujian"
-        open={isAllocationModalOpen}
-        onCancel={() => setIsAllocationModalOpen(false)}
-        onOk={handleAssignRuangan}
-        okText={`Alokasikan (${targetKeys.length})`}
-        width={800}
+        title="Alokasikan Ruangan ke Paket Ujian Ini"
+        open={isAssignModalOpen}
+        onCancel={() => setIsAssignModalOpen(false)}
+        okText="Alokasikan"
+        onOk={() => {
+            const newlyAllocatedKeys = ruanganMasterList.map(r => r.id).filter(id => targetIDs.includes(id));
+            handleAssignRuangan(newlyAllocatedKeys);
+        }}
+        confirmLoading={assignMutation.isPending}
+        width={700}
+        destroyOnClose
       >
-        <Paragraph type="secondary">Pilih ruangan yang akan dialokasikan untuk paket ujian **{ujianDetail.detail.nama_paket_ujian}**.</Paragraph>
+        <Paragraph>
+            Pilih ruangan fisik dari daftar kiri untuk dialokasikan ke ujian **{ujianDetail.detail.nama_paket_ujian}**.
+            Ruangan yang sudah dialokasikan akan ditandai.
+        </Paragraph>
+        <Divider />
+        <Spin spinning={isRuanganMasterLoading || assignMutation.isPending}>
         <Transfer
-            dataSource={masterRuanganTransferData}
+            dataSource={sourceData}
+            targetKeys={targetIDs} // Kunci Ruangan yang sudah dialokasikan (Target)
+            onChange={(_nextTargetKeys) => { 
+                // Menggunakan _nextTargetKeys untuk menghindari warning unused variable.
+            }}
+            render={item => item.title}
             titles={['Ruangan Master', 'Ruangan Dialokasikan']}
-            targetKeys={targetKeys}
-            onChange={handleTransferChange}
-            render={item => item.nama_ruangan}
             listStyle={{
-                width: 350,
+                width: 300,
                 height: 300,
             }}
-            disabled={isRuanganMasterLoading}
         />
-        <Divider />
-        <Text type="secondary" style={{ fontSize: 12 }}>Catatan: Ruangan akan diberi kode unik (R1, R2, dst) secara otomatis pada saat alokasi.</Text>
+        </Spin>
       </Modal>
+
     </div>
   );
 };
