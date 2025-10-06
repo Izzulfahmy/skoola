@@ -20,7 +20,7 @@ type Service interface {
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error)
 	GetPesertaUjianByUjianID(ctx context.Context, schemaName string, ujianID string) (GroupedPesertaUjian, error)
 	AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error)
-	// --- BARU: Mendefinisikan fungsi hapus peserta per kelas ---
+	// Mendefinisikan fungsi hapus peserta per kelas
 	RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error)
 }
 
@@ -51,8 +51,14 @@ func (s *service) RemovePesertaByKelas(ctx context.Context, schemaName string, u
 		return 0, errors.New("ID kelas tidak boleh kosong")
 	}
 
-	// Memanggil fungsi Repository untuk eksekusi DELETE di database
-	rowsAffected, err := s.repo.DeletePesertaByMasterAndKelas(ctx, schemaName, umID, kelasID)
+	// FIX: Parsing kelasID menjadi UUID sebelum memanggil repository
+	kelasUUID, err := uuid.Parse(kelasID)
+	if err != nil {
+		return 0, errors.New("ID kelas tidak valid")
+	}
+
+	// Memanggil fungsi Repository, menggunakan kelasUUID
+	rowsAffected, err := s.repo.DeletePesertaByMasterAndKelas(ctx, schemaName, umID, kelasUUID)
 	if err != nil {
 		return 0, fmt.Errorf("gagal menghapus peserta ujian: %w", err)
 	}

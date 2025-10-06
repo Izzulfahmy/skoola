@@ -23,8 +23,9 @@ type Repository interface {
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, pengajarKelasIDs []string) (int, error)
 	CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error
 	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
-	// --- BARU: Mendefinisikan fungsi hapus peserta per kelas ---
-	DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID string) (int64, error)
+
+	// kelasID menggunakan uuid.UUID
+	DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error)
 }
 
 type repository struct {
@@ -389,11 +390,12 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 // Implementasi DeletePesertaByMasterAndKelas
 //
 // Fungsi ini bertanggung jawab menghapus semua entri `peserta_ujian` yang terhubung ke `ujian_master` tertentu dan termasuk dalam `kelas` tertentu.
-func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID string) (int64, error) {
+func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return 0, err
 	}
 
+	// Kueri yang direfaktor kembali ke pola DELETE ... WHERE id IN (SELECT ...) untuk stabilitas.
 	query := `
         DELETE FROM peserta_ujian
         WHERE id IN (
@@ -403,14 +405,20 @@ func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaNa
             WHERE pu.ujian_master_id = $1 AND ak.kelas_id = $2
         )
     `
+
 	result, err := r.db.ExecContext(ctx, query, masterID, kelasID)
 	if err != nil {
-		return 0, fmt.Errorf("gagal menghapus peserta ujian berdasarkan kelas: %w", err)
+		return 0, fmt.Errorf("gagal menghapus peserta ujian: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return 0, fmt.Errorf("gagal mendapatkan jumlah baris yang terpengaruh: %w", err)
+	}
+
+	// Logika tambahan untuk memastikan ada baris yang terhapus
+	if rowsAffected == 0 {
+		return 0, errors.New("tidak ada peserta ujian yang ditemukan untuk kelas ini, pastikan ID sudah benar")
 	}
 
 	return rowsAffected, nil

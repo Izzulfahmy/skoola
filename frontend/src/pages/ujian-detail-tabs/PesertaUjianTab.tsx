@@ -17,16 +17,14 @@ import {
   Card,
   Flex,
 } from 'antd';
-// Mengimpor ikon yang dibutuhkan
 import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
-// Mengimpor fungsi API yang dibutuhkan
 import { addPesertaFromKelas, deletePesertaFromKelas } from '../../api/ujianMaster'; 
 import type { CSSProperties } from 'react'; // PENTING: Mengimpor tipe untuk style
 
-// --- Tipe untuk error dari Axios (FIX Code 2339) ---
+// --- Tipe untuk error dari Axios ---
 interface AxiosErrorResponse {
   data?: {
     message: string;
@@ -36,12 +34,12 @@ interface AxiosErrorResponse {
 interface AxiosErrorType extends Error {
   response?: AxiosErrorResponse;
 }
-// --------------------------------------------------
+// ------------------------------------
 
 const { Text } = Typography;
 const { confirm } = Modal;
 
-const denseCellStyle: CSSProperties = { // Tipe CSSProperties untuk style
+const denseCellStyle: CSSProperties = {
   padding: '6px 8px',
 };
 const denseHeaderStyle: CSSProperties = {
@@ -49,11 +47,10 @@ const denseHeaderStyle: CSSProperties = {
   backgroundColor: '#fafafa',
 };
 
-// Style tambahan untuk kolom nama agar bisa wrap
-const nameCellStyle: CSSProperties = { // FIX Code 2322: Tipe eksplisit dan properti yang aman
+const nameCellStyle: CSSProperties = {
   ...denseCellStyle,
   whiteSpace: 'normal',
-  overflowWrap: 'break-word', // Mengganti 'wordBreak' yang bermasalah di TS
+  overflowWrap: 'break-word', 
 };
 
 interface PesertaUjianTabProps {
@@ -123,7 +120,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: (err: AxiosErrorType) => { // FIX Code 2339
+    onError: (err: AxiosErrorType) => { 
       message.error(err.response?.data?.message || 'Gagal menambahkan peserta.');
     },
   });
@@ -134,18 +131,15 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       message.success(response.message || `Berhasil menghapus ${response.deletedCount || 0} peserta.`);
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
     },
-    onError: (err: AxiosErrorType) => { // FIX Code 2339
+    onError: (err: AxiosErrorType) => { 
       message.error(err.response?.data?.message || 'Gagal menghapus peserta ujian.');
     },
   });
 
-  // FIX Code 7006: Tambahkan tipe untuk 'values'
   const handleFinish = (values: { kelas_id: string }) => {
     addPesertaMutation.mutate(values.kelas_id);
   };
 
-  // --- Konfirmasi dan handler hapus ---
-  // FIX Code 7006: Tambahkan tipe untuk 'kelasID' dan 'namaKelas'
   const handleRemovePeserta = (kelasID: string, namaKelas: string) => {
     confirm({
       title: `Hapus semua peserta dari kelas ${namaKelas}?`,
@@ -157,11 +151,9 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
       onOk() {
         deletePesertaMutation.mutate(kelasID);
       },
-      // PENTING: Menambahkan okButtonProps untuk loading state
       okButtonProps: { loading: deletePesertaMutation.isPending }, 
     });
   };
-  // ------------------------------------
 
   const availableKelasForDropdown = useMemo(() => {
     const kelasSudahJadiPeserta = data ? Object.keys(data) : [];
@@ -177,7 +169,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     );
   }, [penugasan, data]);
 
-  // --- Membuat map nama kelas ke ID kelas (PENTING) ---
+  // --- Membuat map nama kelas ke ID kelas ---
   const classNameToIdMap = useMemo(() => {
     const map = new Map<string, string>();
     const seenKelas = new Set<string>();
@@ -233,16 +225,15 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
                           danger
                           size="small"
                           onClick={(e) => {
-                            e.stopPropagation(); // Mencegah event lain yang mungkin ada di Card
+                            e.stopPropagation(); 
                             
                             // *** LOGIKA KRITIS: Pengecekan kelasID ***
                             if (kelasID) {
                                 handleRemovePeserta(kelasID, namaKelas);
                             } else {
-                                // Tampilkan pesan error jika ID tidak ditemukan, 
-                                // ini adalah indikator bahwa data 'penugasan' tidak sinkron
+                                // Tampilkan pesan error jika ID tidak ditemukan di UI (lebih terlihat daripada konsol)
+                                message.error(`Gagal menghapus: ID Kelas untuk ${namaKelas} tidak ditemukan. Cek konsol browser untuk detail data penugasan.`);
                                 console.error(`[DELETE ERROR] ID Kelas untuk ${namaKelas} tidak ditemukan. Periksa data penugasan.`, {namaKelas, penugasan});
-                                message.error(`Gagal menghapus: ID Kelas untuk ${namaKelas} tidak ditemukan.`);
                             }
                           }}
                           // Nonaktifkan jika ID tidak ada atau sedang loading
