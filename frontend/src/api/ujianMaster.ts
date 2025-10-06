@@ -11,7 +11,7 @@ interface AssignKelasPayload {
   pengajar_kelas_ids: string[];
 }
 
-// --- FUNGSI BARU ---
+// --- FUNGSI PESERTA ---
 interface AddPesertaFromKelasPayload {
   kelas_id: string;
 }
@@ -26,10 +26,6 @@ export const addPesertaFromKelas = async (
   return response.data;
 };
 
-/**
- * Menghapus semua peserta ujian yang terkait dengan Ujian Master ID dan Kelas ID tertentu.
- * DELETE /ujian-master/:ujianMasterId/peserta/kelas/:kelasId
- */
 export const deletePesertaFromKelas = async (
   ujianMasterId: string,
   kelasId: string
@@ -46,7 +42,7 @@ export const deletePesertaFromKelas = async (
     console.log('✅ deletePesertaFromKelas SUCCESS response:', response);
     console.log('✅ deletePesertaFromKelas SUCCESS data:', response.data);
     return response.data;
-  } catch (error: any) { // Fix TypeScript error
+  } catch (error: any) {
     console.error('❌ deletePesertaFromKelas ERROR:', error);
     console.error('❌ Error response:', error.response);
     console.error('❌ Error status:', error.response?.status);
@@ -54,7 +50,37 @@ export const deletePesertaFromKelas = async (
     throw error;
   }
 };
-// --------------------
+
+// --- FUNGSI BARU: GENERATE NOMOR UJIAN ---
+interface GenerateNomorUjianPayload {
+  prefix: string;
+}
+
+export const generateNomorUjian = async (
+  ujianMasterId: string,
+  data: GenerateNomorUjianPayload
+): Promise<any> => {
+  const url = `/ujian-master/${ujianMasterId}/generate-nomor-ujian`;
+  console.log('⚡ API CALL: generateNomorUjian');
+  console.log('   URL:', url);
+  console.log('   Method: POST');
+  console.log('   ujianMasterId:', ujianMasterId);
+  console.log('   data:', data);
+  
+  try {
+    const response = await apiClient.post(url, data);
+    console.log('✅ generateNomorUjian SUCCESS response:', response);
+    console.log('✅ generateNomorUjian SUCCESS data:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ generateNomorUjian ERROR:', error);
+    console.error('❌ Error response:', error.response);
+    console.error('❌ Error status:', error.response?.status);
+    console.error('❌ Error data:', error.response?.data);
+    throw error;
+  }
+};
+// --- AKHIR FUNGSI BARU ---
 
 // GET /ujian-master/tahun-ajaran/:tahun_ajaran_id
 export const getAllUjianMaster = async (tahunAjaranId: string): Promise<UjianMaster[]> => {

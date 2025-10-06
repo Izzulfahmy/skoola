@@ -16,12 +16,13 @@ import {
   Card,
   Flex,
   Popconfirm,
+  Input,
 } from 'antd';
-import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, UsergroupAddOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TableProps } from 'antd';
 import type { GroupedPesertaUjian, PesertaUjian, PenugasanUjian } from '../../types';
-import { addPesertaFromKelas, deletePesertaFromKelas } from '../../api/ujianMaster'; 
+import { addPesertaFromKelas, deletePesertaFromKelas, generateNomorUjian } from '../../api/ujianMaster'; 
 import type { CSSProperties } from 'react';
 import DebugPesertaUjian from './DebugPesertaUjian';
 
@@ -30,6 +31,7 @@ interface AxiosErrorResponse {
   data?: {
     message: string;
     deletedCount?: number;
+    generatedCount?: number;
   };
   status?: number;
 }
@@ -69,6 +71,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const [kodeUjianPrefix, setKodeUjianPrefix] = useState<string>('');
   const queryClient = useQueryClient();
 
   const columns: TableProps<PesertaUjian>['columns'] = [
@@ -145,28 +148,54 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     },
   });
 
+  // NEW: Generate nomor ujian mutation
+  const generateNomorUjianMutation = useMutation({
+    mutationFn: (prefix: string) => {
+      console.log('🎯 GENERATE NOMOR UJIAN: Starting generation');
+      console.log('   ujianMasterId:', ujianMasterId);
+      console.log('   prefix:', prefix);
+      return generateNomorUjian(ujianMasterId, { prefix });
+    },
+    onSuccess: (response) => {
+      console.log('✅ GENERATE SUCCESS: Response received:', response);
+      message.success(response.message || `Berhasil generate ${response.generatedCount || response.generated_count || 0} nomor ujian!`);
+      queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
+      console.log('🔄 Query invalidated, UI should refresh');
+      // Reset input after success
+      setKodeUjianPrefix('');
+    },
+    onError: (err: AxiosErrorType) => {
+      console.error('❌ GENERATE ERROR: Full error object:', err);
+      message.error(err.response?.data?.message || 'Gagal generate nomor ujian.');
+    },
+  });
+
   const handleFinish = (values: { kelas_id: string }) => {
     addPesertaMutation.mutate(values.kelas_id);
   };
 
   // Function to handle delete confirmation
-  const handleDeleteConfirmed = async (kelasID: string, namaKelas: string) => {
+  const handleDeleteConfirmed = async (kelasID: string) => {
     console.log('🚀 DELETE CONFIRMED: Starting API call...');
     
     try {
       const hide = message.loading('Menghapus peserta...', 0);
-      const response = await deletePesertaFromKelas(ujianMasterId, kelasID);
+      await deletePesertaMutation.mutateAsync(kelasID);
       hide();
-      
-      console.log('✅ DELETE SUCCESS:', response);
-      message.success(response.message || `Berhasil menghapus peserta dari kelas ${namaKelas}`);
-      await queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
-      console.log('🔄 Data refreshed');
-      
     } catch (error: any) {
-      console.error('❌ DELETE ERROR:', error);
       message.error(`Gagal menghapus peserta: ${error.response?.data?.message || error.message}`);
     }
+  };
+
+  // NEW: Handle generate nomor ujian - IMPROVED
+  const handleGenerateNomorUjian = () => {
+    const prefix = kodeUjianPrefix.trim();
+    
+    // Jika tidak ada prefix, gunakan default "EXAM"
+    const finalPrefix = prefix || 'EXAM';
+
+    console.log('🎯 Generate button clicked with prefix:', finalPrefix);
+    generateNomorUjianMutation.mutate(finalPrefix.toUpperCase());
   };
 
   const availableKelasForDropdown = useMemo(() => {
@@ -207,6 +236,12 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
     return map;
   }, [penugasan]);
 
+  // Calculate total peserta for generate button state
+  const totalPeserta = useMemo(() => {
+    if (!data) return 0;
+    return Object.values(data).reduce((total, pesertaList) => total + pesertaList.length, 0);
+  }, [data]);
+
   const renderContent = () => {
     if (isLoading) {
       return <div style={{ textAlign: 'center', padding: '48px 0' }}><Spin /></div>;
@@ -244,7 +279,7 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
                         title="Hapus peserta?"
                         onConfirm={() => {
                           console.log('✅ POPCONFIRM CONFIRMED: User confirmed deletion');
-                          handleDeleteConfirmed(kelasID, namaKelas);
+                          handleDeleteConfirmed(kelasID);
                         }}
                         onCancel={() => {
                           console.log('❌ POPCONFIRM CANCELED: User canceled deletion');
@@ -306,15 +341,63 @@ const PesertaUjianTab: React.FC<PesertaUjianTabProps> = ({
         ujianMasterId={ujianMasterId}
       />
       
-      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setIsModalOpen(true)}
-          disabled={availableKelasForDropdown.length === 0}
-        >
-          Tambah Peserta
-        </Button>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingBottom: 16, 
+        gap: 16, 
+        flexWrap: 'wrap' 
+      }}>
+        {/* IMPROVED: Generate Nomor Ujian Section - Minimalis & Blue */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Input
+            placeholder="Kode ujian (opsional)"
+            value={kodeUjianPrefix}
+            onChange={(e) => setKodeUjianPrefix(e.target.value.toUpperCase())}
+            style={{ 
+              width: 160,
+              borderRadius: '6px'
+            }}
+            maxLength={8}
+            disabled={generateNomorUjianMutation.isPending || totalPeserta === 0}
+          />
+          <Button
+            icon={<ThunderboltOutlined />}
+            type="primary"
+            size="middle"
+            onClick={handleGenerateNomorUjian}
+            loading={generateNomorUjianMutation.isPending}
+            disabled={totalPeserta === 0}
+            style={{
+              borderRadius: '6px',
+              fontWeight: 500,
+            }}
+          >
+            {generateNomorUjianMutation.isPending ? 'Generating...' : 'Generate'}
+          </Button>
+          {totalPeserta > 0 && (
+            <Text type="secondary" style={{ fontSize: '12px', marginLeft: 4 }}>
+              {kodeUjianPrefix ? (
+                <>Preview: {kodeUjianPrefix}001, {kodeUjianPrefix}002...</>
+              ) : (
+                <>Default: EXAM001, EXAM002... ({totalPeserta} peserta)</>
+              )}
+            </Text>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsModalOpen(true)}
+            disabled={availableKelasForDropdown.length === 0}
+            style={{ borderRadius: '6px' }}
+          >
+            Tambah Peserta
+          </Button>
+        </div>
       </div>
       
       {renderContent()}

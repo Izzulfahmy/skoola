@@ -392,6 +392,8 @@ func main() {
 			r.With(auth.Authorize("admin")).Post("/{id}/peserta", ujianMasterHandler.AddPesertaFromKelas)
 			// RUTE BARU: Menghapus peserta dari kelas (DELETE)
 			r.With(auth.Authorize("admin")).Delete("/{id}/peserta/kelas/{kelasID}", ujianMasterHandler.DeletePesertaFromKelas)
+			// TAMBAHAN: Generate Nomor Ujian (POST)
+			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian)
 		})
 
 		r.Route("/presensi", func(r chi.Router) {

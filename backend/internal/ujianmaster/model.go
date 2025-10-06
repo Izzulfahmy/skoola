@@ -71,3 +71,14 @@ type PesertaUjianDetail struct {
 
 // GroupedPesertaUjian groups participants by class name.
 type GroupedPesertaUjian map[string][]PesertaUjianDetail
+
+// --- BARU: Model untuk Generate Nomor Ujian ---
+type GenerateNomorUjianInput struct {
+	Prefix string `json:"prefix"`
+}
+
+type GenerateNomorUjianResponse struct {
+	Message        string `json:"message"`
+	GeneratedCount int    `json:"generatedCount"`
+	Prefix         string `json:"prefix"`
+}

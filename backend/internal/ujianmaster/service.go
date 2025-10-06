@@ -22,6 +22,8 @@ type Service interface {
 	AddPesertaFromKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int, error)
 	// Mendefinisikan fungsi hapus peserta per kelas
 	RemovePesertaByKelas(ctx context.Context, schemaName string, ujianMasterID string, kelasID string) (int64, error)
+	// GenerateNomorUjianForUjianMaster generates sequential exam numbers for all participants
+	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID string, prefix string) (int, error)
 }
 
 type service struct {
@@ -35,6 +37,33 @@ func NewService(repo Repository, rombelService rombel.Service) Service {
 		repo:          repo,
 		rombelService: rombelService,
 	}
+}
+
+// --- Implementasi Fungsi GenerateNomorUjianForUjianMaster ---
+
+// GenerateNomorUjianForUjianMaster generates sequential exam numbers for all participants
+func (s *service) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID string, prefix string) (int, error) {
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		return 0, errors.New("ID paket ujian tidak valid")
+	}
+
+	// UPDATED: Allow empty prefix and use default "EXAM"
+	if prefix == "" {
+		prefix = "EXAM"
+	}
+
+	if len(prefix) > 10 {
+		return 0, errors.New("prefix terlalu panjang, maksimal 10 karakter")
+	}
+
+	// Memanggil fungsi repository untuk melakukan generasi dan update
+	count, err := s.repo.GenerateNomorUjianForUjianMaster(ctx, schemaName, umID, prefix)
+	if err != nil {
+		return 0, fmt.Errorf("gagal generate nomor ujian: %w", err)
+	}
+
+	return count, nil
 }
 
 // --- Implementasi Fungsi RemovePesertaByKelas ---
