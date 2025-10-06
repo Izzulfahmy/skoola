@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9GAI5aMh6fcTDQ0046py2aFREivQaIDmSPHF5mBdfdfeiqDNxTktsLGZZ70t4Ln
+\restrict tWrtQa5QGz8QkIy3a9BEMPO84bh9bBRENHAJvwOXatoBtnjJnlnFL0OUV70GSkO
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -1243,6 +1243,7 @@ ALTER TABLE ONLY "20554021".ujian ALTER COLUMN id SET DEFAULT nextval('"20554021
 COPY "20554021".anggota_kelas (id, kelas_id, student_id, created_at, urutan) FROM stdin;
 f525cebd-cac6-4d87-8808-d4f08dfa23a1	405e4c03-9d03-46a1-83dd-fdbad44bc0ab	9b52011c-043f-46af-9439-6cf70b114b92	2025-10-05 12:30:52.75212+07	1
 77772dac-1996-4758-a98d-dcf6aa5320c2	405e4c03-9d03-46a1-83dd-fdbad44bc0ab	ec4fe40a-b404-47e0-9d23-2ca3f38d65fd	2025-10-05 12:30:52.75212+07	2
+0058b6fd-877a-44d8-bce3-31db92303f5e	a3352048-eb7d-4623-afb2-de43689258ac	9fe6e878-11bb-4e60-927a-175794bf1bf6	2025-10-05 13:25:14.820758+07	1
 \.
 
 
@@ -1323,6 +1324,7 @@ COPY "20554021".jenjang_pendidikan (id, nama_jenjang, created_at, updated_at) FR
 
 COPY "20554021".kelas (id, nama_kelas, tahun_ajaran_id, tingkatan_id, wali_kelas_id, created_at, updated_at) FROM stdin;
 405e4c03-9d03-46a1-83dd-fdbad44bc0ab	Kelas 1A	b65f5a78-9011-4f1f-bd1f-8a984763da93	1	a3921e45-fd07-4d2e-af0f-116beee2aee7	2025-10-05 12:30:47.275786+07	2025-10-05 12:30:47.275786+07
+a3352048-eb7d-4623-afb2-de43689258ac	Kelas 2A	b65f5a78-9011-4f1f-bd1f-8a984763da93	2	a3921e45-fd07-4d2e-af0f-116beee2aee7	2025-10-05 13:24:42.106578+07	2025-10-05 13:24:47.840704+07
 \.
 
 
@@ -1383,6 +1385,7 @@ COPY "20554021".pemetaan_kurikulum (tahun_ajaran_id, kurikulum_id, tingkatan_id,
 
 COPY "20554021".pengajar_kelas (id, kelas_id, teacher_id, mata_pelajaran_id, created_at) FROM stdin;
 bfedfadb-52de-453a-ae6a-0109b1c7b8a8	405e4c03-9d03-46a1-83dd-fdbad44bc0ab	a3921e45-fd07-4d2e-af0f-116beee2aee7	f215aefe-2dd6-42a3-8b44-1af1151ae46f	2025-10-05 12:30:58.693398+07
+5458bd55-ba01-4175-805f-a9419ce2f014	a3352048-eb7d-4623-afb2-de43689258ac	a3921e45-fd07-4d2e-af0f-116beee2aee7	f215aefe-2dd6-42a3-8b44-1af1151ae46f	2025-10-05 13:25:21.218293+07
 \.
 
 
@@ -1407,10 +1410,8 @@ COPY "20554021".penilaian_sumatif (id, tujuan_pembelajaran_id, jenis_ujian_id, n
 --
 
 COPY "20554021".peserta_ujian (id, ujian_master_id, anggota_kelas_id, urutan, nomor_ujian, created_at, updated_at) FROM stdin;
-a26b2ba7-25e0-49ca-a521-acabf16cc066	31eb1ecf-c3a8-4b94-a5fc-10ed72822c08	f525cebd-cac6-4d87-8808-d4f08dfa23a1	1	\N	2025-10-05 12:31:13.651274+07	2025-10-05 12:31:13.651274+07
-bcead8dc-f6ac-4bfc-92b3-c4bbc3e5549a	31eb1ecf-c3a8-4b94-a5fc-10ed72822c08	77772dac-1996-4758-a98d-dcf6aa5320c2	2	\N	2025-10-05 12:31:13.651274+07	2025-10-05 12:31:13.651274+07
-d8d9948d-021a-4d25-a552-d739107f2bdf	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff	f525cebd-cac6-4d87-8808-d4f08dfa23a1	1	\N	2025-10-05 12:32:36.387795+07	2025-10-05 12:32:36.387795+07
-7e5b9f6d-1680-4510-bc24-e604befa2baf	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff	77772dac-1996-4758-a98d-dcf6aa5320c2	2	\N	2025-10-05 12:32:36.387795+07	2025-10-05 12:32:36.387795+07
+7ae3d966-a58d-4da1-8be4-2723da59c266	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff	f525cebd-cac6-4d87-8808-d4f08dfa23a1	1	\N	2025-10-06 14:11:40.410013+07	2025-10-06 14:11:40.410013+07
+2c38fd17-7b5e-4e13-b7be-cf9b7bd26a15	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff	77772dac-1996-4758-a98d-dcf6aa5320c2	2	\N	2025-10-06 14:11:40.410013+07	2025-10-06 14:11:40.410013+07
 \.
 
 
@@ -1446,6 +1447,7 @@ COPY "20554021".profil_sekolah (id, npsn, nama_sekolah, naungan, alamat, kelurah
 COPY "20554021".riwayat_akademik (id, student_id, status, tanggal_kejadian, kelas_tingkat, keterangan, created_at, updated_at) FROM stdin;
 e1eb46f2-3737-4544-a348-56a2a84c9741	ec4fe40a-b404-47e0-9d23-2ca3f38d65fd	Aktif	2025-10-05	\N	Siswa baru	2025-10-05 12:30:33.632126+07	2025-10-05 12:30:33.632126+07
 6f1f2f3c-be49-4c37-a2fe-6ad5ae538b3a	9b52011c-043f-46af-9439-6cf70b114b92	Aktif	2025-10-05	\N	Siswa baru	2025-10-05 12:30:37.474692+07	2025-10-05 12:30:37.474692+07
+84862e53-364d-4fb6-9801-25cef5ff649c	9fe6e878-11bb-4e60-927a-175794bf1bf6	Aktif	2025-10-05	\N	Siswa baru	2025-10-05 13:25:06.128505+07	2025-10-05 13:25:06.128505+07
 \.
 
 
@@ -1465,7 +1467,8 @@ COPY "20554021".riwayat_kepegawaian (id, teacher_id, status, tanggal_mulai, tang
 
 COPY "20554021".students (id, created_at, updated_at, nis, nisn, nama_lengkap, nama_panggilan, jenis_kelamin, tempat_lahir, tanggal_lahir, agama, kewarganegaraan, alamat_lengkap, desa_kelurahan, kecamatan, kota_kabupaten, provinsi, kode_pos, nama_ayah, nama_ibu, nama_wali, nomor_kontak_wali, pekerjaan_ayah, alamat_ayah, pekerjaan_ibu, alamat_ibu, pekerjaan_wali, alamat_wali) FROM stdin;
 ec4fe40a-b404-47e0-9d23-2ca3f38d65fd	2025-10-05 12:30:33.632126+07	2025-10-05 12:30:33.632126+07	\N	\N	Prabowo	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-9b52011c-043f-46af-9439-6cf70b114b92	2025-10-05 12:30:37.474692+07	2025-10-05 12:30:37.474692+07	\N	\N	Jokowi	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+9fe6e878-11bb-4e60-927a-175794bf1bf6	2025-10-05 13:25:06.128505+07	2025-10-05 13:25:06.128505+07	\N	\N	Srimulyani	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+9b52011c-043f-46af-9439-6cf70b114b92	2025-10-05 12:30:37.474692+07	2025-10-05 13:49:41.17284+07	\N	423423	Jokowi	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -1523,7 +1526,8 @@ COPY "20554021".tujuan_pembelajaran (id, materi_pembelajaran_id, deskripsi_tujua
 --
 
 COPY "20554021".ujian (id, pengajar_kelas_id, urutan, created_at, updated_at, ujian_master_id) FROM stdin;
-3	bfedfadb-52de-453a-ae6a-0109b1c7b8a8	0	2025-10-05 12:57:53.134266+07	2025-10-05 12:57:53.134266+07	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff
+6	5458bd55-ba01-4175-805f-a9419ce2f014	0	2025-10-05 13:25:36.322991+07	2025-10-05 13:25:36.322991+07	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff
+7	bfedfadb-52de-453a-ae6a-0109b1c7b8a8	0	2025-10-05 13:38:59.681262+07	2025-10-05 13:38:59.681262+07	69dd74f4-7eba-4f8e-b31a-ee25a89cbeff
 \.
 
 
@@ -1676,7 +1680,7 @@ SELECT pg_catalog.setval('"20554021".tujuan_pembelajaran_id_seq', 1, false);
 -- Name: ujian_id_seq; Type: SEQUENCE SET; Schema: 20554021; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"20554021".ujian_id_seq', 3, true);
+SELECT pg_catalog.setval('"20554021".ujian_id_seq', 7, true);
 
 
 --
@@ -2725,5 +2729,5 @@ ALTER TABLE ONLY public.tenants
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9GAI5aMh6fcTDQ0046py2aFREivQaIDmSPHF5mBdfdfeiqDNxTktsLGZZ70t4Ln
+\unrestrict tWrtQa5QGz8QkIy3a9BEMPO84bh9bBRENHAJvwOXatoBtnjJnlnFL0OUV70GSkO
 
