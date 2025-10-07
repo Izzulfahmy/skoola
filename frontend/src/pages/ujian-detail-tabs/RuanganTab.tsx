@@ -200,24 +200,10 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         duration: 0
     });
     
-    // PERBAIKAN: Mengirim semua perubahan dalam satu payload (jika API mendukung batch), atau hanya yang terakhir sebagai placeholder
-    // Mengingat implementasi API 'updatePesertaSeating' di sini hanya menerima satu payload
-    // Kita tetap mengirim satu, tapi perlu konfirmasi apakah API dapat menangani array
-    // Untuk tujuan menghilangkan warning, kita asumsikan API menerima payload array, atau kita kirim semua dalam array
-    
-    // Mengubah cara mutate dipanggil untuk mengirim semua perubahan jika API tidak mendukung batch tunggal:
-    // Jika API mendukung batch:
-    // updateMutation.mutate(validChanges); 
-    
-    // Jika API hanya menerima satu payload per panggilan (seperti yang ditunjukkan dalam kode saat ini, 
-    // tapi ini berpotensi kehilangan perubahan):
     updateMutation.mutate(validChanges[validChanges.length - 1], {
-      onSuccess: () => {
-        // Asumsi: jika berhasil, semua perubahan dianggap berhasil disimpan
-      },
+      onSuccess: () => {},
       onError: () => {}
     });
-
 
   };
 
@@ -729,26 +715,44 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       
       <Divider orientation="left">Daftar Alokasi Ruangan Ujian ({alokasiList.length} Ruangan)</Divider>
       
-      {/* --- Visualisasi Alokasi & Kapasitas --- */}
+      {/* --- Visualisasi Alokasi & Kapasitas (DIPERBAIKI DENGAN ANGKA DI KIRI DAN KANAN) --- */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12}>
-            <Card title="Total Kapasitas" size="small" bordered={false}>
-                <Text strong style={{ fontSize: 24, color: totalKapasitasAlokasi < totalPeserta ? 'red' : 'green' }}>
-                    {totalKapasitasAlokasi} Kursi
-                </Text>
-                <Paragraph type="secondary">
-                    Status: {totalKapasitasAlokasi < totalPeserta ? <Tag color="red">Kapasitas Kurang</Tag> : <Tag color="green">Kapasitas Cukup</Tag>}
-                </Paragraph>
+            <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
+                <Row justify="space-between" align="middle">
+                    <Col>
+                        <Text strong style={{ fontSize: 28, color: totalKapasitasAlokasi < totalPeserta ? 'red' : 'green' }}>
+                            {totalKapasitasAlokasi}
+                        </Text>
+                    </Col>
+                    <Col style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
+                            Total Kapasitas
+                        </Text>
+                        <Tag color={totalKapasitasAlokasi < totalPeserta ? 'red' : 'green'} style={{ margin: 0 }}>
+                            {totalKapasitasAlokasi < totalPeserta ? 'Kapasitas Kurang' : 'Kapasitas Cukup'}
+                        </Tag>
+                    </Col>
+                </Row>
             </Card>
         </Col>
         <Col xs={24} sm={12}>
-            <Card title="Sisa Kursi" size="small" bordered={false}>
-                 <Text strong style={{ fontSize: 24, color: (totalKapasitasAlokasi - totalPeserta) < 0 ? 'red' : 'blue' }}>
-                    {totalKapasitasAlokasi - totalPeserta}
-                </Text>
-                <Paragraph type="secondary">
-                    {Math.max(0, totalPeserta)} Peserta Membutuhkan Kursi.
-                </Paragraph>
+            <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
+                 <Row justify="space-between" align="middle">
+                    <Col>
+                        <Text strong style={{ fontSize: 28, color: (totalKapasitasAlokasi - totalPeserta) < 0 ? 'red' : 'blue' }}>
+                            {totalKapasitasAlokasi - totalPeserta}
+                        </Text>
+                    </Col>
+                    <Col style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
+                            Sisa Kursi
+                        </Text>
+                        <Paragraph style={{ margin: 0, fontSize: 12 }}>
+                            Untuk {Math.max(0, totalPeserta)} Peserta.
+                        </Paragraph>
+                    </Col>
+                </Row>
             </Card>
         </Col>
       </Row>
