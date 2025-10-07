@@ -160,7 +160,7 @@ const UjianDetailPage = () => {
           { title: 'Detail Paket Ujian' }
         ]}
       />
-      <Title level={4} style={{ marginTop: 16, marginBottom: 16 }}>
+      <Title level={4} style={{ marginTop: 8, marginBottom: 3 }}> {/* NILAI MARGIN DIUBAH DARI 16 KE 8 */}
         {ujianDetail?.detail.nama_paket_ujian}
       </Title>
 
