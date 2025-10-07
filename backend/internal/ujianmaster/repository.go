@@ -49,6 +49,9 @@ type Repository interface {
 	DeleteAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error
 	ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error // Helper for cleanup
 
+	// [BARU] Fungsi untuk menghitung ulang kursi terpakai
+	RecalculateAlokasiKursiCount(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error
+
 	// Generate & Import
 	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, prefix string) (int, error)
 	UpdatePesertaNomorUjianFromExcel(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, updates []struct {
@@ -588,22 +591,25 @@ func (r *repository) ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaN
 	return nil
 }
 
-// --- ROOM MASTER CRUD (STUBBED FOR COMPLETENESS) ---
+// --- ROOM MASTER CRUD ---
 
+// CreateRuangan menerapkan perbaikan dengan menghapus klausa RETURNING.
 func (r *repository) CreateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return RuanganUjian{}, err
 	}
-	// Simplified INSERT query
+	// Simplified INSERT query (RETURNING dihapus)
 	query := `
         INSERT INTO ruangan_ujian (id, nama_ruangan, kapasitas, layout_metadata, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, created_at, updated_at
-    `
-	// Assume IDs and timestamps are set in service/handler if not returned
+    ` // Kueri INSERT polos, cocok dengan ExecContext
+
+	// ID dan timestamp sudah dibuat di Go sebelum kueri
 	ruangan.ID = uuid.New()
 	ruangan.CreatedAt = time.Now()
 	ruangan.UpdatedAt = time.Now()
+
+	// Menggunakan ExecContext sudah tepat karena ID dan timestamp sudah dibuat di Go.
 	_, err := r.db.ExecContext(ctx, query, ruangan.ID, ruangan.NamaRuangan, ruangan.Kapasitas, ruangan.LayoutMetadata, ruangan.CreatedAt, ruangan.UpdatedAt)
 	if err != nil {
 		return RuanganUjian{}, fmt.Errorf("gagal membuat ruangan: %w", err)
@@ -665,7 +671,7 @@ func (r *repository) DeleteRuangan(ctx context.Context, schemaName string, ruang
 	return nil
 }
 
-// --- ROOM ALLOCATION (STUBBED FOR COMPLETENESS) ---
+// --- ROOM ALLOCATION ---
 
 func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
@@ -782,6 +788,53 @@ func (r *repository) DeleteAlokasiRuangan(ctx context.Context, schemaName string
 	return nil
 }
 
+// RecalculateAlokasiKursiCount menghitung ulang jumlah kursi terpakai berdasarkan peserta_ujian
+func (r *repository) RecalculateAlokasiKursiCount(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	// Gunakan dua kueri dalam satu transaksi untuk memastikan akurasi:
+	// 1. Reset semua jumlah kursi terpakai untuk ujian ini menjadi 0.
+	// 2. Perbarui jumlah kursi terpakai berdasarkan data yang baru terisi di peserta_ujian.
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("gagal memulai transaksi recalculate: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Query 1: Reset semua ke 0
+	queryReset := `
+        UPDATE alokasi_ruangan_ujian 
+        SET jumlah_kursi_terpakai = 0, updated_at = NOW()
+        WHERE ujian_master_id = $1;
+    `
+	if _, err := tx.ExecContext(ctx, queryReset, ujianMasterID); err != nil {
+		return fmt.Errorf("gagal reset jumlah kursi: %w", err)
+	}
+
+	// Query 2: Update berdasarkan hitungan peserta_ujian yang terisi
+	queryUpdate := `
+        UPDATE alokasi_ruangan_ujian aru
+        SET jumlah_kursi_terpakai = pu_count.total_peserta, updated_at = NOW()
+        FROM (
+            SELECT 
+                alokasi_ruangan_id, 
+                COUNT(id) AS total_peserta
+            FROM peserta_ujian
+            WHERE ujian_master_id = $1 AND alokasi_ruangan_id IS NOT NULL
+            GROUP BY alokasi_ruangan_id
+        ) AS pu_count
+        WHERE aru.id = pu_count.alokasi_ruangan_id;
+    `
+	if _, err := tx.ExecContext(ctx, queryUpdate, ujianMasterID); err != nil {
+		return fmt.Errorf("gagal update jumlah kursi terpakai: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 // --- OTHER EXISTING METHODS ---
 
 // DeletePesertaByMasterAndKelas deletes peserta ujian by kelas
@@ -886,7 +939,7 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 	for i, pesertaID := range pesertaIDs {
 		var nomorUjian string
 
-		// ✅ FIXED: Direct format generation using %0*d
+		// FIXED: Direct format generation using %0*d
 		if prefix == "" {
 			// Numbers only: 001, 0001, 00001, etc.
 			nomorUjian = fmt.Sprintf("%0*d", paddingDigits, i+1)

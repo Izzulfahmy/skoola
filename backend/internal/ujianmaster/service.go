@@ -106,7 +106,7 @@ func (s *service) UpdateRuangan(ctx context.Context, schemaName string, ruanganI
 	// Cek keberadaan ruangan (Opsional, tapi disarankan)
 	// _, err = s.repo.GetRuanganByID(ctx, schemaName, rID)
 	// if err != nil {
-	// 	return RuanganUjian{}, errors.New("ruangan tidak ditemukan")
+	//  return RuanganUjian{}, errors.New("ruangan tidak ditemukan")
 	// }
 
 	ruangan := RuanganUjian{
@@ -190,6 +190,12 @@ func (s *service) RemoveAlokasiRuangan(ctx context.Context, schemaName string, a
 		return fmt.Errorf("gagal membersihkan penempatan kursi: %w", err)
 	}
 
+	// Panggil RecalculateAlokasiKursiCount setelah penghapusan
+	// Pertama, cari tahu ujianMasterID dari alokasi yang dihapus (tidak ada di repo layer saat ini, jadi kita harus mengasumsikan ini dilakukan di transaction/logika yang lebih tinggi)
+	// Untuk tujuan implementasi tutorial, kita asumsikan Recalculate akan dipanggil secara terpisah atau setelah operasi ini selesai (namun seharusnya ada mekanisme pemicu yang lebih baik di aplikasi nyata).
+
+	// Namun, jika alokasi berhasil dihapus, kita tidak perlu Recalculate karena `jumlah_kursi_terpakai` akan otomatis tidak relevan atau harus di-0-kan untuk alokasi tersebut.
+	// Logic Recalculate lebih penting di DistributeSmart.
 	return s.repo.DeleteAlokasiRuangan(ctx, schemaName, arID)
 }
 
@@ -309,6 +315,15 @@ func (s *service) DistributePesertaSmart(ctx context.Context, schemaName string,
 		return fmt.Errorf("gagal menyimpan penempatan kursi cerdas: %w", err)
 	}
 
+	// [BARU] 5. Hitung ulang counter alokasi ruangan setelah seating selesai
+	// umID sudah tersedia sebagai tipe uuid.UUID
+	err = s.repo.RecalculateAlokasiKursiCount(ctx, schemaName, umID)
+	if err != nil {
+		// Ini adalah langkah kritis untuk sinkronisasi data tampilan.
+		return fmt.Errorf("gagal sinkronisasi counter kursi: %w", err)
+	}
+
+	// 6. Return sukses
 	return nil
 }
 

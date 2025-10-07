@@ -21,6 +21,7 @@ import {
   List,
   Descriptions,
   Transfer,
+  Tooltip, 
 } from 'antd';
 import {
   PlusOutlined,
@@ -31,9 +32,10 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   SaveOutlined,
+  CloseCircleOutlined, 
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { UjianDetail, RuanganUjian, AlokasiRuanganUjian, UpsertRuanganInput } from '../../types';
+import type { UjianDetail, RuanganUjian, AlokasiRuanganUjian, UpsertRuanganInput, PesertaUjianDetail, UpdatePesertaSeatingPayload } from '../../types';
 import {
   getAllRuanganMaster,
   createRuanganMaster,
@@ -43,14 +45,410 @@ import {
   assignRuanganToUjian,
   removeAlokasiRuangan,
   distributeSmart,
+  getAlokasiKursi, 
+  updatePesertaSeating, 
 } from '../../api/ujianMaster';
 
 const { Title, Text, Paragraph } = Typography;
+
+// Variabel yang digunakan untuk penamaan grid (A, B, C, dst.)
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 interface RuanganTabProps {
   ujianMasterId: string;
   ujianDetail: UjianDetail | undefined;
 }
+
+
+// ==============================================================================
+// KOMPONEN VISUALISASI SEAT ARRANGEMENT
+// ==============================================================================
+
+interface LayoutData {
+  rows: number;
+  cols: number;
+}
+
+interface SeatArrangementProps {
+  ujianMasterId: string;
+  alokasi: AlokasiRuanganUjian;
+  onSaveManual: (payload: UpdatePesertaSeatingPayload) => void;
+}
+
+const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
+  ujianMasterId,
+  alokasi,
+}) => {
+  const queryClient = useQueryClient();
+  
+  const { data: seatingData, isLoading } = useQuery({
+    queryKey: ['alokasiKursi', ujianMasterId],
+    queryFn: () => getAlokasiKursi(ujianMasterId),
+    enabled: !!ujianMasterId,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: UpdatePesertaSeatingPayload) =>
+      updatePesertaSeating(ujianMasterId, data),
+    onSuccess: () => {
+      message.success('Penempatan kursi berhasil diperbarui secara manual.');
+      queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] }); 
+      setManualChanges([]); 
+      message.destroy('savingChanges'); 
+    },
+    onError: (error: any) => {
+      message.error(`Gagal update kursi: ${error.response?.data?.message || error.message}`);
+      message.destroy('savingChanges'); 
+    },
+  });
+
+  // --- State untuk Logika Manual Seating ---
+  const [manualChanges, setManualChanges] = useState<UpdatePesertaSeatingPayload[]>([]); 
+  const [draggingPesertaId, setDraggingPesertaId] = useState<string | null>(null);
+
+  if (isLoading || !seatingData) return <Spin tip="Memuat data penempatan kursi..." />;
+
+  // Parsing Layout Metadata
+  let layout: LayoutData = { rows: 1, cols: 1 };
+  try {
+    const parsed = JSON.parse(alokasi.layout_metadata);
+    if (parsed.rows && parsed.cols) {
+        layout = parsed;
+    }
+  } catch (e) {
+    console.error('Gagal parse layout_metadata:', e);
+  }
+
+  // Gabungkan data Peserta dengan perubahan manual (simulasi state drag)
+  const participants = seatingData.peserta.map(p => {
+    const manualChange = manualChanges.find(c => c.peserta_id === p.id);
+    if (manualChange) {
+      return {
+        ...p,
+        alokasi_ruangan_id: manualChange.alokasi_ruangan_id,
+        nomor_kursi: manualChange.nomor_kursi,
+        isChanged: true,
+      } as PesertaUjianDetail & { isChanged?: boolean };
+    }
+    return p as PesertaUjianDetail & { isChanged?: boolean };
+  });
+  
+  // 1. Peserta yang TIDAK di ruangan ini (Unplaced List)
+  const unplacedParticipants = participants.filter(p => p.alokasi_ruangan_id !== alokasi.id);
+
+  // 2. Peserta yang ADA di ruangan ini (Seating Grid)
+  const placedParticipants = participants.filter(p => p.alokasi_ruangan_id === alokasi.id);
+  
+  // --- Handler Logika Manual (Simulasi Drag/Drop) ---
+
+  const handleDragStart = (pesertaId: string) => {
+    setDraggingPesertaId(pesertaId); 
+  };
+
+  const handleDropToSeat = (targetSeat: string) => {
+    if (!draggingPesertaId) return;
+
+    const existingPeserta = placedParticipants.find(p => p.nomor_kursi === targetSeat);
+    if (existingPeserta) {
+        message.warning(`Kursi ${targetSeat} sudah ditempati oleh ${existingPeserta.nama_siswa}.`);
+        return;
+    }
+
+    const newChange: UpdatePesertaSeatingPayload = {
+      peserta_id: draggingPesertaId,
+      alokasi_ruangan_id: alokasi.id,
+      nomor_kursi: targetSeat,
+    };
+
+    setManualChanges(prev => {
+        const filtered = prev.filter(c => c.peserta_id !== draggingPesertaId);
+        return [...filtered, newChange];
+    });
+
+    setDraggingPesertaId(null); 
+  };
+  
+  const handleUnassign = (pesertaId: string) => {
+    const UNASSIGNED_ID = '00000000-0000-0000-0000-000000000000'; 
+    const newChange: UpdatePesertaSeatingPayload = {
+        peserta_id: pesertaId,
+        alokasi_ruangan_id: UNASSIGNED_ID, 
+        nomor_kursi: '',
+    };
+    
+    setManualChanges(prev => {
+        const filtered = prev.filter(c => c.peserta_id !== pesertaId);
+        return [...filtered, newChange];
+    });
+    
+    setDraggingPesertaId(null);
+  }
+
+  const handleSaveAllChanges = () => {
+    if (manualChanges.length === 0) {
+        message.warning('Tidak ada perubahan yang perlu disimpan.');
+        return;
+    }
+
+    const validChanges = manualChanges.filter(change => 
+        change.nomor_kursi || change.alokasi_ruangan_id === '00000000-0000-0000-0000-000000000000'
+    );
+    
+    if (validChanges.length === 0) {
+       message.warning('Tidak ada perubahan penempatan yang valid untuk disimpan.');
+       return;
+    }
+    
+    message.loading(`Menyimpan ${validChanges.length} perubahan...`, 0, 'savingChanges');
+    
+    validChanges.forEach(change => {
+        updateMutation.mutate(change);
+    });
+  };
+
+  // --- Render Seat Grid ---
+  const seats = [];
+  const totalCapacity = alokasi.kapasitas_ruangan;
+  const seatsPerRow = layout.cols;
+  const totalRows = layout.rows;
+  
+  const legendData = placedParticipants.map(p => ({
+      name: p.nama_siswa,
+      seat: p.nomor_kursi,
+      nomorUjian: p.nomor_ujian,
+      id: p.id
+  }));
+
+  for (let i = 0; i < totalCapacity; i++) {
+    const seatIndex = i + 1; 
+    const seatNumberDB = `K${String(seatIndex).padStart(3, '0')}`; 
+    
+    const visualRowIndex = Math.floor(i / seatsPerRow);
+    const visualColIndex = i % seatsPerRow;
+    const rowChar = ALPHABET[visualRowIndex % ALPHABET.length]; 
+    
+    // [FIX WARNING]: Menghapus visualSeatNumber karena tidak digunakan untuk display/logic utama
+    // const visualSeatNumber = `${rowChar}${visualColIndex + 1}`; 
+    
+    const occupant = placedParticipants.find(p => p.nomor_kursi === seatNumberDB); 
+
+    if (visualRowIndex >= totalRows) continue; 
+    
+    let seatClassName = 'seat-box';
+    if (occupant) {
+      seatClassName += ' occupied';
+    } else if (draggingPesertaId) {
+      seatClassName += ' droppable';
+    }
+    
+    // [UI/UX FIX]: Tampilkan Nomor Kursi (seatNumberDB) jika terisi, bukan Nomor Ujian
+    const seatDisplayContent = occupant 
+        ? occupant.nomor_kursi 
+        : (draggingPesertaId ? 'DROP' : ''); 
+    
+    const emptySeatColor = draggingPesertaId ? '#e6f7ff' : '#f7f7f7'; 
+    const occupiedColor = '#1890ff'; 
+
+    seats.push(
+      <Tooltip 
+        title={occupant 
+            ? `${occupant.nama_siswa} (${occupant.nomor_ujian || 'N/A'}) - Kursi: ${occupant.nomor_kursi}` 
+            : `Kursi Kosong: ${seatNumberDB}`
+        }
+        key={seatNumberDB}
+      >
+        <div
+          className={seatClassName}
+          style={{ 
+            width: '50px', 
+            height: '50px',
+            border: `1px solid ${occupant ? occupiedColor : '#d9d9d9'}`,
+            backgroundColor: occupant ? occupiedColor : emptySeatColor,
+            color: occupant ? '#fff' : '#404040',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            cursor: draggingPesertaId || occupant ? 'pointer' : 'default',
+            position: 'relative',
+            borderRadius: 4, 
+            fontWeight: 'bold',
+            fontSize: occupant ? 11 : 9,
+            boxShadow: occupant ? '0 0 5px rgba(24, 144, 255, 0.5)' : 'none',
+            transition: 'all 0.2s',
+            gridRow: visualRowIndex + 1,
+            gridColumn: visualColIndex + 1,
+          }}
+          onClick={() => handleDropToSeat(seatNumberDB)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => handleDropToSeat(seatNumberDB)}
+        >
+          {/* Tampilan Utama: Nomor Kursi / DROP */}
+          <Text style={{ color: occupant ? '#fff' : '#404040', fontSize: occupant ? 11 : 9, textAlign: 'center', whiteSpace: 'nowrap' }} strong>
+              {seatDisplayContent}
+          </Text>
+          {/* Tombol unassign kursi */}
+          {occupant && (
+              <CloseCircleOutlined
+                  style={{ position: 'absolute', top: -7, right: -7, color: '#f5222d', cursor: 'pointer', backgroundColor: '#fff', borderRadius: '50%', fontSize: 14 }}
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnassign(occupant.id);
+                  }}
+              />
+          )}
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // --- Render Unplaced List ---
+  const renderUnplaced = (peserta: typeof participants[0]) => (
+    <List.Item
+      key={peserta.id}
+      style={{ 
+        cursor: 'grab', 
+        backgroundColor: draggingPesertaId === peserta.id ? '#bae637' : (peserta.isChanged ? '#fffbe6' : 'transparent'),
+        padding: '8px 16px',
+        borderRadius: 4,
+        margin: '4px 0',
+        border: draggingPesertaId === peserta.id ? '1px dashed #389e0d' : '1px solid #e8e8e8' 
+      }}
+      draggable
+      onDragStart={() => handleDragStart(peserta.id)}
+      onClick={() => handleDragStart(peserta.id)}
+    >
+      <List.Item.Meta
+        avatar={<UserOutlined />}
+        title={<Text strong>{peserta.nama_siswa}</Text>}
+        description={`No. Ujian: ${peserta.nomor_ujian || 'N/A'}`}
+      />
+      {peserta.isChanged && <Tag color="orange">Pending</Tag>}
+    </List.Item>
+  );
+  
+  // --- Render Legenda Item (Low Height) ---
+  const renderLegendItem = (item: typeof legendData[0]) => (
+    <List.Item style={{ padding: '4px 0' }}>
+      <Row gutter={8} align="middle" style={{ width: '100%' }}>
+        <Col span={6}>
+            <Tag color="blue" style={{ width: '100%', textAlign: 'center', fontSize: 10 }}>{item.seat}</Tag>
+        </Col>
+        <Col span={8}>
+            <Text ellipsis strong style={{ fontSize: 11 }}>{item.nomorUjian || 'N/A'}</Text>
+        </Col>
+        <Col span={10}>
+             <Text ellipsis style={{ fontSize: 11 }}>{item.name}</Text>
+        </Col>
+      </Row>
+    </List.Item>
+  );
+
+  return (
+    <Row gutter={24} style={{ minHeight: '70vh' }}>
+      {/* Kolom 1 (span 6): Peserta yang Perlu Dialokasikan (Unassigned) */}
+      <Col span={6}>
+        <Title level={5}>Peserta Unassigned ({unplacedParticipants.length})</Title>
+        <Card 
+            size="small" 
+            style={{ 
+                height: 'calc(70vh - 50px)', 
+                overflowY: 'auto', 
+                border: draggingPesertaId ? '2px dashed #fa8c16' : '1px solid #d9d9d9'
+            }}
+            bodyStyle={{ padding: 8 }}
+            onDrop={() => { 
+                if (draggingPesertaId) {
+                    handleUnassign(draggingPesertaId);
+                }
+            }}
+            onDragOver={(e) => e.preventDefault()}
+        >
+          {unplacedParticipants.length > 0 ? (
+            <List
+              itemLayout="horizontal"
+              dataSource={unplacedParticipants}
+              renderItem={renderUnplaced}
+            />
+          ) : (
+             <Empty description="Tidak ada peserta yang perlu dialokasikan." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </Card>
+      </Col>
+
+      {/* Kolom 2 (span 11): Visualisasi Kursi (Grid) */}
+      <Col span={11}>
+        {/* UI/UX FIX: Tombol Simpan diganti */}
+        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+             <Title level={5} style={{ margin: 0 }}>Denah Ruangan ({layout.rows}x{layout.cols})</Title>
+             <Space>
+                <Button 
+                    type="primary" 
+                    icon={<SaveOutlined />}
+                    onClick={handleSaveAllChanges}
+                    loading={updateMutation.isPending}
+                    // FIX UI: Perubahan styling saat ada pending changes (Hijau)
+                    style={manualChanges.length > 0 && !updateMutation.isPending ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : {}}
+                    disabled={manualChanges.length === 0 || updateMutation.isPending}
+                >
+                    {updateMutation.isPending ? 'Menyimpan...' : (manualChanges.length > 0 ? `Simpan ${manualChanges.length} Perubahan` : 'Simpan Kursi Manual')}
+                </Button>
+            </Space>
+        </Row>
+        
+        <Divider style={{ marginTop: 0, borderBlockStartColor: '#333' }}>PAPAN TULIS / MEJA GURU</Divider>
+
+        {/* --- DYNAMIC GRID LAYOUT --- */}
+        <div style={{
+          display: 'grid',
+          gridTemplateRows: `repeat(${totalRows}, 1fr)`, 
+          gridTemplateColumns: `repeat(${seatsPerRow}, 1fr)`,
+          gap: '10px',
+          width: '100%',
+          maxWidth: (seatsPerRow * 50) + ((seatsPerRow - 1) * 10) + 20, 
+          margin: '0 auto', 
+          padding: '10px', 
+          backgroundColor: '#fff',
+          borderRadius: '4px',
+          border: '1px solid #e8e8e8',
+          minWidth: seatsPerRow * 50,
+        }}>
+          {seats}
+        </div>
+        <Divider style={{ marginTop: 40 }}/>
+      </Col>
+
+      {/* Kolom 3 (span 7): Legenda Data Kursi (Final Layout) */}
+      <Col span={7}>
+        <Title level={5} style={{ marginBottom: 16 }}>Legenda ({legendData.length} Kursi Terisi)</Title>
+        <Card 
+            size="small"
+            style={{ height: 'calc(70vh - 50px)', overflowY: 'auto' }}
+            bodyStyle={{ padding: 8 }}
+        >
+            <List
+                header={
+                    <Row gutter={8} style={{ fontWeight: 'bold', fontSize: 12, paddingBottom: 4, borderBottom: '1px solid #e8e8e8' }}>
+                        <Col span={6}>Kursi</Col>
+                        <Col span={8}>No. Ujian</Col>
+                        <Col span={10}>Siswa</Col>
+                    </Row>
+                }
+                dataSource={legendData}
+                renderItem={renderLegendItem}
+            />
+            {legendData.length === 0 && (
+                 <Empty description="Belum ada kursi yang terisi." image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+            )}
+        </Card>
+      </Col>
+    </Row>
+  );
+};
+
+// --- Akhir Komponen Visualisasi ---
+
 
 // ==============================================================================
 // KOMPONEN UTAMA RuanganTab
@@ -63,26 +461,28 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [editingRuangan, setEditingRuangan] = useState<RuanganUjian | null>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [localTargetKeys, setLocalTargetKeys] = useState<string[]>([]); 
+  
+  const [isSeatingModalOpen, setIsSeatingModalOpen] = useState(false); 
+  const [selectedAlokasi, setSelectedAlokasi] = useState<AlokasiRuanganUjian | null>(null);
   
   // --- Query Data ---
   
-  // 1. Ambil Master Ruangan (Data Ruangan Fisik Sekolah)
   const { data: ruanganMaster, isLoading: isRuanganMasterLoading } = useQuery<RuanganUjian[]>({
     queryKey: ['ruanganMaster'],
     queryFn: getAllRuanganMaster,
   });
   
-  // 2. Ambil Alokasi Ruangan (Ruangan yang ditugaskan ke Paket Ujian ini)
   const { 
-    data: alokasiRuangan, // Jangan gunakan = [] di sini, biarkan query handle null, lalu gunakan fallback saat map/reduce
+    data: alokasiRuangan, 
     isLoading: isAlokasiLoading 
   } = useQuery<AlokasiRuanganUjian[]>({
     queryKey: ['alokasiRuangan', ujianMasterId],
-    queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId),
+    queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId!),
     enabled: !!ujianMasterId,
   });
 
-  // --- Mutasi CRUD Master Ruangan (tetap sama) ---
+  // --- Mutations (disingkat) ---
   
   const createMutation = useMutation({
     mutationFn: createRuanganMaster,
@@ -121,15 +521,13 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     },
   });
 
-  // --- Mutasi Alokasi Ruangan (tetap sama) ---
-
   const assignMutation = useMutation({
     mutationFn: (data: { ujianMasterId: string; ruangan_ids: string[] }) =>
       assignRuanganToUjian(data.ujianMasterId, { ruangan_ids: data.ruangan_ids }),
     onSuccess: () => {
       message.success('Ruangan berhasil dialokasikan.');
       queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
-      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); // Update status is_used
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); 
       setIsAssignModalOpen(false);
     },
     onError: (error: any) => {
@@ -142,7 +540,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Alokasi ruangan berhasil dihapus.');
       queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
-      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); // Update status is_used
+      queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); 
     },
     onError: (error: any) => {
       message.error(`Gagal menghapus alokasi: ${error.response?.data || error.message}`);
@@ -156,7 +554,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     },
     onSuccess: () => {
       message.success({ content: 'Distribusi berhasil! Kursi telah dialokasikan.', key: 'smartDistro' });
-      // Refetch data kursi dan alokasi
       queryClient.invalidateQueries({ queryKey: ['pesertaUjian', ujianMasterId] });
       queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
       queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
@@ -166,7 +563,21 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     },
   });
 
-  // --- Handlers (tetap sama) ---
+  // --- Data untuk Tampilan ---
+  const alokasiList = alokasiRuangan || []; 
+  const ruanganMasterList = ruanganMaster || []; 
+
+  const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
+  
+  const sourceData = ruanganMasterList.map(r => ({
+      key: r.id,
+      title: r.nama_ruangan,
+      description: `Kapasitas: ${r.kapasitas} kursi`,
+      isAllocated: initialTargetIDs.includes(r.id),
+      ruangan: r,
+  }));
+
+  // --- Handlers ---
   
   const showMasterModal = (ruangan: RuanganUjian | null = null) => {
     setEditingRuangan(ruangan);
@@ -178,6 +589,16 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     setIsMasterModalOpen(true);
   };
   
+  const handleShowAssignModal = () => {
+      setLocalTargetKeys(initialTargetIDs); // Inisialisasi state lokal dengan data yang ada
+      setIsAssignModalOpen(true);
+  };
+
+  const handleOpenSeatingModal = (alokasi: AlokasiRuanganUjian) => {
+    setSelectedAlokasi(alokasi);
+    setIsSeatingModalOpen(true);
+  };
+
   const handleSaveRuangan = (values: any) => {
     const input: UpsertRuanganInput = {
       nama_ruangan: values.nama_ruangan,
@@ -185,7 +606,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       layout_metadata: values.layout_metadata,
     };
 
-    // Simple JSON check (optional, tapi baik)
     try {
         JSON.parse(input.layout_metadata);
     } catch (e) {
@@ -209,7 +629,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         message.warning('Pilih minimal satu ruangan untuk dialokasikan.');
         return;
     }
-    assignMutation.mutate({ ujianMasterId, ruangan_ids: targetKeys });
+    assignMutation.mutate({ ujianMasterId: ujianMasterId!, ruangan_ids: targetKeys });
   };
   
   const handleRemoveAlokasi = (alokasiID: string) => {
@@ -221,27 +641,12 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
           message.error('Silakan alokasikan ruangan terlebih dahulu.');
           return;
       }
-      smartDistributeMutation.mutate(ujianMasterId);
+      smartDistributeMutation.mutate(ujianMasterId!);
   };
-  
-  // --- Data untuk Transfer (Alokasi) - Menggunakan fallback array untuk keamanan ---
-  const alokasiList = alokasiRuangan || []; // Fallback untuk alokasiRuangan
-  const ruanganMasterList = ruanganMaster || []; // Fallback untuk ruanganMaster
-
-  const targetIDs = alokasiList.map(ar => ar.ruangan_id);
-  
-  const sourceData = ruanganMasterList.map(r => ({
-      key: r.id,
-      title: r.nama_ruangan,
-      description: `Kapasitas: ${r.kapasitas} kursi`,
-      isAllocated: targetIDs.includes(r.id), // Penanda yang sudah dialokasikan
-      ruangan: r,
-  }));
   
   if (!ujianDetail) return <Spin />;
 
   const totalPeserta = ujianDetail.detail.jumlah_peserta;
-  // FIX UTAMA: Menerapkan fallback || [] pada variabel sebelum memanggil .reduce()
   const totalKapasitasAlokasi = alokasiList.reduce((sum, ar) => sum + ar.kapasitas_ruangan, 0);
 
   return (
@@ -269,7 +674,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                 <Button 
                     type="primary" 
                     icon={<PlusOutlined />} 
-                    onClick={() => setIsAssignModalOpen(true)}
+                    onClick={handleShowAssignModal} 
                     disabled={isRuanganMasterLoading || (ruanganMasterList.length === 0)}
                 >
                     Alokasikan Ruangan
@@ -325,7 +730,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                             extra={
                                 <Popconfirm 
                                     title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
-                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)}
+                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // [FIX ERROR 1]
                                     okText="Ya, Hapus"
                                     cancelText="Batal"
                                 >
@@ -351,11 +756,15 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                 </Descriptions.Item>
                             </Descriptions>
                             
-                            {/* --- Placeholder untuk Visual Layout (Fase 1) --- */}
+                            {/* --- Link ke Modal Visualisasi --- */}
                             <div style={{ padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4, textAlign: 'center' }}>
                                 <Text strong type="secondary">VISUAL SEAT LAYOUT</Text>
                                 <Paragraph style={{ margin: '8px 0', fontSize: 12 }}>Metadata: <code>{alokasi.layout_metadata}</code></Paragraph>
-                                <Button type="link" icon={<EditOutlined />} disabled>
+                                <Button 
+                                    type="link" 
+                                    icon={<EditOutlined />} 
+                                    onClick={() => handleOpenSeatingModal(alokasi)} 
+                                >
                                     Atur Penempatan Kursi (Fase 1)
                                 </Button>
                             </div>
@@ -462,8 +871,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         onCancel={() => setIsAssignModalOpen(false)}
         okText="Alokasikan"
         onOk={() => {
-            const newlyAllocatedKeys = ruanganMasterList.map(r => r.id).filter(id => targetIDs.includes(id));
-            handleAssignRuangan(newlyAllocatedKeys);
+            handleAssignRuangan(localTargetKeys);
         }}
         confirmLoading={assignMutation.isPending}
         width={700}
@@ -477,9 +885,9 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         <Spin spinning={isRuanganMasterLoading || assignMutation.isPending}>
         <Transfer
             dataSource={sourceData}
-            targetKeys={targetIDs} // Kunci Ruangan yang sudah dialokasikan (Target)
-            onChange={(_nextTargetKeys) => { 
-                // Menggunakan _nextTargetKeys untuk menghindari warning unused variable.
+            targetKeys={localTargetKeys} 
+            onChange={(nextTargetKeys) => { 
+                setLocalTargetKeys(nextTargetKeys as string[]);
             }}
             render={item => item.title}
             titles={['Ruangan Master', 'Ruangan Dialokasikan']}
@@ -489,6 +897,32 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
             }}
         />
         </Spin>
+      </Modal>
+
+      {/* ==============================================================================
+      MODAL PENGATURAN KURSI MANUAL (FASE 1)
+      ============================================================================== */}
+      <Modal
+        title={`Atur Penempatan Kursi: ${selectedAlokasi?.kode_ruangan} - ${selectedAlokasi?.nama_ruangan}`}
+        open={isSeatingModalOpen}
+        onCancel={() => {
+            setIsSeatingModalOpen(false);
+            setSelectedAlokasi(null); 
+            queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] }); 
+            queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] }); 
+        }}
+        footer={null}
+        width={'80%'} 
+        bodyStyle={{ minHeight: '70vh' }}
+        destroyOnClose
+      >
+        {selectedAlokasi ? (
+            <SeatArrangementVisualizer
+                ujianMasterId={ujianMasterId!}
+                alokasi={selectedAlokasi}
+                onSaveManual={() => {}} 
+            />
+        ) : <Spin />}
       </Modal>
 
     </div>
