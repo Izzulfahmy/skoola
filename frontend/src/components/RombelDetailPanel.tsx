@@ -44,22 +44,16 @@ import { getAvailableStudents } from '../api/students';
 import { getTaughtMataPelajaran } from '../api/mataPelajaran';
 import MateriPembelajaranPanel from './MateriPembelajaranPanel';
 import PenilaianPanel from './PenilaianPanel';
-// --- BARIS LAMA BERMASALAH (Dihapus/Diganti): 
-// import type { PenilaianPanelRef, ViewMode } from './PenilaianPanel'; 
-// ---
-
-const { Text, Title } = Typography;
-const { Option } = Select;
-
 // --- DEFINISI ULANG TIPE DI SINI ---
-// Asumsi PenilaianPanel memiliki method handleSave()
 interface PenilaianPanelRef {
   handleSave: () => Promise<void>;
 }
 
-// Asumsi ViewMode adalah tipe union dari string literal
 type ViewMode = 'rata-rata' | 'detail';
 // ------------------------------------
+
+const { Text, Title } = Typography;
+const { Option } = Select;
 
 interface RombelDetailPanelProps {
   rombel: Kelas;
@@ -132,6 +126,73 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   const [isSaving, setIsSaving] = useState(false);
   const penilaianPanelRef = useRef<PenilaianPanelRef>(null);
   // ------------------------------------------
+
+  // ************************************************************
+  // ** PERBAIKAN: PINDAHKAN DEKLARASI COLUMN KE ATAS **
+  // ************************************************************
+
+  // 1. Deklarasi base columns
+  const anggotaColumns: TableColumnsType<AnggotaKelas> = [
+    { title: 'No', dataIndex: 'urutan', key: 'urutan', align: 'center', width: 80, render: (text) => text || '-' },
+    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
+    { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap' },
+    { title: 'L/P', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text?.charAt(0) || '-' },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Popconfirm
+          title="Hapus siswa dari rombel?"
+          onConfirm={() => handleRemoveSiswa(record.id)}
+        >
+          <Button type="link" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const pengajarColumns: TableColumnsType<PengajarKelas> = [
+    { title: 'Mata Pelajaran', dataIndex: 'nama_mapel', key: 'nama_mapel' },
+    { title: 'Nama Guru', dataIndex: 'nama_guru', key: 'nama_guru' },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Popconfirm
+          title="Hapus tugas guru ini?"
+          onConfirm={() => handleRemovePengajar(record.id)}
+        >
+          <Button type="link" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  // 2. Style untuk membuat baris lebih pendek
+  const compactCellStyle: React.CSSProperties = { 
+    paddingTop: '4px', 
+    paddingBottom: '4px',
+  };
+
+  const compactHeaderCellProps = { style: compactCellStyle };
+  const compactCellProps = { style: compactCellStyle };
+  
+  // 3. Modifikasi columns untuk menerapkan style pada header dan data cells
+  const compactAnggotaColumns: TableColumnsType<AnggotaKelas> = anggotaColumns.map(col => ({
+      ...col,
+      onHeaderCell: () => compactHeaderCellProps,
+      onCell: () => compactCellProps,
+  }));
+  
+  const compactPengajarColumns: TableColumnsType<PengajarKelas> = pengajarColumns.map(col => ({
+      ...col,
+      onHeaderCell: () => compactHeaderCellProps,
+      onCell: () => compactCellProps,
+  }));
+
+  // ************************************************************
+  // ** AKHIR PERBAIKAN DEKLARASI COLUMN **
+  // ************************************************************
 
   const fetchData = async () => {
     setLoading(true);
@@ -230,24 +291,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     [anggota, fetchData],
   );
 
-  const anggotaColumns: TableColumnsType<AnggotaKelas> = [
-    { title: 'No', dataIndex: 'urutan', key: 'urutan', align: 'center', width: 80, render: (text) => text || '-' },
-    { title: 'NIS', dataIndex: 'nis', key: 'nis', render: (text) => text || '-' },
-    { title: 'Nama Lengkap', dataIndex: 'nama_lengkap', key: 'nama_lengkap' },
-    { title: 'L/P', dataIndex: 'jenis_kelamin', key: 'jenis_kelamin', render: (text) => text?.charAt(0) || '-' },
-    {
-      title: 'Aksi',
-      key: 'action',
-      render: (_, record) => (
-        <Popconfirm
-          title="Hapus siswa dari rombel?"
-          onConfirm={() => handleRemoveSiswa(record.id)}
-        >
-          <Button type="link" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
+  
   const handleTransferChange: TransferProps['onChange'] = (newTargetKeys) => {
     setTargetKeys(newTargetKeys.map(key => String(key)));
   };
@@ -281,23 +325,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     }
   };
   
-  const pengajarColumns: TableColumnsType<PengajarKelas> = [
-    { title: 'Mata Pelajaran', dataIndex: 'nama_mapel', key: 'nama_mapel' },
-    { title: 'Nama Guru', dataIndex: 'nama_guru', key: 'nama_guru' },
-    {
-      title: 'Aksi',
-      key: 'action',
-      render: (_, record) => (
-        <Popconfirm
-          title="Hapus tugas guru ini?"
-          onConfirm={() => handleRemovePengajar(record.id)}
-        >
-          <Button type="link" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
-
+  
   const pembelajaranTabs = pengajar.map(p => ({
     key: p.id,
     label: p.kode_mapel,
@@ -367,7 +395,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
           </Button>
           <DndProvider backend={HTML5Backend}>
             <Table
-                columns={anggotaColumns}
+                columns={compactAnggotaColumns} // <-- Menggunakan compact columns
                 dataSource={anggota}
                 rowKey="id"
                 loading={loading}
@@ -401,7 +429,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
             Tugaskan Guru
           </Button>
           <Table
-            columns={pengajarColumns}
+            columns={compactPengajarColumns} // <-- Menggunakan compact columns
             dataSource={pengajar}
             rowKey="id"
             loading={loading}
