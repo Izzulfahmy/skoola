@@ -1,8 +1,8 @@
 // file: src/pages/StudentsPage.tsx
-import { useEffect, useState } from 'react';
-import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag, Dropdown, Upload, Spin, List, Divider } from 'antd';
+import { useEffect, useState, useMemo } from 'react'; // Import useMemo
+import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Row, Col, Tag, Dropdown, Upload, Spin, List, Divider, Input } from 'antd'; // Import Input
 import type { TableColumnsType, MenuProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined, FileExcelOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined, FileExcelOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'; // SearchOutlined dihapus
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 import { getStudents, createStudent, updateStudent, deleteStudent, downloadStudentTemplate, uploadStudentsFile } from '../api/students'; 
 import type { Student, CreateStudentInput, UpdateStudentInput, ImportResult } from '../types'; 
@@ -16,6 +16,9 @@ const StudentsPage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // State untuk pencarian
+  const [searchText, setSearchText] = useState(''); 
   
   // State untuk modal form
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -46,6 +49,18 @@ const StudentsPage = () => {
     fetchStudents();
   }, []);
 
+  // Fungsi untuk memfilter siswa berdasarkan searchText
+  const filteredStudents = useMemo(() => {
+    if (!searchText) return students;
+    const lowerCaseSearchText = searchText.toLowerCase();
+
+    return students.filter(student => 
+      student.nama_lengkap.toLowerCase().includes(lowerCaseSearchText) ||
+      (student.nis && student.nis.toLowerCase().includes(lowerCaseSearchText)) ||
+      (student.nisn && student.nisn.toLowerCase().includes(lowerCaseSearchText))
+    );
+  }, [students, searchText]);
+  
   const showFormModal = (student: Student | null) => {
     setEditingStudent(student);
     setIsFormModalOpen(true);
@@ -189,7 +204,7 @@ const StudentsPage = () => {
       render: (text) => text ? (text.charAt(0) === 'L' ? 'Laki-laki' : 'Perempuan') : '-', 
       responsive: ['lg'],
       width: 100,
-      align: 'center', // ⭐ Perubahan: Mengatur jenis kelamin center
+      align: 'center', 
     },
     { 
       title: 'Wali', 
@@ -199,7 +214,6 @@ const StudentsPage = () => {
       responsive: ['md'],
       width: 150,
     },
-    // ⭐ Perubahan: Memindahkan kolom 'Status' ke sini (sebelum 'Aksi')
     { 
       title: 'Status', 
       dataIndex: 'status_saat_ini',
@@ -245,11 +259,18 @@ const StudentsPage = () => {
   return (
     <div>
       <Row justify="space-between" align="middle" gutter={[16, 16]} style={{ marginBottom: '16px' }}>
-        <Col xs={24} sm={12}>
+        <Col xs={24} sm={10}>
           <Title level={3} style={{ margin: 0 }}>Manajemen Data Siswa</Title>
         </Col>
-        <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-            <Space>
+        <Col xs={24} sm={14} style={{ textAlign: 'right' }}>
+            <Space wrap> 
+                <Input.Search 
+                    placeholder="Cari siswa (Nama, NIS, NISN)" 
+                    allowClear 
+                    onSearch={setSearchText} 
+                    onChange={(e) => setSearchText(e.target.value)} 
+                    style={{ width: 250 }} 
+                />
                 <Dropdown.Button menu={{ items: menuItems }} >
                     Impor Siswa
                 </Dropdown.Button>
@@ -261,12 +282,12 @@ const StudentsPage = () => {
       </Row>
       <Table 
         columns={columns} 
-        dataSource={students} 
+        dataSource={filteredStudents} 
         loading={loading} 
         rowKey="id" 
         scroll={{ x: 'max-content' }}
         size="small" 
-        pagination={false} // ⭐ Perubahan: Menghilangkan paginasi
+        pagination={false} 
       />
       {/* Modal Form Siswa */}
       {isFormModalOpen && (
