@@ -57,7 +57,6 @@ interface RuanganTabProps {
   ujianDetail: UjianDetail | undefined;
 }
 
-
 // ==============================================================================
 // KOMPONEN VISUALISASI SEAT ARRANGEMENT
 // ==============================================================================
@@ -199,10 +198,23 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
        return;
     }
     
-    message.loading(`Menyimpan ${validChanges.length} perubahan...`, 0, 'savingChanges');
+    // Perbaikan: Gunakan key yang unik dan definisikan sebagai const
+    const MESSAGE_KEY = 'saving-changes-message';
+    message.loading({
+        content: `Menyimpan ${validChanges.length} perubahan...`,
+        key: MESSAGE_KEY,
+        duration: 0
+    });
     
     validChanges.forEach(change => {
-        updateMutation.mutate(change);
+        updateMutation.mutate(change, {
+            onSuccess: () => {
+                message.destroy(MESSAGE_KEY);
+            },
+            onError: () => {
+                message.destroy(MESSAGE_KEY);
+            }
+        });
     });
   };
 
@@ -445,7 +457,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
 
 // --- Akhir Komponen Visualisasi ---
 
-
 // ==============================================================================
 // KOMPONEN UTAMA RuanganTab
 // ==============================================================================
@@ -474,11 +485,11 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     isLoading: isAlokasiLoading 
   } = useQuery<AlokasiRuanganUjian[]>({
     queryKey: ['alokasiRuangan', ujianMasterId],
-    queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId!),
+    queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId),
     enabled: !!ujianMasterId,
   });
 
-  // --- Mutations (disingkat) ---
+  // --- Mutations ---
   
   const createMutation = useMutation({
     mutationFn: createRuanganMaster,
@@ -625,7 +636,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         message.warning('Pilih minimal satu ruangan untuk dialokasikan.');
         return;
     }
-    assignMutation.mutate({ ujianMasterId: ujianMasterId!, ruangan_ids: targetKeys });
+    assignMutation.mutate({ ujianMasterId, ruangan_ids: targetKeys });
   };
   
   const handleRemoveAlokasi = (alokasiID: string) => {
@@ -637,7 +648,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
           message.error('Silakan alokasikan ruangan terlebih dahulu.');
           return;
       }
-      smartDistributeMutation.mutate(ujianMasterId!);
+      smartDistributeMutation.mutate(ujianMasterId);
   };
   
   if (!ujianDetail) return <Spin />;
@@ -726,7 +737,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                             extra={
                                 <Popconfirm 
                                     title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
-                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // FIX FINAL ERROR (Code 2345)
+                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // [FIXED] Error 2345
                                     okText="Ya, Hapus"
                                     cancelText="Batal"
                                 >
@@ -914,7 +925,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       >
         {selectedAlokasi ? (
             <SeatArrangementVisualizer
-                ujianMasterId={ujianMasterId!}
+                ujianMasterId={ujianMasterId}
                 alokasi={selectedAlokasi}
                 onSaveManual={() => {}} 
             />
