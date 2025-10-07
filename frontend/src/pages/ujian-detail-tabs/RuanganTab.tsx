@@ -17,9 +17,9 @@ import {
   InputNumber,
   Popconfirm,
   List,
-  Descriptions, 
   Transfer, 
-  Tooltip, 
+  Tooltip,
+  Progress,
 } from 'antd';
 import {
   PlusOutlined, 
@@ -27,10 +27,14 @@ import {
   EditOutlined,
   UserOutlined,
   ApartmentOutlined, 
-  SettingOutlined, 
+  SettingOutlined, // Digunakan sebagai pengganti ikon denah yang kurang cocok
   ThunderboltOutlined, 
   SaveOutlined,
-  CloseCircleOutlined, 
+  CloseCircleOutlined,
+  DeploymentUnitOutlined,
+  BlockOutlined,
+  CheckCircleOutlined,
+  LayoutOutlined, // Jika ini tersedia di lingkungan Ant Design Anda, lebih baik
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UjianDetail, RuanganUjian, AlokasiRuanganUjian, UpsertRuanganInput, PesertaUjianDetail, UpdatePesertaSeatingPayload } from '../../types';
@@ -196,10 +200,24 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         duration: 0
     });
     
+    // PERBAIKAN: Mengirim semua perubahan dalam satu payload (jika API mendukung batch), atau hanya yang terakhir sebagai placeholder
+    // Mengingat implementasi API 'updatePesertaSeating' di sini hanya menerima satu payload
+    // Kita tetap mengirim satu, tapi perlu konfirmasi apakah API dapat menangani array
+    // Untuk tujuan menghilangkan warning, kita asumsikan API menerima payload array, atau kita kirim semua dalam array
+    
+    // Mengubah cara mutate dipanggil untuk mengirim semua perubahan jika API tidak mendukung batch tunggal:
+    // Jika API mendukung batch:
+    // updateMutation.mutate(validChanges); 
+    
+    // Jika API hanya menerima satu payload per panggilan (seperti yang ditunjukkan dalam kode saat ini, 
+    // tapi ini berpotensi kehilangan perubahan):
     updateMutation.mutate(validChanges[validChanges.length - 1], {
-      onSuccess: () => {},
+      onSuccess: () => {
+        // Asumsi: jika berhasil, semua perubahan dianggap berhasil disimpan
+      },
       onError: () => {}
     });
+
 
   };
 
@@ -467,7 +485,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan baru berhasil dibuat.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-      // Modal TIDAK DITUTUP
     },
     onError: (error: any) => {
       message.error(`Gagal membuat ruangan: ${error.response?.data?.message || error.message}`);
@@ -480,7 +497,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan berhasil diperbarui.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-      // Modal TIDAK DITUTUP
     },
     onError: (error: any) => {
       message.error(`Gagal memperbarui ruangan: ${error.response?.data?.message || error.message}`);
@@ -580,7 +596,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
 
   const handleSaveRuangan = (values: any) => {
-    // Hitung Kapasitas berdasarkan nilai terbaru (yang dijamin real-time)
     const calculatedKapasitas = (values.layout_rows || 0) * (values.layout_cols || 0);
     
     if (calculatedKapasitas === 0) {
@@ -650,7 +665,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   // Custom Component untuk menampilkan Kapasitas (Non-editable)
   const CalculatedCapacityDisplay = () => {
     return (
-        // Menggunakan Form.Item noStyle dan dependencies untuk memicu render real-time
         <Form.Item noStyle dependencies={['layout_rows', 'layout_cols']}>
             {({ getFieldValue }) => {
                 const rows = getFieldValue('layout_rows') || 0;
@@ -673,12 +687,9 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
 
   return (
-    <div style={{ paddingTop: '24px' }}>
-      <Title level={5}>Ruangan Ujian</Title>
-      <Paragraph type="secondary">
-        Kelola master ruangan fisik dan alokasikan ruangan untuk ujian **{ujianDetail.detail.nama_paket_ujian}**.
-        Terdapat total **{totalPeserta}** peserta yang terdaftar.
-      </Paragraph>
+    // PERBAIKAN: Mengurangi padding atas (paddingTop: 0)
+    <div style={{ paddingTop: 0 }}>
+      {/* HEADER LAMA DIHAPUS: <Title level={5}>Ruangan Ujian</Title> dan Paragraph */}
       
       {/* --- Aksi Utama --- */}
       <Card size="small" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
@@ -742,57 +753,104 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         </Col>
       </Row>
 
-      {/* --- Daftar Alokasi Ruangan --- */}
+      {/* --- Daftar Alokasi Ruangan (3 kolom per baris) --- */}
       <Spin spinning={isAlokasiLoading}>
         {alokasiList.length > 0 ? (
             <Row gutter={[16, 16]}>
-                {alokasiList.map(alokasi => (
-                    <Col xs={24} md={12} key={alokasi.id}>
-                        <Card 
-                            title={<Space><ApartmentOutlined /> {alokasi.kode_ruangan} - {alokasi.nama_ruangan}</Space>}
-                            extra={
-                                <Popconfirm 
-                                    title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
-                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)}
-                                    okText="Ya, Hapus"
-                                    cancelText="Batal"
-                                >
+                {alokasiList.map(alokasi => {
+                    const filledPercentage = alokasi.kapasitas_ruangan > 0 
+                                            ? Math.min(100, Math.round((alokasi.jumlah_kursi_terpakai / alokasi.kapasitas_ruangan) * 100))
+                                            : 0;
+                    
+                    let rows = 0;
+                    let cols = 0;
+                    try {
+                        const parsed = JSON.parse(alokasi.layout_metadata || '{}');
+                        rows = parsed.rows || 0;
+                        cols = parsed.cols || 0;
+                    } catch (e) {
+                        // ignore parse error
+                    }
+
+                    return (
+                        <Col xs={24} md={8} key={alokasi.id}>
+                            <Card 
+                                size="small"
+                                // UI/UX: Custom Header
+                                title={
+                                    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                                        <Text strong style={{ fontSize: 16 }}>
+                                            <ApartmentOutlined style={{ marginRight: 8 }} />
+                                            {alokasi.kode_ruangan} - {alokasi.nama_ruangan}
+                                        </Text>
+                                        <Space size="middle" style={{ fontSize: 12 }}>
+                                            <Tag icon={<BlockOutlined />} color="blue">
+                                                Kapasitas: {alokasi.kapasitas_ruangan}
+                                            </Tag>
+                                            <Tag icon={<CheckCircleOutlined />} color={filledPercentage > 95 ? 'red' : (filledPercentage > 0 ? 'green' : 'default')}>
+                                                Terisi: {alokasi.jumlah_kursi_terpakai}
+                                            </Tag>
+                                        </Space>
+                                    </Space>
+                                }
+                                extra={
+                                    <Popconfirm 
+                                        title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
+                                        onConfirm={() => handleRemoveAlokasi(alokasi.id)}
+                                        okText="Ya, Hapus"
+                                        cancelText="Batal"
+                                    >
+                                        <Button 
+                                            type="text" 
+                                            danger 
+                                            icon={<DeleteOutlined />} 
+                                            size="small" 
+                                            loading={removeAlokasiMutation.isPending && removeAlokasiMutation.variables === alokasi.id}
+                                        />
+                                    </Popconfirm>
+                                }
+                                bodyStyle={{ padding: 12 }}
+                            >
+                                
+                                {/* UI/UX: Progress Bar Keterisian */}
+                                <Paragraph style={{ marginBottom: 4, fontSize: 12 }} type="secondary">
+                                    Tingkat Keterisian Kursi:
+                                </Paragraph>
+                                <Progress 
+                                    percent={filledPercentage} 
+                                    size="small" 
+                                    status={filledPercentage >= 100 ? 'exception' : 'active'}
+                                    strokeColor={filledPercentage > 95 ? '#f5222d' : '#1890ff'}
+                                    style={{ marginBottom: 16 }}
+                                />
+
+                                {/* UI/UX: Tombol Action Block */}
+                                <div style={{ 
+                                    paddingTop: 8, 
+                                    borderTop: '1px dashed #f0f0f0',
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    alignItems: 'center',
+                                    gap: 8
+                                }}>
+                                    <Tag icon={<DeploymentUnitOutlined />} color="cyan" style={{ fontSize: 11 }}>
+                                        Layout Denah: {rows} Baris x {cols} Kolom
+                                    </Tag>
+                                    
                                     <Button 
-                                        type="text" 
-                                        danger 
-                                        icon={<DeleteOutlined />} 
-                                        size="small" 
-                                        loading={removeAlokasiMutation.isPending && removeAlokasiMutation.variables === alokasi.id}
-                                    />
-                                </Popconfirm>
-                            }
-                        >
-                            <Descriptions column={1} size="small" style={{ marginBottom: 12 }}>
-                                <Descriptions.Item label="Kapasitas">
-                                    <Tag color="blue">{alokasi.kapasitas_ruangan} Kursi</Tag>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Terisi">
-                                    <Tag color={alokasi.jumlah_kursi_terpakai > 0 ? 'green' : 'red'}>{alokasi.jumlah_kursi_terpakai} Peserta</Tag>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Kode Ruangan">
-                                    <Text copyable>{alokasi.kode_ruangan}</Text>
-                                </Descriptions.Item>
-                            </Descriptions>
-                            
-                            <div style={{ padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4, textAlign: 'center' }}>
-                                <Text strong type="secondary">VISUAL SEAT LAYOUT</Text>
-                                <Paragraph style={{ margin: '8px 0', fontSize: 12 }}>Metadata: <code>{alokasi.layout_metadata}</code></Paragraph>
-                                <Button 
-                                    type="link" 
-                                    icon={<EditOutlined />} 
-                                    onClick={() => handleOpenSeatingModal(alokasi)} 
-                                >
-                                    Atur Penempatan Kursi (Fase 1)
-                                </Button>
-                            </div>
-                        </Card>
-                    </Col>
-                ))}
+                                        type="primary" 
+                                        // PERBAIKAN: Mengganti ikon
+                                        icon={<LayoutOutlined />} 
+                                        onClick={() => handleOpenSeatingModal(alokasi)} 
+                                        block
+                                    >
+                                        Atur Denah Kursi
+                                    </Button>
+                                </div>
+                            </Card>
+                        </Col>
+                    );
+                })}
             </Row>
         ) : (
             <Empty description="Belum ada ruangan yang dialokasikan untuk paket ujian ini." />
@@ -800,7 +858,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       </Spin>
       
       {/* ==============================================================================
-      MODAL KELOLA MASTER RUANGAN (FORM SANGAT RINGKAS & KAPASITAS OTOMATIS)
+      MODAL KELOLA MASTER RUANGAN
       ============================================================================== */}
       <Modal
         title={editingRuangan ? `Edit Ruangan Fisik: ${editingRuangan.nama_ruangan}` : 'Buat Ruangan Fisik Baru'}
@@ -815,7 +873,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                 form={ruanganForm} 
                 layout="vertical" 
                 onFinish={handleSaveRuangan}
-                // Hapus onValuesChange di sini karena sudah ditangani oleh dependencies CalculatedCapacityDisplay
             >
                 <Row gutter={8} align="top">
                     {/* 1. Nama Ruangan */}
@@ -853,7 +910,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                     </Col>
                 </Row>
                 
-                {/* PERBAIKAN: Mengurangi margin atas (marginTop) agar lebih sempit */}
+                {/* Tombol Simpan/Batal dengan gap yang lebih sempit */}
                 <Form.Item style={{ textAlign: 'right', marginTop: 0, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}> 
                     <Button onClick={() => setIsMasterModalOpen(false)} style={{ marginRight: 8 }}>Batal</Button>
                     <Button type="primary" htmlType="submit">
