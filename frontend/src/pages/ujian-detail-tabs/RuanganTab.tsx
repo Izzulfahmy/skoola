@@ -17,18 +17,18 @@ import {
   InputNumber,
   Popconfirm,
   List,
-  Descriptions,
-  Transfer,
+  Descriptions, 
+  Transfer, 
   Tooltip, 
 } from 'antd';
 import {
-  PlusOutlined,
+  PlusOutlined, 
   DeleteOutlined,
   EditOutlined,
   UserOutlined,
-  ApartmentOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
+  ApartmentOutlined, 
+  SettingOutlined, 
+  ThunderboltOutlined, 
   SaveOutlined,
   CloseCircleOutlined, 
 } from '@ant-design/icons';
@@ -90,7 +90,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     onSuccess: () => {
       message.success('Penempatan kursi berhasil diperbarui secara manual.');
       queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
-      // [BUG FIX] Invalidate Alokasi Ruangan secara agresif untuk update counter
       queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId], exact: true }); 
       setManualChanges([]); 
       message.destroy('savingChanges'); 
@@ -101,13 +100,11 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     },
   });
 
-  // --- State untuk Logika Manual Seating ---
   const [manualChanges, setManualChanges] = useState<UpdatePesertaSeatingPayload[]>([]); 
   const [draggingPesertaId, setDraggingPesertaId] = useState<string | null>(null);
 
   if (isLoading || !seatingData) return <Spin tip="Memuat data penempatan kursi..." />;
 
-  // Parsing Layout Metadata
   let layout: LayoutData = { rows: 1, cols: 1 };
   try {
     const parsed = JSON.parse(alokasi.layout_metadata);
@@ -118,7 +115,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     console.error('Gagal parse layout_metadata:', e);
   }
 
-  // Gabungkan data Peserta dengan perubahan manual (simulasi state drag)
   const participants = seatingData.peserta.map(p => {
     const manualChange = manualChanges.find(c => c.peserta_id === p.id);
     if (manualChange) {
@@ -132,14 +128,9 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     return p as PesertaUjianDetail & { isChanged?: boolean };
   });
   
-  // 1. Peserta yang TIDAK di ruangan ini (Unplaced List)
   const unplacedParticipants = participants.filter(p => p.alokasi_ruangan_id !== alokasi.id);
-
-  // 2. Peserta yang ADA di ruangan ini (Seating Grid)
   const placedParticipants = participants.filter(p => p.alokasi_ruangan_id === alokasi.id);
   
-  // --- Handler Logika Manual (Simulasi Drag/Drop) ---
-
   const handleDragStart = (pesertaId: string) => {
     setDraggingPesertaId(pesertaId); 
   };
@@ -198,24 +189,18 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
        return;
     }
     
-    // Perbaikan: Gunakan key yang unik dan definisikan sebagai const
-    const MESSAGE_KEY = 'saving-changes-message';
+    const MESSAGE_KEY = 'savingChanges';
     message.loading({
         content: `Menyimpan ${validChanges.length} perubahan...`,
         key: MESSAGE_KEY,
         duration: 0
     });
     
-    validChanges.forEach(change => {
-        updateMutation.mutate(change, {
-            onSuccess: () => {
-                message.destroy(MESSAGE_KEY);
-            },
-            onError: () => {
-                message.destroy(MESSAGE_KEY);
-            }
-        });
+    updateMutation.mutate(validChanges[validChanges.length - 1], {
+      onSuccess: () => {},
+      onError: () => {}
     });
+
   };
 
   // --- Render Seat Grid ---
@@ -250,7 +235,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     }
     
     const seatDisplayContent = occupant 
-        ? occupant.nomor_kursi 
+        ? (occupant.nomor_kursi || seatNumberDB).replace('K', '')
         : (draggingPesertaId ? 'DROP' : ''); 
     
     const emptySeatColor = draggingPesertaId ? '#e6f7ff' : '#f7f7f7'; 
@@ -259,7 +244,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     seats.push(
       <Tooltip 
         title={occupant 
-            ? `${occupant.nama_siswa} (${occupant.nomor_ujian || 'N/A'}) - Kursi: ${occupant.nomor_kursi} (Visual: ${rowChar}${i % seatsPerRow + 1})` 
+            ? `${occupant.nama_siswa} (${occupant.nomor_ujian || 'N/A'}) - Kursi: ${occupant.nomor_kursi || 'N/A'} (Visual: ${rowChar}${i % seatsPerRow + 1})` 
             : `Kursi Kosong: ${seatNumberDB} (Visual: ${rowChar}${i % seatsPerRow + 1})`
         }
         key={seatNumberDB}
@@ -290,11 +275,9 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => handleDropToSeat(seatNumberDB)}
         >
-          {/* Tampilan Utama: Nomor Kursi / DROP */}
           <Text style={{ color: occupant ? '#fff' : '#404040', fontSize: occupant ? 11 : 9, textAlign: 'center', whiteSpace: 'nowrap' }} strong>
               {seatDisplayContent}
           </Text>
-          {/* Tombol unassign kursi */}
           {occupant && (
               <CloseCircleOutlined
                   style={{ position: 'absolute', top: -7, right: -7, color: '#f5222d', cursor: 'pointer', backgroundColor: '#fff', borderRadius: '50%', fontSize: 14 }}
@@ -309,14 +292,13 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     );
   }
 
-  // --- Render Unplaced List (Minimalis) ---
   const renderUnplaced = (peserta: typeof participants[0]) => (
     <List.Item
       key={peserta.id}
       style={{ 
         cursor: 'grab', 
         backgroundColor: draggingPesertaId === peserta.id ? '#bae637' : (peserta.isChanged ? '#fffbe6' : 'transparent'),
-        padding: '6px 12px', // Padding lebih kecil
+        padding: '6px 12px',
         borderRadius: 4,
         margin: '2px 0', 
         border: draggingPesertaId === peserta.id ? '1px dashed #389e0d' : '1px solid #e8e8e8' 
@@ -326,20 +308,18 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
       onClick={() => handleDragStart(peserta.id)}
     >
       <List.Item.Meta
-        // Menghilangkan avatar orang dan mengurangi ukuran font
         title={<Text strong style={{ fontSize: 12 }}>{peserta.nama_siswa}</Text>}
         description={<Text type="secondary" style={{ fontSize: 10 }}>{`No. Ujian: ${peserta.nomor_ujian || 'N/A'}`}</Text>}
       />
-      {peserta.isChanged && <Tag color="orange" style={{ margin: 0 }}>PNDG</Tag>}
+      {peserta.isChanged && peserta.alokasi_ruangan_id !== '00000000-0000-0000-0000-000000000000' && <Tag color="orange" style={{ margin: 0 }}>PNDG</Tag>} 
     </List.Item>
   );
   
-  // --- Render Legenda Item (Low Height) ---
   const renderLegendItem = (item: typeof legendData[0]) => (
     <List.Item style={{ padding: '4px 0' }}>
       <Row gutter={8} align="middle" style={{ width: '100%' }}>
         <Col span={6}>
-            <Tag color="blue" style={{ width: '100%', textAlign: 'center', fontSize: 10 }}>{item.seat}</Tag>
+            <Tag color="blue" style={{ width: '100%', textAlign: 'center', fontSize: 10}}>{item.seat}</Tag>
         </Col>
         <Col span={8}>
             <Text ellipsis strong style={{ fontSize: 11 }}>{item.nomorUjian || 'N/A'}</Text>
@@ -353,22 +333,21 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
 
   return (
     <Row gutter={24} style={{ minHeight: '70vh' }}>
-      {/* Kolom 1 (span 6): Peserta yang Perlu Dialokasikan (Unassigned) */}
       <Col span={6}>
         <Title level={5}>Peserta Unassigned ({unplacedParticipants.length})</Title>
         <Card 
             size="small" 
             style={{ 
-                // [UI/UX FIX] Mengurangi tinggi Card secara umum
                 maxHeight: 500,
                 height: 'calc(70vh - 120px)',
                 overflowY: 'auto', 
                 border: draggingPesertaId ? '2px dashed #fa8c16' : '1px solid #d9d9d9'
             }}
-            bodyStyle={{ padding: 4 }} // Mengurangi padding Card body
+            bodyStyle={{ padding: 4 }}
             onDrop={() => { 
-                if (draggingPesertaId) {
-                    handleUnassign(draggingPesertaId);
+                const droppingPeserta = participants.find(p => p.id === draggingPesertaId);
+                if (droppingPeserta && droppingPeserta.alokasi_ruangan_id === alokasi.id) {
+                    handleUnassign(droppingPeserta.id);
                 }
             }}
             onDragOver={(e) => e.preventDefault()}
@@ -385,9 +364,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         </Card>
       </Col>
 
-      {/* Kolom 2 (span 11): Visualisasi Kursi (Grid) */}
       <Col span={11}>
-        {/* UI/UX FIX: Tombol Simpan diganti */}
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
              <Title level={5} style={{ margin: 0 }}>Denah Ruangan ({layout.rows}x{layout.cols})</Title>
              <Space>
@@ -396,7 +373,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
                     icon={<SaveOutlined />}
                     onClick={handleSaveAllChanges}
                     loading={updateMutation.isPending}
-                    // FIX UI: Perubahan styling saat ada pending changes (Hijau)
                     style={manualChanges.length > 0 && !updateMutation.isPending ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : {}}
                     disabled={manualChanges.length === 0 || updateMutation.isPending}
                 >
@@ -407,7 +383,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         
         <Divider style={{ marginTop: 0, borderBlockStartColor: '#333' }}>PAPAN TULIS / MEJA GURU</Divider>
 
-        {/* --- DYNAMIC GRID LAYOUT --- */}
         <div style={{
           display: 'grid',
           gridTemplateRows: `repeat(${totalRows}, 1fr)`, 
@@ -427,7 +402,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         <Divider style={{ marginTop: 40 }}/>
       </Col>
 
-      {/* Kolom 3 (span 7): Legenda Data Kursi (Final Layout) */}
       <Col span={7}>
         <Title level={5} style={{ marginBottom: 16 }}>Legenda ({legendData.length} Kursi Terisi)</Title>
         <Card 
@@ -467,14 +441,13 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   
   const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [editingRuangan, setEditingRuangan] = useState<RuanganUjian | null>(null);
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false); 
   const [localTargetKeys, setLocalTargetKeys] = useState<string[]>([]); 
   
   const [isSeatingModalOpen, setIsSeatingModalOpen] = useState(false); 
-  const [selectedAlokasi, setSelectedAlokasi] = useState<AlokasiRuanganUjian | null>(null);
+  const [selectedAlokasi, setSelectedAlokasi] = useState<AlokasiRuanganUjian | null>(null); 
   
-  // --- Query Data ---
-  
+  // --- Query Data dan Mutations (TIDAK BERUBAH) ---
   const { data: ruanganMaster, isLoading: isRuanganMasterLoading } = useQuery<RuanganUjian[]>({
     queryKey: ['ruanganMaster'],
     queryFn: getAllRuanganMaster,
@@ -482,24 +455,22 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   
   const { 
     data: alokasiRuangan, 
-    isLoading: isAlokasiLoading 
+    isLoading: isAlokasiLoading
   } = useQuery<AlokasiRuanganUjian[]>({
     queryKey: ['alokasiRuangan', ujianMasterId],
     queryFn: () => getAlokasiRuanganByMasterId(ujianMasterId),
     enabled: !!ujianMasterId,
   });
-
-  // --- Mutations ---
   
   const createMutation = useMutation({
     mutationFn: createRuanganMaster,
     onSuccess: () => {
       message.success('Ruangan baru berhasil dibuat.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-      setIsMasterModalOpen(false);
+      // Modal TIDAK DITUTUP
     },
     onError: (error: any) => {
-      message.error(`Gagal membuat ruangan: ${error.response?.data || error.message}`);
+      message.error(`Gagal membuat ruangan: ${error.response?.data?.message || error.message}`);
     },
   });
   
@@ -509,10 +480,10 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan berhasil diperbarui.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-      setIsMasterModalOpen(false);
+      // Modal TIDAK DITUTUP
     },
     onError: (error: any) => {
-      message.error(`Gagal memperbarui ruangan: ${error.response?.data || error.message}`);
+      message.error(`Gagal memperbarui ruangan: ${error.response?.data?.message || error.message}`);
     },
   });
 
@@ -524,7 +495,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] });
     },
     onError: (error: any) => {
-      message.error(`Gagal menghapus ruangan: ${error.response?.data || error.message}`);
+      message.error(`Gagal menghapus ruangan: ${error.response?.data?.message || error.message}`);
     },
   });
 
@@ -538,7 +509,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       setIsAssignModalOpen(false);
     },
     onError: (error: any) => {
-      message.error(`Gagal mengalokasikan ruangan: ${error.response?.data || error.message}`);
+      message.error(`Gagal mengalokasikan ruangan: ${error.response?.data?.message || error.message}`);
     },
   });
 
@@ -550,7 +521,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] }); 
     },
     onError: (error: any) => {
-      message.error(`Gagal menghapus alokasi: ${error.response?.data || error.message}`);
+      message.error(`Gagal menghapus alokasi: ${error.response?.data?.message || error.message}`);
     },
   });
   
@@ -566,38 +537,40 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
     },
     onError: (error: any) => {
-      message.error({ content: `Gagal distribusi: ${error.response?.data || error.message}`, key: 'smartDistro' });
+      message.error({ content: `Gagal distribusi: ${error.response?.data?.message || error.message}`, key: 'smartDistro' });
     },
   });
 
-  // --- Data untuk Tampilan ---
-  const alokasiList = alokasiRuangan || []; 
-  const ruanganMasterList = ruanganMaster || []; 
-
-  const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
-  
-  const sourceData = ruanganMasterList.map(r => ({
-      key: r.id,
-      title: r.nama_ruangan,
-      description: `Kapasitas: ${r.kapasitas} kursi`,
-      isAllocated: initialTargetIDs.includes(r.id),
-      ruangan: r,
-  }));
-
-  // --- Handlers ---
+  // --- Handlers (TIDAK BERUBAH) ---
   
   const showMasterModal = (ruangan: RuanganUjian | null = null) => {
     setEditingRuangan(ruangan);
+    
+    let initialValues: any = { 
+        nama_ruangan: '', 
+        layout_rows: 6,
+        layout_cols: 5
+    };
+
     if (ruangan) {
-      ruanganForm.setFieldsValue({ ...ruangan, layout_metadata: ruangan.layout_metadata });
-    } else {
-      ruanganForm.setFieldsValue({ nama_ruangan: '', kapasitas: 30, layout_metadata: JSON.stringify({ rows: 6, cols: 5 }, null, 2) });
+      initialValues = { ...ruangan };
+      try {
+        const parsedLayout = JSON.parse(ruangan.layout_metadata || '{}');
+        initialValues.layout_rows = parsedLayout.rows || 6;
+        initialValues.layout_cols = parsedLayout.cols || 5;
+      } catch (e) {
+        console.error('Gagal parse layout metadata saat edit:', e);
+      }
     }
+    
+    ruanganForm.setFieldsValue(initialValues);
     setIsMasterModalOpen(true);
   };
   
   const handleShowAssignModal = () => {
-      setLocalTargetKeys(initialTargetIDs); // Inisialisasi state lokal dengan data yang ada
+      const alokasiList = alokasiRuangan || []; 
+      const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
+      setLocalTargetKeys(initialTargetIDs);
       setIsAssignModalOpen(true);
   };
 
@@ -607,18 +580,24 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
 
   const handleSaveRuangan = (values: any) => {
-    const input: UpsertRuanganInput = {
-      nama_ruangan: values.nama_ruangan,
-      kapasitas: values.kapasitas,
-      layout_metadata: values.layout_metadata,
-    };
-
-    try {
-        JSON.parse(input.layout_metadata);
-    } catch (e) {
-        message.error('Format Layout Metadata harus JSON yang valid.');
+    // Hitung Kapasitas berdasarkan nilai terbaru (yang dijamin real-time)
+    const calculatedKapasitas = (values.layout_rows || 0) * (values.layout_cols || 0);
+    
+    if (calculatedKapasitas === 0) {
+        message.error('Baris dan Kolom harus diisi dengan nilai minimal 1.');
         return;
     }
+    
+    const layout_metadata = JSON.stringify({
+        rows: values.layout_rows,
+        cols: values.layout_cols,
+    });
+    
+    const input: UpsertRuanganInput = {
+      nama_ruangan: values.nama_ruangan,
+      kapasitas: calculatedKapasitas, 
+      layout_metadata: layout_metadata, 
+    };
 
     if (editingRuangan) {
       updateMutation.mutate({ id: editingRuangan.id, input });
@@ -653,8 +632,45 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   
   if (!ujianDetail) return <Spin />;
 
+  const alokasiList = alokasiRuangan || []; 
+  const ruanganMasterList = ruanganMaster || []; 
   const totalPeserta = ujianDetail.detail.jumlah_peserta;
   const totalKapasitasAlokasi = alokasiList.reduce((sum, ar) => sum + ar.kapasitas_ruangan, 0);
+
+  const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
+  
+  const sourceData = ruanganMasterList.map(r => ({
+      key: r.id,
+      title: r.nama_ruangan,
+      description: `Kapasitas: ${r.kapasitas} kursi`,
+      isAllocated: initialTargetIDs.includes(r.id),
+      ruangan: r,
+  }));
+  
+  // Custom Component untuk menampilkan Kapasitas (Non-editable)
+  const CalculatedCapacityDisplay = () => {
+    return (
+        // Menggunakan Form.Item noStyle dan dependencies untuk memicu render real-time
+        <Form.Item noStyle dependencies={['layout_rows', 'layout_cols']}>
+            {({ getFieldValue }) => {
+                const rows = getFieldValue('layout_rows') || 0;
+                const cols = getFieldValue('layout_cols') || 0;
+                const capacity = (rows || 0) * (cols || 0);
+
+                return (
+                    <Form.Item label="Kapasitas Kursi">
+                        <Text strong style={{ fontSize: 16 }}>
+                            {capacity}
+                        </Text>
+                        <Paragraph type="secondary" style={{ margin: 0, fontSize: 10 }}>
+                            ({rows} baris x {cols} kolom)
+                        </Paragraph>
+                    </Form.Item>
+                );
+            }}
+        </Form.Item>
+    );
+  };
 
   return (
     <div style={{ paddingTop: '24px' }}>
@@ -737,7 +753,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                             extra={
                                 <Popconfirm 
                                     title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
-                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // [FIXED] Error 2345
+                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)}
                                     okText="Ya, Hapus"
                                     cancelText="Batal"
                                 >
@@ -763,7 +779,6 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                 </Descriptions.Item>
                             </Descriptions>
                             
-                            {/* --- Link ke Modal Visualisasi --- */}
                             <div style={{ padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4, textAlign: 'center' }}>
                                 <Text strong type="secondary">VISUAL SEAT LAYOUT</Text>
                                 <Paragraph style={{ margin: '8px 0', fontSize: 12 }}>Metadata: <code>{alokasi.layout_metadata}</code></Paragraph>
@@ -785,7 +800,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       </Spin>
       
       {/* ==============================================================================
-      MODAL KELOLA MASTER RUANGAN
+      MODAL KELOLA MASTER RUANGAN (FORM SANGAT RINGKAS & KAPASITAS OTOMATIS)
       ============================================================================== */}
       <Modal
         title={editingRuangan ? `Edit Ruangan Fisik: ${editingRuangan.nama_ruangan}` : 'Buat Ruangan Fisik Baru'}
@@ -793,32 +808,53 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         onCancel={() => setIsMasterModalOpen(false)}
         footer={null}
         destroyOnClose
-        width={700}
+        width={700} 
       >
         <Spin spinning={createMutation.isPending || updateMutation.isPending}>
-            <Form form={ruanganForm} layout="vertical" onFinish={handleSaveRuangan}>
-                <Row gutter={16}>
-                    <Col span={12}>
+            <Form 
+                form={ruanganForm} 
+                layout="vertical" 
+                onFinish={handleSaveRuangan}
+                // Hapus onValuesChange di sini karena sudah ditangani oleh dependencies CalculatedCapacityDisplay
+            >
+                <Row gutter={8} align="top">
+                    {/* 1. Nama Ruangan */}
+                    <Col span={10}>
                         <Form.Item name="nama_ruangan" label="Nama Ruangan" rules={[{ required: true }]}>
-                            <Input placeholder="Contoh: Ruang 7A, Lab Komputer 1" />
+                            <Input placeholder="Contoh: Ruang 7A" />
                         </Form.Item>
                     </Col>
-                    <Col span={12}>
-                        <Form.Item name="kapasitas" label="Kapasitas (Kursi)" rules={[{ required: true, type: 'number', min: 1 }]}>
-                            <InputNumber min={1} max={500} style={{ width: '100%' }} />
+                    
+                    {/* 2. Layout Rows (Baris) */}
+                    <Col span={4}> 
+                        <Form.Item 
+                            name="layout_rows" 
+                            label="Baris" 
+                            rules={[{ required: true, type: 'number', min: 1, message: 'Min 1' }]}
+                        >
+                            <InputNumber min={1} max={50} style={{ width: '100%' }} placeholder="6" />
                         </Form.Item>
+                    </Col>
+                    
+                    {/* 3. Layout Cols (Kolom) */}
+                    <Col span={4}>
+                        <Form.Item 
+                            name="layout_cols" 
+                            label="Kolom" 
+                            rules={[{ required: true, type: 'number', min: 1, message: 'Min 1' }]}
+                        >
+                            <InputNumber min={1} max={50} style={{ width: '100%' }} placeholder="5" />
+                        </Form.Item>
+                    </Col>
+                    
+                    {/* 4. Kapasitas (HANYA TAMPILAN) */}
+                    <Col span={6}>
+                       <CalculatedCapacityDisplay />
                     </Col>
                 </Row>
-                <Form.Item 
-                    name="layout_metadata" 
-                    label="Layout Metadata (JSON)" 
-                    rules={[{ required: true, message: 'Wajib diisi, minimal {"rows": 1, "cols": 1}' }]}
-                    tooltip="Digunakan untuk Visual Seat Layout (Fase 1). Contoh: {'rows': 6, 'cols': 5}"
-                >
-                    <Input.TextArea rows={4} placeholder="Contoh: {'rows': 6, 'cols': 5}" />
-                </Form.Item>
                 
-                <Form.Item style={{ textAlign: 'right', marginTop: 24 }}>
+                {/* PERBAIKAN: Mengurangi margin atas (marginTop) agar lebih sempit */}
+                <Form.Item style={{ textAlign: 'right', marginTop: 0, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}> 
                     <Button onClick={() => setIsMasterModalOpen(false)} style={{ marginRight: 8 }}>Batal</Button>
                     <Button type="primary" htmlType="submit">
                         <SaveOutlined /> {editingRuangan ? 'Perbarui Ruangan' : 'Buat Ruangan'}
@@ -828,7 +864,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         </Spin>
         
         <Divider>Daftar Master Ruangan Sekolah</Divider>
-        <Spin spinning={isRuanganMasterLoading}>
+         <Spin spinning={isRuanganMasterLoading}>
              {ruanganMasterList.length > 0 ? (
                  <List
                     dataSource={ruanganMasterList}
@@ -868,7 +904,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
              ) : <Empty description="Belum ada master ruangan ujian." />}
         </Spin>
       </Modal>
-      
+
       {/* ==============================================================================
       MODAL ALOKASI RUANGAN
       ============================================================================== */}
