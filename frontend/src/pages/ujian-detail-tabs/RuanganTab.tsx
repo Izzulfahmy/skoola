@@ -1,5 +1,3 @@
-// file: frontend/src/pages/ujian-detail-tabs/RuanganTab.tsx
-
 import React, { useState } from 'react';
 import {
   Typography,
@@ -93,7 +91,8 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     onSuccess: () => {
       message.success('Penempatan kursi berhasil diperbarui secara manual.');
       queryClient.invalidateQueries({ queryKey: ['alokasiKursi', ujianMasterId] });
-      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] }); 
+      // [BUG FIX] Invalidate Alokasi Ruangan secara agresif untuk update counter
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId], exact: true }); 
       setManualChanges([]); 
       message.destroy('savingChanges'); 
     },
@@ -225,11 +224,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     const seatNumberDB = `K${String(seatIndex).padStart(3, '0')}`; 
     
     const visualRowIndex = Math.floor(i / seatsPerRow);
-    const visualColIndex = i % seatsPerRow;
     const rowChar = ALPHABET[visualRowIndex % ALPHABET.length]; 
-    
-    // [FIX WARNING]: Menghapus visualSeatNumber karena tidak digunakan untuk display/logic utama
-    // const visualSeatNumber = `${rowChar}${visualColIndex + 1}`; 
     
     const occupant = placedParticipants.find(p => p.nomor_kursi === seatNumberDB); 
 
@@ -242,7 +237,6 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
       seatClassName += ' droppable';
     }
     
-    // [UI/UX FIX]: Tampilkan Nomor Kursi (seatNumberDB) jika terisi, bukan Nomor Ujian
     const seatDisplayContent = occupant 
         ? occupant.nomor_kursi 
         : (draggingPesertaId ? 'DROP' : ''); 
@@ -253,8 +247,8 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     seats.push(
       <Tooltip 
         title={occupant 
-            ? `${occupant.nama_siswa} (${occupant.nomor_ujian || 'N/A'}) - Kursi: ${occupant.nomor_kursi}` 
-            : `Kursi Kosong: ${seatNumberDB}`
+            ? `${occupant.nama_siswa} (${occupant.nomor_ujian || 'N/A'}) - Kursi: ${occupant.nomor_kursi} (Visual: ${rowChar}${i % seatsPerRow + 1})` 
+            : `Kursi Kosong: ${seatNumberDB} (Visual: ${rowChar}${i % seatsPerRow + 1})`
         }
         key={seatNumberDB}
       >
@@ -278,7 +272,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
             boxShadow: occupant ? '0 0 5px rgba(24, 144, 255, 0.5)' : 'none',
             transition: 'all 0.2s',
             gridRow: visualRowIndex + 1,
-            gridColumn: visualColIndex + 1,
+            gridColumn: (i % seatsPerRow) + 1, 
           }}
           onClick={() => handleDropToSeat(seatNumberDB)}
           onDragOver={(e) => e.preventDefault()}
@@ -303,16 +297,16 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     );
   }
 
-  // --- Render Unplaced List ---
+  // --- Render Unplaced List (Minimalis) ---
   const renderUnplaced = (peserta: typeof participants[0]) => (
     <List.Item
       key={peserta.id}
       style={{ 
         cursor: 'grab', 
         backgroundColor: draggingPesertaId === peserta.id ? '#bae637' : (peserta.isChanged ? '#fffbe6' : 'transparent'),
-        padding: '8px 16px',
+        padding: '6px 12px', // Padding lebih kecil
         borderRadius: 4,
-        margin: '4px 0',
+        margin: '2px 0', 
         border: draggingPesertaId === peserta.id ? '1px dashed #389e0d' : '1px solid #e8e8e8' 
       }}
       draggable
@@ -320,11 +314,11 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
       onClick={() => handleDragStart(peserta.id)}
     >
       <List.Item.Meta
-        avatar={<UserOutlined />}
-        title={<Text strong>{peserta.nama_siswa}</Text>}
-        description={`No. Ujian: ${peserta.nomor_ujian || 'N/A'}`}
+        // Menghilangkan avatar orang dan mengurangi ukuran font
+        title={<Text strong style={{ fontSize: 12 }}>{peserta.nama_siswa}</Text>}
+        description={<Text type="secondary" style={{ fontSize: 10 }}>{`No. Ujian: ${peserta.nomor_ujian || 'N/A'}`}</Text>}
       />
-      {peserta.isChanged && <Tag color="orange">Pending</Tag>}
+      {peserta.isChanged && <Tag color="orange" style={{ margin: 0 }}>PNDG</Tag>}
     </List.Item>
   );
   
@@ -353,11 +347,13 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         <Card 
             size="small" 
             style={{ 
-                height: 'calc(70vh - 50px)', 
+                // [UI/UX FIX] Mengurangi tinggi Card secara umum
+                maxHeight: 500,
+                height: 'calc(70vh - 120px)',
                 overflowY: 'auto', 
                 border: draggingPesertaId ? '2px dashed #fa8c16' : '1px solid #d9d9d9'
             }}
-            bodyStyle={{ padding: 8 }}
+            bodyStyle={{ padding: 4 }} // Mengurangi padding Card body
             onDrop={() => { 
                 if (draggingPesertaId) {
                     handleUnassign(draggingPesertaId);
@@ -730,7 +726,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                             extra={
                                 <Popconfirm 
                                     title="Yakin hapus alokasi ini? Penempatan kursi peserta akan dihapus!" 
-                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // [FIX ERROR 1]
+                                    onConfirm={() => handleRemoveAlokasi(alokasi.id)} // FIX FINAL ERROR (Code 2345)
                                     okText="Ya, Hapus"
                                     cancelText="Batal"
                                 >
