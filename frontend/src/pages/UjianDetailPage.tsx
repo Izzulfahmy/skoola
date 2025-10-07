@@ -140,8 +140,8 @@ const UjianDetailPage = () => {
       // Menggunakan komponen RuanganTab yang baru
       children: <RuanganTab ujianMasterId={ujianMasterId!} ujianDetail={ujianDetail} />
     },
-    { key: '4', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
-    { key: '5', label: 'Kartu Ujian', children: <PlaceholderTab title="Kartu Ujian" /> },
+    { key: '4', label: 'Kartu Ujian', children: <PlaceholderTab title="Kartu Ujian" /> },
+    { key: '5', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
     { key: '6', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
   ];
 
