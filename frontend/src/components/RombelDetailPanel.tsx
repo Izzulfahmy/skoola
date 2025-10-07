@@ -44,10 +44,22 @@ import { getAvailableStudents } from '../api/students';
 import { getTaughtMataPelajaran } from '../api/mataPelajaran';
 import MateriPembelajaranPanel from './MateriPembelajaranPanel';
 import PenilaianPanel from './PenilaianPanel';
-import type { PenilaianPanelRef, ViewMode } from '../pages/teacher/PenilaianPage'; // <-- Impor tipe baru
+// --- BARIS LAMA BERMASALAH (Dihapus/Diganti): 
+// import type { PenilaianPanelRef, ViewMode } from './PenilaianPanel'; 
+// ---
 
 const { Text, Title } = Typography;
 const { Option } = Select;
+
+// --- DEFINISI ULANG TIPE DI SINI ---
+// Asumsi PenilaianPanel memiliki method handleSave()
+interface PenilaianPanelRef {
+  handleSave: () => Promise<void>;
+}
+
+// Asumsi ViewMode adalah tipe union dari string literal
+type ViewMode = 'rata-rata' | 'detail';
+// ------------------------------------
 
 interface RombelDetailPanelProps {
   rombel: Kelas;
@@ -114,7 +126,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   const [allMapel, setAllMapel] = useState<MataPelajaran[]>([]);
   const [form] = Form.useForm();
   
-  // --- STATE BARU UNTUK KONTROL PENILAIAN ---
+  // --- STATE UNTUK KONTROL PENILAIAN ---
   const [activePenilaianTab, setActivePenilaianTab] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('rata-rata');
   const [isSaving, setIsSaving] = useState(false);
@@ -150,7 +162,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
     fetchData();
   }, [rombel]);
 
-  // --- FUNGSI BARU UNTUK MENYIMPAN NILAI ---
+  // --- FUNGSI UNTUK MENYIMPAN NILAI ---
   const triggerSave = async () => {
     if (penilaianPanelRef.current) {
       setIsSaving(true);
@@ -296,7 +308,7 @@ const RombelDetailPanel = ({ rombel, teachers, onUpdate, onBack }: RombelDetailP
   const penilaianContent = (
     <div>
         <Space style={{ marginBottom: 16 }} wrap>
-            <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)} buttonStyle="solid">
+            <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value as ViewMode)} buttonStyle="solid">
                 <Radio.Button value="rata-rata">Rata-rata TP</Radio.Button>
                 <Radio.Button value="detail">Semua Penilaian</Radio.Button>
             </Radio.Group>
