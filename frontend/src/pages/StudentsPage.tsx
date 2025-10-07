@@ -265,7 +265,7 @@ const StudentsPage = () => {
         <Col xs={24} sm={14} style={{ textAlign: 'right' }}>
             <Space wrap> 
                 <Input.Search 
-                    placeholder="Cari siswa (Nama, NIS, NISN)" 
+                    placeholder="Cari (Nama, NIS, NISN)" 
                     allowClear 
                     onSearch={setSearchText} 
                     onChange={(e) => setSearchText(e.target.value)} 
