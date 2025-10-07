@@ -116,8 +116,16 @@ const TahunAjaranPage = () => {
     }
   };
 
+  // --- STYLE UNTUK MEMPERPENDEK BARIS TABEL ---
+  const compactCellStyle: React.CSSProperties = { 
+    paddingTop: '4px', 
+    paddingBottom: '4px',
+  };
 
-  const columns: TableColumnsType<TahunAjaran> = [
+  const compactCellProps = { style: compactCellStyle };
+  // ---------------------------------------------
+
+  const baseColumns: TableColumnsType<TahunAjaran> = [
     { 
       title: 'Tahun Ajaran', 
       dataIndex: 'nama_tahun_ajaran', 
@@ -179,6 +187,14 @@ const TahunAjaranPage = () => {
     },
   ];
 
+  // --- MENGAPLIKASIKAN COMPACT STYLE KE SEMUA KOLOM ---
+  const columns: TableColumnsType<TahunAjaran> = baseColumns.map(col => ({
+    ...col,
+    onHeaderCell: () => compactCellProps,
+    onCell: () => compactCellProps,
+  }));
+  // ----------------------------------------------------
+
   if (error) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
@@ -196,12 +212,13 @@ const TahunAjaranPage = () => {
         </Col>
       </Row>
       <Table
-        columns={columns}
+        columns={columns} // Menggunakan kolom yang sudah diperpendek
         dataSource={tahunAjaranList}
         loading={loading}
         rowKey="id"
         pagination={false}
         scroll={{ x: 'max-content' }}
+        size="small" // Memastikan ukuran tabel kecil
       />
       <Modal
         title={editingTahunAjaran ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran Baru'}

@@ -77,8 +77,18 @@ const TeachersPage = () => {
     }
   };
 
+  // --- STYLE UNTUK MEMPERPENDEK BARIS TABEL ---
+  const compactCellStyle: React.CSSProperties = { 
+    paddingTop: '4px', 
+    paddingBottom: '4px',
+  };
+
+  const compactCellProps = { style: compactCellStyle };
+  // ---------------------------------------------
+  
+
   // --- KOLOM TABEL DIPERBARUI SECARA MENYELURUH ---
-  const columns: TableColumnsType<Teacher> = [
+  const baseColumns: TableColumnsType<Teacher> = [
     {
       title: 'Nama Lengkap',
       dataIndex: 'nama_lengkap',
@@ -137,6 +147,15 @@ const TeachersPage = () => {
     },
   ];
 
+  // --- MENGAPLIKASIKAN COMPACT STYLE KE SEMUA KOLOM ---
+  const columns: TableColumnsType<Teacher> = baseColumns.map(col => ({
+    ...col,
+    onHeaderCell: () => compactCellProps,
+    onCell: () => compactCellProps,
+  }));
+  // ----------------------------------------------------
+
+
   if (error && !teachers.length) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
@@ -157,12 +176,13 @@ const TeachersPage = () => {
       {error && <Alert message={error} type="warning" style={{ marginBottom: '16px' }} />}
 
       <Table
-        columns={columns}
+        columns={columns} // Menggunakan kolom yang sudah diperpendek
         dataSource={teachers}
         loading={loading}
         rowKey="id"
         scroll={{ x: 'max-content' }}
         pagination={false}
+        size="small" // Memastikan ukuran tabel kecil
       />
 
       <Modal
