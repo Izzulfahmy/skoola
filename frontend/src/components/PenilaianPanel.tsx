@@ -2,12 +2,19 @@
 import { useEffect, useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { message, Spin, Empty, Tooltip } from 'antd';
 // --- PERBAIKAN DI SINI ---
-import { createRoot, type Root } from 'react-dom/client'; // Impor Root sebagai tipe
+import { createRoot, type Root } from 'react-dom/client'; 
 import jspreadsheet from 'jspreadsheet-ce';
 import 'jspreadsheet-ce/dist/jspreadsheet.css';
 import { getPenilaianLengkap, upsertNilaiBulk } from '../api/penilaian';
 import type { RencanaPembelajaranItem, PenilaianSiswaData, BulkUpsertNilaiInput } from '../types';
-import type { PenilaianPanelRef, ViewMode } from '../pages/teacher/PenilaianPage';
+
+// Definisi tipe PenilaianPanelRef dan ViewMode dipindahkan ke sini atau diasumsikan ada di sini
+export type ViewMode = 'rata-rata' | 'detail';
+
+export interface PenilaianPanelRef {
+  handleSave: () => Promise<void>;
+}
+// --- Akhir Perbaikan Tipe ---
 
 interface PenilaianPanelProps {
   pengajarKelasId: string;
@@ -55,7 +62,7 @@ const PenilaianPanel = forwardRef<PenilaianPanelRef, PenilaianPanelProps>(({ pen
     }
 
     const finalColumns: jspreadsheet.Column[] = [
-      { type: 'text', title: 'NIS', width: 120, readOnly: true, align: 'left' },
+      { type: 'text', title: 'NIS', width: 80, readOnly: true, align: 'left' }, // **PERUBAHAN LEBAR NIS DI SINI**
       {
         type: 'text',
         title: 'Nama Lengkap',
