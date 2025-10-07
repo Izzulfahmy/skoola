@@ -4,9 +4,9 @@ import { Table, Typography, Alert, Button, Modal, message, Space, Popconfirm, Ro
 import type { TableColumnsType, MenuProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined, FileExcelOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
-import { getStudents, createStudent, updateStudent, deleteStudent, downloadStudentTemplate, uploadStudentsFile } from '../api/students';
-import type { Student, CreateStudentInput, UpdateStudentInput, ImportResult } from '../types';
-import StudentForm from '../components/StudentForm';
+import { getStudents, createStudent, updateStudent, deleteStudent, downloadStudentTemplate, uploadStudentsFile } from '../api/students'; 
+import type { Student, CreateStudentInput, UpdateStudentInput, ImportResult } from '../types'; 
+import StudentForm from '../components/StudentForm'; 
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -75,7 +75,7 @@ const StudentsPage = () => {
       handleFormCancel();
       fetchStudents();
     } catch (err: any) {
-      const errorMessage = err.response?.data || 'Terjadi kesalahan saat menyimpan data.';
+      const errorMessage = err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data.'; 
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -88,17 +88,20 @@ const StudentsPage = () => {
       message.success('Data siswa berhasil dihapus!');
       fetchStudents();
     } catch (err: any) {
-      const errorMessage = err.response?.data || 'Gagal menghapus data siswa.';
+      const errorMessage = err.response?.data?.message || 'Gagal menghapus data siswa.';
       message.error(errorMessage);
     }
   };
 
   const handleDownloadTemplate = async () => {
-    message.loading('Menyiapkan template...');
+    const hide = message.loading('Menyiapkan template...', 0); 
     try {
       await downloadStudentTemplate();
+      message.success('Template berhasil diunduh!'); 
     } catch (error) {
       message.error('Gagal mengunduh template.');
+    } finally {
+      hide(); 
     }
   };
 
@@ -106,7 +109,7 @@ const StudentsPage = () => {
     setIsImportModalOpen(false);
     setUploadResult(null);
     setFileList([]);
-    if (uploadResult) { // Jika ada hasil, refresh tabel
+    if (uploadResult) { 
         fetchStudents();
     }
   };
@@ -161,19 +164,7 @@ const StudentsPage = () => {
       dataIndex: 'nama_lengkap', 
       key: 'nama_lengkap', 
       sorter: (a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap),
-    },
-    { 
-      title: 'Status', 
-      dataIndex: 'status_saat_ini',
-      key: 'status_saat_ini',
-      render: (status) => {
-        if (!status) return <Tag>BARU</Tag>;
-        let color = 'default';
-        if (status === 'Aktif') color = 'green';
-        if (status === 'Lulus') color = 'blue';
-        if (status === 'Pindah' || status === 'Keluar') color = 'volcano';
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
-      },
+      width: 200, 
     },
     { 
       title: 'NIS', 
@@ -181,6 +172,7 @@ const StudentsPage = () => {
       key: 'nis', 
       render: (text) => text || '-',
       responsive: ['md'],
+      width: 120,
     },
     { 
       title: 'NISN', 
@@ -188,28 +180,50 @@ const StudentsPage = () => {
       key: 'nisn', 
       render: (text) => text || '-',
       responsive: ['lg'],
+      width: 120,
     },
     { 
-      title: 'Jenis Kelamin', 
+      title: 'JK', 
       dataIndex: 'jenis_kelamin', 
       key: 'jenis_kelamin', 
-      render: (text) => text || '-',
+      render: (text) => text ? (text.charAt(0) === 'L' ? 'Laki-laki' : 'Perempuan') : '-', 
       responsive: ['lg'],
+      width: 100,
+      align: 'center', // ⭐ Perubahan: Mengatur jenis kelamin center
     },
     { 
-      title: 'Nama Wali', 
+      title: 'Wali', 
       dataIndex: 'nama_wali', 
       key: 'nama_wali', 
       render: (_, record) => record.nama_wali || record.nama_ayah || record.nama_ibu || '-',
       responsive: ['md'],
+      width: 150,
+    },
+    // ⭐ Perubahan: Memindahkan kolom 'Status' ke sini (sebelum 'Aksi')
+    { 
+      title: 'Status', 
+      dataIndex: 'status_saat_ini',
+      key: 'status_saat_ini',
+      width: 100,
+      render: (status) => {
+        if (!status) return <Tag>BARU</Tag>; 
+        let color = 'default';
+        if (status === 'Aktif') color = 'green';
+        if (status === 'Lulus') color = 'blue';
+        if (status === 'Pindah' || status === 'Keluar') color = 'volcano';
+        return <Tag color={color}>{status.toUpperCase()}</Tag>; 
+      },
+      align: 'center',
     },
     {
       title: 'Aksi',
       key: 'action',
       align: 'center',
+      width: 100, 
+      fixed: 'right', 
       render: (_, record) => (
-        <Space size="middle">
-          <Button icon={<EditOutlined />} onClick={() => showFormModal(record)} />
+        <Space size="small"> 
+          <Button size="small" icon={<EditOutlined />} onClick={() => showFormModal(record)} /> 
           <Popconfirm
             title="Hapus Siswa"
             description="Apakah Anda yakin?"
@@ -217,7 +231,7 @@ const StudentsPage = () => {
             okText="Ya"
             cancelText="Tidak"
           >
-            <Button icon={<DeleteOutlined />} danger />
+            <Button size="small" icon={<DeleteOutlined />} danger /> 
           </Popconfirm>
         </Space>
       ),
@@ -251,8 +265,10 @@ const StudentsPage = () => {
         loading={loading} 
         rowKey="id" 
         scroll={{ x: 'max-content' }}
-        pagination={false} 
+        size="small" 
+        pagination={false} // ⭐ Perubahan: Menghilangkan paginasi
       />
+      {/* Modal Form Siswa */}
       {isFormModalOpen && (
         <Modal
           title={editingStudent ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}
@@ -272,7 +288,8 @@ const StudentsPage = () => {
         </Modal>
       )}
 
-    <Modal
+      {/* Modal Import Siswa */}
+      <Modal
         title="Impor Data Siswa"
         open={isImportModalOpen}
         onCancel={handleImportCancel}
