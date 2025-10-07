@@ -21,7 +21,7 @@ import {
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd'; 
 import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; // ✅ KEMBALIKAN KE PATH ASLI DARI PROMPT ANDA
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -55,7 +55,7 @@ const AdminLayout = () => {
       key: 'settings',
       label: 'Pengaturan Akun',
       icon: <SettingOutlined />,
-      onClick: () => navigate('/admin/settings'), // <-- Also prefix this
+      onClick: () => navigate('/admin/settings'),
     },
     {
       type: 'divider',
@@ -69,9 +69,6 @@ const AdminLayout = () => {
     },
   ];
 
-  // =================================================================
-  // PERBAIKAN UTAMA: Tambahkan prefix '/admin' pada semua key dan Link
-  // =================================================================
   const allMenuItems: MenuProps['items'] = [
     { key: '/admin/dashboard', icon: <DesktopOutlined />, label: <Link to="/admin/dashboard">Dashboard</Link> },
     { key: '/admin/profile', icon: <BankOutlined />, label: <Link to="/admin/profile">Profil Sekolah</Link> },
@@ -105,11 +102,12 @@ const AdminLayout = () => {
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* 🟢 PERBAIKAN: Jika collapsed (dan tidak mobile), tampilkan string kosong ('') */}
       <div style={{
         height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
-        {isMobile || !collapsed ? 'Admin Panel' : 'S'}
+        {isMobile || !collapsed ? 'Admin Panel' : ''} 
       </div>
       
       <Menu
@@ -160,6 +158,7 @@ const AdminLayout = () => {
           >
              <style>
               {`
+                /* Menjaga agar ikon tetap di tengah saat Sider dikempiskan */
                 .ant-menu-inline-collapsed > .ant-menu-item {
                   padding: 0 calc(50% - 16px) !important;
                 }
@@ -171,12 +170,14 @@ const AdminLayout = () => {
 
         <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
           <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 48, lineHeight: '48px' }}>
+            {/* Toggle Button */}
             <Button
               type="text"
               icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
               style={{ fontSize: '16px', width: 48, height: 48 }}
             />
+            {/* User Info and Dropdown */}
             <Space align="center">
               {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, {user?.name || user?.username || 'Admin'}!</Text>}
               <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
@@ -196,6 +197,7 @@ const AdminLayout = () => {
           </Content>
         </Layout>
 
+        {/* Mobile Drawer for Menu */}
         {isMobile && (
           <Drawer
             placement="left"
