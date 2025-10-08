@@ -12,6 +12,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
+
+	// FIX: Import library PDF yang dibutuhkan dengan path yang benar
+	"github.com/jung-kurt/gofpdf"
 )
 
 // SeatingAssignment is a helper struct for batch seating updates.
@@ -119,33 +122,109 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 		return nil, errors.New("ID paket ujian tidak valid (harus UUID)")
 	}
 
-	// FIX: Menghapus deklarasi pesertaUUIDs yang tidak terpakai
-
-	// Catatan: Karena implementasi repository saat ini menggunakan UUID,
-	// dan frontend menggunakan number/uint untuk ID Peserta, array pesertaIDs diabaikan
-	// dan akan dipanggil dengan nil. FUNGSI INI HARUS DIPERBAIKI SECARA FUNDAMENTAL
-	// JIKA INGIN MENGGUNAKAN PESERTA ID SPESIFIK.
-
-	// Dalam konteks ini, kita asumsikan repository dapat memproses filtering berdasarkan nil.
+	// 1. Ambil data spesifik untuk peserta yang dipilih
 	data, err := s.repo.GetKartuUjianData(ctx, schemaName, umID, uuid.Nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Validasi Kesiapan Cetak (Menggunakan data yang terambil)
+	// Filter data yang hanya terpilih (pesertaIDs yang merupakan uint)
+	var selectedData []KartuUjianDetail
+	selectedMap := make(map[uint]bool)
+	for _, id := range pesertaIDs {
+		selectedMap[id] = true
+	}
+
 	for _, d := range data {
+		if selectedMap[d.ID] {
+			selectedData = append(selectedData, d)
+		}
+	}
+
+	// Validasi: Jika tidak ada data yang terpilih atau datanya tidak lengkap
+	if len(selectedData) == 0 {
+		return nil, errors.New("tidak ada data peserta yang valid untuk dicetak")
+	}
+
+	for _, d := range selectedData {
 		if !d.IsDataLengkap {
 			return nil, fmt.Errorf("data peserta %s (ID: %d) belum lengkap: No. Ujian atau Ruangan kosong", d.NamaSiswa, d.ID)
 		}
 	}
 
-	// 3. --- LOGIKA GENERASI PDF (MOCK) ---
-	pdfContent := fmt.Sprintf("PDF Kartu Ujian untuk %d peserta dari Ujian Master ID: %s. Daftar Peserta: ", len(data), ujianMasterID)
-	for _, d := range data {
-		pdfContent += fmt.Sprintf("[%s/%s (%s, K%s)] ", d.NamaSiswa, d.NoUjian, d.NamaRuangan, d.NomorKursi)
+	// 3. --- LOGIKA GENERASI PDF SEBENARNYA (menggunakan gofpdf) ---
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	const margin = 10.0
+
+	for i, d := range selectedData {
+		if i > 0 {
+			pdf.AddPage() // Tambahkan halaman baru untuk setiap kartu
+		} else {
+			pdf.AddPage()
+		}
+
+		pdf.SetMargins(margin, margin, margin)
+
+		// Judul Kartu
+		pdf.SetFont("Arial", "B", 14)
+		pdf.Cell(0, 10, "KARTU PESERTA UJIAN")
+		pdf.Ln(8)
+
+		// Data Ujian
+		pdf.SetFont("Arial", "", 10)
+		pdf.CellFormat(40, 5, "Paket Ujian:", "0", 0, "L", false, 0, "")
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(0, 5, "Ujian Master ID: "+ujianMasterID, "0", 0, "L", false, 0, "")
+		pdf.Ln(5)
+
+		// Data Siswa
+		pdf.SetFont("Arial", "", 10)
+		pdf.CellFormat(40, 5, "Nama Siswa:", "0", 0, "L", false, 0, "")
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(0, 5, d.NamaSiswa, "0", 0, "L", false, 0, "")
+		pdf.Ln(5)
+
+		pdf.SetFont("Arial", "", 10)
+		pdf.CellFormat(40, 5, "NISN:", "0", 0, "L", false, 0, "")
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(0, 5, d.NISN, "0", 0, "L", false, 0, "")
+		pdf.Ln(5)
+
+		pdf.SetFont("Arial", "", 10)
+		pdf.CellFormat(40, 5, "Kelas:", "0", 0, "L", false, 0, "")
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(0, 5, d.NamaKelas, "0", 0, "L", false, 0, "")
+		pdf.Ln(10)
+
+		// Header Penempatan
+		pdf.SetFillColor(200, 220, 255)
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(40, 8, "No. Ujian", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(40, 8, "Ruangan", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(40, 8, "Nomor Kursi", "1", 0, "C", true, 0, "")
+		pdf.Ln(8)
+
+		// Data Penempatan
+		pdf.SetFont("Arial", "", 10)
+		pdf.CellFormat(40, 8, d.NoUjian, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(40, 8, d.NamaRuangan, "1", 0, "C", false, 0, "")
+		pdf.CellFormat(40, 8, d.NomorKursi, "1", 0, "C", false, 0, "")
+		pdf.Ln(20)
+
+		// Footer (Tanda Tangan)
+		pdf.Cell(0, 5, "Tanda Tangan Peserta: _________________________")
 	}
 
-	return []byte(pdfContent), nil
+	var buffer bytes.Buffer
+	// FIX: Memanggil Output() dan mengecek error internal. Ini adalah cara robust untuk output ke buffer.
+	pdf.Output(&buffer)
+
+	// FIX: Mengecek error internal setelah output.
+	if pdf.Err() {
+		return nil, errors.New("gagal menghasilkan file PDF (error internal gofpdf)")
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // =================================================================================
