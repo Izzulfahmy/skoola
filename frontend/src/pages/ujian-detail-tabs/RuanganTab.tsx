@@ -27,14 +27,14 @@ import {
   EditOutlined,
   UserOutlined,
   ApartmentOutlined, 
-  SettingOutlined, // Digunakan sebagai pengganti ikon denah yang kurang cocok
+  SettingOutlined, 
   ThunderboltOutlined, 
   SaveOutlined,
   CloseCircleOutlined,
   DeploymentUnitOutlined,
   BlockOutlined,
   CheckCircleOutlined,
-  LayoutOutlined, // Jika ini tersedia di lingkungan Ant Design Anda, lebih baik
+  LayoutOutlined, 
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UjianDetail, RuanganUjian, AlokasiRuanganUjian, UpsertRuanganInput, PesertaUjianDetail, UpdatePesertaSeatingPayload } from '../../types';
@@ -415,7 +415,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         >
             <List
                 header={
-                    <Row gutter={8} style={{ fontWeight: 'bold', fontSize: 12, paddingBottom: 4, borderBottom: '1px solid #e8e8e8' }}>
+                    <Row gutter={8} align="middle" style={{ fontWeight: 'bold', fontSize: 12, paddingBottom: 4, borderBottom: '1px solid #e8e8e8' }}>
                         <Col span={6}>Kursi</Col>
                         <Col span={8}>No. Ujian</Col>
                         <Col span={10}>Siswa</Col>
@@ -471,6 +471,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan baru berhasil dibuat.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
+      setIsMasterModalOpen(false); 
     },
     onError: (error: any) => {
       message.error(`Gagal membuat ruangan: ${error.response?.data?.message || error.message}`);
@@ -483,6 +484,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan berhasil diperbarui.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
+      queryClient.invalidateQueries({ queryKey: ['alokasiRuangan', ujianMasterId] }); 
+      setIsMasterModalOpen(false); 
     },
     onError: (error: any) => {
       message.error(`Gagal memperbarui ruangan: ${error.response?.data?.message || error.message}`);
@@ -933,8 +936,9 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                         const isAllocated = alokasiList.some(ar => ar.ruangan_id === item.id);
                         return (
                             <List.Item
+                                // Action button di-render di sini
                                 actions={[
-                                    <Button type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item)} key="edit" />,
+                                    <Button type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item)} key="edit" size="small"/>,
                                     <Popconfirm 
                                         title={isAllocated ? 'Ruangan sedang digunakan! Hapus akan membatalkan semua alokasi yang terkait.' : 'Hapus Master Ruangan?'}
                                         onConfirm={() => handleDeleteMaster(item.id)}
@@ -945,19 +949,30 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                     >
                                         <Button type='text' danger icon={<DeleteOutlined />} 
                                             loading={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.id}
+                                            size="small"
                                         />
                                     </Popconfirm>
                                 ]}
+                                // Custom style untuk memastikan konten berada di tengah vertikal
+                                style={{ padding: '8px 24px 8px 24px' }}
                             >
-                                <List.Item.Meta
-                                    title={<Text strong>{item.nama_ruangan}</Text>}
-                                    description={<Space size="middle">
-                                        <Tag icon={<UserOutlined />}>{item.kapasitas} Kursi</Tag>
-                                        <Tag color={isAllocated ? 'warning' : 'green'}>
-                                            {isAllocated ? 'Dialokasikan' : 'Tersedia'}
-                                        </Tag>
-                                    </Space>}
-                                />
+                                {/* KONTEN UTAMA: Membagi ruang menjadi Nama Ruangan dan Detail Tags */}
+                                <Row style={{ width: '100%' }} align="middle">
+                                    {/* Kolom Nama Ruangan (Ambil ruang yang tersisa) */}
+                                    <Col flex="1 1 35%">
+                                        <Text strong>{item.nama_ruangan}</Text>
+                                    </Col>
+                                    
+                                    {/* Kolom Tags Detail (Rata Kanan di dalam Col) */}
+                                    <Col flex="1 1 65%" style={{ textAlign: 'right' }}>
+                                        <Space size="middle">
+                                            <Tag icon={<UserOutlined />} style={{ minWidth: 70, textAlign: 'center' }}>{item.kapasitas} Kursi</Tag>
+                                            <Tag color={isAllocated ? 'warning' : 'green'} style={{ minWidth: 90, textAlign: 'center' }}>
+                                                {isAllocated ? 'Dialokasikan' : 'Tersedia'}
+                                            </Tag>
+                                        </Space>
+                                    </Col>
+                                </Row>
                             </List.Item>
                         );
                     }}
