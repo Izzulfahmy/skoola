@@ -1,4 +1,3 @@
-// frontend/src/api/ujianMaster.ts
 import apiClient from './axiosInstance';
 import type {
   UjianMaster,
@@ -13,12 +12,72 @@ import type {
   AssignRuanganPayload,
   UpdatePesertaSeatingPayload,
   PesertaUjianDetail,
+  // --- TIPE KARTU UJIAN BARU ---
+  KartuUjianDetail,
+  KartuUjianKelasFilter,
   // --- END TIPE BARU ---
 } from '../types';
 
 interface AssignKelasPayload {
   pengajar_kelas_ids: string[];
 }
+
+// ==============================================================================
+// FUNGSI KARTU UJIAN (Fixed Missing Exports)
+// ==============================================================================
+
+/**
+ * Mengambil daftar kelas unik untuk filtering Kartu Ujian.
+ */
+export const getKartuUjianFilters = async (ujianMasterID: number): Promise<KartuUjianKelasFilter[]> => {
+  const response = await apiClient.get(`/ujian-master/${ujianMasterID}/kartu-ujian/filters`);
+  return response.data;
+};
+
+/**
+ * Mengambil data peserta dengan detail kartu ujian (No. Ujian, Ruangan, Kursi).
+ */
+export const getKartuUjianData = async (ujianMasterID: number, rombelID?: number): Promise<KartuUjianDetail[]> => {
+  // Catatan: Endpoint Go Anda mengharapkan rombel_id (uint), sehingga dikirim sebagai query param
+  const params = rombelID && rombelID !== 0 ? { rombel_id: rombelID } : {};
+  const response = await apiClient.get(`/ujian-master/${ujianMasterID}/kartu-ujian`, { params });
+  return response.data;
+};
+
+/**
+ * Memicu proses di backend untuk generate dan mengunduh file PDF Kartu Ujian.
+ */
+export const generateKartuUjianPDF = async (ujianMasterID: number, pesertaIDs: number[]): Promise<void> => {
+  const response = await apiClient.post(
+    `/ujian-master/${ujianMasterID}/kartu-ujian/export-pdf`,
+    { peserta_ids: pesertaIDs },
+    {
+      responseType: 'blob', // Penting untuk mengunduh file binary (PDF)
+    }
+  );
+
+  // Logic untuk trigger download file dari blob
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  
+  // Ambil nama file dari header Content-Disposition
+  const contentDisposition = response.headers['content-disposition'] as string;
+  let filename = `kartu_ujian_${ujianMasterID}.pdf`;
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename="?(.+)"?$/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1];
+    }
+  }
+
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 
 // ==============================================================================
 // FUNGSI PESERTA

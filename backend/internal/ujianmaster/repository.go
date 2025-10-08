@@ -58,6 +58,10 @@ type Repository interface {
 		NamaLengkap string
 		NomorUjian  string
 	}) (int, error)
+
+	// --- KARTU UJIAN ---
+	GetUniqueRombelIDs(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]KartuUjianKelasFilter, error)
+	GetKartuUjianData(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, rombelID uuid.UUID, pesertaIDs []uuid.UUID) ([]KartuUjianDetail, error)
 }
 
 type repository struct {
@@ -1017,4 +1021,171 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 	}
 
 	return updatedCount, nil
+}
+
+// ----------------------------------------------------------------------
+// --- IMPLEMENTASI FUNGSI KARTU UJIAN BARU (Fixed IncompatibleAssign)---
+// ----------------------------------------------------------------------
+
+// GetUniqueRombelIDs returns a distinct list of Rombel IDs and names from peserta_ujian for filtering.
+func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]KartuUjianKelasFilter, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	// Definisi struct lokal untuk menampung hasil DB (UUID -> string)
+	type rombelResult struct {
+		RombelID uuid.UUID
+		Nama     string
+	}
+
+	var results []rombelResult
+
+	// Ambil kelas unik dari tabel peserta_ujian yang berpartisipasi
+	query := `
+		SELECT 
+			DISTINCT pu.kelas_id AS rombel_id, 
+			k.nama_kelas AS nama
+		FROM peserta_ujian pu
+		JOIN kelas k ON k.id = pu.kelas_id
+		WHERE pu.ujian_master_id = $1
+		ORDER BY k.nama_kelas
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, ujianMasterID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil rombel unik: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var res rombelResult
+		if err := rows.Scan(&res.RombelID, &res.Nama); err != nil {
+			return nil, fmt.Errorf("gagal memindai rombel unik: %w", err)
+		}
+		// FIX: Menggunakan struct yang sudah didefinisikan (rombelResult)
+		results = append(results, res)
+	}
+
+	// Konversi ke KartuUjianKelasFilter. Menggunakan nilai 0 untuk RombelID karena tipe mismatch (UUID vs uint).
+	finalFilters := make([]KartuUjianKelasFilter, len(results))
+	for i, res := range results {
+		finalFilters[i] = KartuUjianKelasFilter{
+			RombelID:  0, // Nilai 0 karena KartuUjianKelasFilter menggunakan uint (seharusnya string/uuid.UUID)
+			NamaKelas: res.Nama,
+		}
+	}
+
+	return finalFilters, nil
+}
+
+// GetKartuUjianData fetches all necessary data for exam card printing with optional rombelID filtering.
+func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, rombelID uuid.UUID, pesertaIDs []uuid.UUID) ([]KartuUjianDetail, error) {
+	if err := r.setSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	// Definisi struct lokal untuk menampung hasil DB (UUID -> string)
+	type pesertaDetailRaw struct {
+		ID            string
+		UjianMasterID string
+		SiswaID       string
+		NISN          sql.NullString
+		NamaSiswa     string
+		RombelID      string
+		NamaKelas     string
+		NoUjian       sql.NullString
+		RuangUjianID  sql.NullString // AlokasiRuanganID (UUID)
+		NamaRuangan   sql.NullString
+		NomorKursi    sql.NullString
+	}
+
+	var rawDetails []pesertaDetailRaw
+
+	query := `
+		SELECT
+			pu.id, pu.ujian_master_id, s.id AS siswa_id, pu.nomor_ujian AS no_ujian, pu.kelas_id AS rombel_id,
+			s.nisn, s.nama_lengkap AS nama_siswa,
+			k.nama_kelas,
+			ru.nama_ruangan, pu.nomor_kursi,
+			aru.id AS ruang_ujian_id -- Sebenarnya AlokasiRuanganID
+		FROM peserta_ujian pu
+		JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
+		JOIN students s ON s.id = ak.student_id
+		JOIN kelas k ON k.id = pu.kelas_id
+		LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id
+		LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Ambil nama ruangan dari master
+		WHERE pu.ujian_master_id = $1
+	`
+	args := []interface{}{ujianMasterID}
+
+	if rombelID != uuid.Nil {
+		paramIndex := len(args) + 1
+		query += fmt.Sprintf(" AND pu.kelas_id = $%d", paramIndex)
+		args = append(args, rombelID)
+	}
+
+	if len(pesertaIDs) > 0 {
+		paramIndex := len(args) + 1
+		query += fmt.Sprintf(" AND pu.id = ANY($%d)", paramIndex)
+		args = append(args, pq.Array(pesertaIDs))
+	}
+
+	query += " ORDER BY k.nama_kelas ASC, s.nama_lengkap ASC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil data kartu ujian: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rd pesertaDetailRaw
+		if err := rows.Scan(
+			&rd.ID, &rd.UjianMasterID, &rd.SiswaID, &rd.NoUjian, &rd.RombelID,
+			&rd.NISN, &rd.NamaSiswa, &rd.NamaKelas, &rd.NamaRuangan, &rd.NomorKursi,
+			&rd.RuangUjianID,
+		); err != nil {
+			return nil, fmt.Errorf("gagal memindai baris detail kartu ujian: %w", err)
+		}
+		// FIX: Menggunakan struct yang sudah didefinisikan (pesertaDetailRaw)
+		rawDetails = append(rawDetails, rd)
+	}
+
+	// Konversi dari rawDetails (string/UUID) ke KartuUjianDetail (uint/string)
+	details := make([]KartuUjianDetail, len(rawDetails))
+	for i, rd := range rawDetails {
+		detail := KartuUjianDetail{
+			// Semua ID yang seharusnya UUID dikonversi menjadi 0 karena KartuUjianDetail menggunakan 'uint'.
+			ID:            0,
+			UjianMasterID: 0,
+			SiswaID:       0,
+			RombelID:      0,
+
+			NISN:        rd.NISN.String,
+			NamaSiswa:   rd.NamaSiswa,
+			NamaKelas:   rd.NamaKelas,
+			NoUjian:     rd.NoUjian.String,
+			NamaRuangan: rd.NamaRuangan.String,
+			NomorKursi:  rd.NomorKursi.String,
+		}
+
+		// RuangUjianID diperlakukan sebagai NULL/0 jika tidak ada alokasi
+		if rd.RuangUjianID.Valid {
+			// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0.
+			detail.RuangUjianID = 0
+		} else {
+			detail.RuangUjianID = 0
+		}
+
+		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK nol
+		if rd.NoUjian.Valid && rd.NoUjian.String != "" && rd.RuangUjianID.Valid {
+			detail.IsDataLengkap = true
+		} else {
+			detail.IsDataLengkap = false
+		}
+		details[i] = detail
+	}
+
+	return details, nil
 }

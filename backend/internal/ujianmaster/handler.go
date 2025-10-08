@@ -24,6 +24,98 @@ func NewHandler(service Service) *Handler {
 }
 
 // =================================================================================
+// KARTU UJIAN HANDLERS
+// =================================================================================
+
+// GetKartuUjianFilters returns the list of unique rombels for filtering.
+func (h *Handler) GetKartuUjianFilters(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterIDStr := chi.URLParam(r, "ujianMasterID") // Ambil sebagai string
+
+	if ujianMasterIDStr == "" {
+		http.Error(w, "Invalid UjianMaster ID: ID cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	// FIX: Melewati string ID langsung ke service layer
+	filters, err := h.service.GetKartuUjianFilters(r.Context(), schemaName, ujianMasterIDStr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(filters)
+}
+
+// GetKartuUjianData returns the list of participants with full details for the exam card tab.
+func (h *Handler) GetKartuUjianData(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterIDStr := chi.URLParam(r, "ujianMasterID") // Ambil sebagai string
+
+	if ujianMasterIDStr == "" {
+		http.Error(w, "Invalid UjianMaster ID", http.StatusBadRequest)
+		return
+	}
+
+	// Mengambil rombel_id dari query parameter. Dibiarkan sebagai string.
+	rombelIDStr := r.URL.Query().Get("rombel_id")
+	// Jika rombelIDStr kosong, service layer akan otomatis menganggapnya sebagai filter 'nil' atau '0'.
+
+	// FIX: Melewati string ID langsung ke service layer
+	data, err := h.service.GetKartuUjianData(r.Context(), schemaName, ujianMasterIDStr, rombelIDStr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
+// GenerateKartuUjianPDF generates and downloads the PDF for selected participants (Mass Action).
+func (h *Handler) GenerateKartuUjianPDF(w http.ResponseWriter, r *http.Request) {
+	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
+	ujianMasterIDStr := chi.URLParam(r, "ujianMasterID") // Ambil sebagai string
+
+	if ujianMasterIDStr == "" {
+		http.Error(w, "Invalid UjianMaster ID", http.StatusBadRequest)
+		return
+	}
+
+	var req GenerateKartuUjianPDFRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload or empty selection", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.PesertaIDs) == 0 {
+		http.Error(w, "Peserta IDs tidak boleh kosong", http.StatusBadRequest)
+		return
+	}
+
+	// FIX: Melewati string ID langsung ke service layer
+	pdfContent, err := h.service.GenerateKartuUjianPDF(r.Context(), schemaName, ujianMasterIDStr, req.PesertaIDs)
+	if err != nil {
+		// Handle error jika ada data yang belum lengkap (dari service)
+		if strings.Contains(err.Error(), "belum lengkap") {
+			http.Error(w, err.Error(), http.StatusPreconditionFailed) // 412 Precondition Failed
+			return
+		}
+		http.Error(w, "Gagal menghasilkan PDF: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set header untuk download file PDF
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=kartu_ujian_%s.pdf", ujianMasterIDStr))
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(pdfContent)))
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(pdfContent)
+}
+
+// =================================================================================
 // ROOM MASTER CRUD HANDLERS
 // =================================================================================
 
@@ -191,6 +283,7 @@ func (h *Handler) UpdateSeating(w http.ResponseWriter, r *http.Request) {
 	// ujianMasterID := chi.URLParam(r, "id") // ID UjianMaster tidak digunakan langsung di sini
 
 	var input UpdatePesertaSeatingInput
+
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 		return
@@ -232,7 +325,7 @@ func (h *Handler) DistributeSmart(w http.ResponseWriter, r *http.Request) {
 }
 
 // =================================================================================
-// OTHER HANDLERS (Tetap sama)
+// OTHER HANDLERS
 // =================================================================================
 
 type AssignKelasInput struct {

@@ -25,6 +25,9 @@ import PlaceholderTab from './ujian-detail-tabs/PlaceholderTab';
 
 // --- IMPORT KOMPONEN BARU ---
 import RuanganTab from './ujian-detail-tabs/RuanganTab';
+// Import komponen tab baru
+import KartuUjianTab from './ujian-detail-tabs/KartuUjianTab'; 
+
 
 const { Title, Text } = Typography;
 
@@ -140,7 +143,13 @@ const UjianDetailPage = () => {
       // Menggunakan komponen RuanganTab yang baru
       children: <RuanganTab ujianMasterId={ujianMasterId!} ujianDetail={ujianDetail} />
     },
-    { key: '4', label: 'Kartu Ujian', children: <PlaceholderTab title="Kartu Ujian" /> },
+    // --- TAB KARTU UJIAN BARU DITAMBAHKAN ---
+    { 
+        key: '4', 
+        label: 'Kartu Ujian', 
+        children: <KartuUjianTab /> 
+    },
+    // --- END TAB KARTU UJIAN BARU ---
     { key: '5', label: 'Pengawas', children: <PlaceholderTab title="Pengawas" /> },
     { key: '6', label: 'Penilaian', children: <PlaceholderTab title="Penilaian" /> },
   ];

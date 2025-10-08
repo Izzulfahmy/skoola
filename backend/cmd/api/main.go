@@ -398,6 +398,13 @@ func main() {
 			r.With(auth.Authorize("admin")).Get("/{id}/export-excel", ujianMasterHandler.ExportPesertaToExcel)
 			r.With(auth.Authorize("admin")).Post("/{id}/import-excel", ujianMasterHandler.ImportPesertaFromExcel)
 
+			// --- KARTU UJIAN ROUTES BARU ---
+			// Gunakan :ujianMasterID sebagai parameter ID ujian
+			r.With(auth.Authorize("admin")).Get("/{ujianMasterID}/kartu-ujian/filters", ujianMasterHandler.GetKartuUjianFilters)
+			r.With(auth.Authorize("admin")).Get("/{ujianMasterID}/kartu-ujian", ujianMasterHandler.GetKartuUjianData)
+			r.With(auth.Authorize("admin")).Post("/{ujianMasterID}/kartu-ujian/export-pdf", ujianMasterHandler.GenerateKartuUjianPDF)
+			// --- END KARTU UJIAN ROUTES BARU ---
+
 			// --- NEW: ROOM ENDPOINTS ---
 			// Room Master Data (CRUD Ruangan Fisik)
 			r.With(auth.Authorize("admin")).Get("/ruangan", ujianMasterHandler.GetAllRuangan)

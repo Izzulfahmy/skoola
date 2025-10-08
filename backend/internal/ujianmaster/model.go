@@ -164,3 +164,35 @@ type UpdatePesertaSeatingInput struct {
 	AlokasiRuanganID string `json:"alokasi_ruangan_id" validate:"required,uuid"`
 	NomorKursi       string `json:"nomor_kursi" validate:"required,max=10"`
 }
+
+// ----------------------------------------------------------------------
+// --- STRUCTS BARU UNTUK KARTU UJIAN DAN FILTER ---
+// ----------------------------------------------------------------------
+
+// KartuUjianDetail represents the consolidated data for a single student's exam card.
+type KartuUjianDetail struct {
+	ID            uint   `json:"id"` // ID Peserta Ujian (Primary Key untuk seleksi)
+	UjianMasterID uint   `json:"ujian_master_id"`
+	SiswaID       uint   `json:"siswa_id"`
+	NISN          string `json:"nisn"`
+	NamaSiswa     string `json:"nama_siswa"`
+	RombelID      uint   `json:"rombel_id"`
+	NamaKelas     string `json:"nama_kelas"` // Nama Rombel
+	NoUjian       string `json:"no_ujian"`
+	RuangUjianID  uint   `json:"ruang_ujian_id"`
+	NamaRuangan   string `json:"nama_ruangan"`
+	NomorKursi    string `json:"nomor_kursi"`
+	// is_data_lengkap dihitung di layer Repository/Service
+	IsDataLengkap bool `json:"is_data_lengkap"`
+}
+
+// KartuUjianKelasFilter represents the unique classes registered for the exam.
+type KartuUjianKelasFilter struct {
+	RombelID  uint   `json:"rombel_id"`
+	NamaKelas string `json:"nama_kelas"`
+}
+
+// GenerateKartuUjianPDFRequest struct untuk body POST request mass action
+type GenerateKartuUjianPDFRequest struct {
+	PesertaIDs []uint `json:"peserta_ids"` // List of PesertaUjian.ID yang dipilih
+}

@@ -11,6 +11,29 @@ export interface AuthUser {
 }
 // ------------------------------------
 
+// --- NEW TYPES FOR KARTU UJIAN ---
+export interface KartuUjianDetail {
+  id: number; // ID Peserta Ujian
+  ujian_master_id: number;
+  siswa_id: number;
+  nisn: string;
+  nama_siswa: string;
+  rombel_id: number;
+  nama_kelas: string;
+  no_ujian: string;
+  ruang_ujian_id: number;
+  nama_ruangan: string;
+  nomor_kursi: string;
+  is_data_lengkap: boolean; // Dari BE
+}
+
+export interface KartuUjianKelasFilter {
+  rombel_id: number;
+  nama_kelas: string;
+}
+// ------------------------------------
+
+
 // --- TIPE BARU UNTUK PRESTASI ---
 export interface Prestasi {
   id: string;
