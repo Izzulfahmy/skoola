@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 
-	// FIX: Import library PDF yang dibutuhkan dengan path yang benar
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -29,7 +28,7 @@ type Service interface {
 	CreateUjianMaster(ctx context.Context, schemaName string, req UjianMaster) (UjianMaster, error)
 	GetAllUjianMasterByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID string) ([]UjianMaster, error)
 	GetUjianMasterByID(ctx context.Context, schemaName string, id string) (UjianMasterDetail, error)
-	// FIX: Mengoreksi typo pada signature Service
+	// FIX: Mengoreksi typo UujianMaster menjadi UjianMaster
 	UpdateUjianMaster(ctx context.Context, schemaName string, id string, req UjianMaster) (UjianMaster, error)
 	DeleteUjianMaster(ctx context.Context, schemaName string, id string) error
 	AssignKelasToUjian(ctx context.Context, schemaName string, ujianMasterID string, pengajarKelasIDs []string) (int, error)
@@ -148,80 +147,100 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 
 	for _, d := range selectedData {
 		if !d.IsDataLengkap {
+			// FIX ST1005: Menghapus titik di akhir kalimat
 			return nil, fmt.Errorf("data peserta %s (ID: %d) belum lengkap: No. Ujian atau Ruangan kosong", d.NamaSiswa, d.ID)
 		}
 	}
 
 	// 3. --- LOGIKA GENERASI PDF SEBENARNYA (menggunakan gofpdf) ---
 	pdf := gofpdf.New("P", "mm", "A4", "")
+
+	if pdf.Err() {
+		return nil, fmt.Errorf("gagal inisialisasi PDF: %w", pdf.Error())
+	}
+
 	const margin = 10.0
+	const cardWidth = 100.0       // Lebar Kartu dalam mm
+	const cardHeight = 60.0       // Tinggi Kartu dalam mm
+	const leftOffset = margin + 3 // Offset for text inside border
 
 	for i, d := range selectedData {
 		if i > 0 {
-			pdf.AddPage() // Tambahkan halaman baru untuk setiap kartu
+			pdf.AddPage()
 		} else {
 			pdf.AddPage()
 		}
 
+		if pdf.Err() {
+			return nil, fmt.Errorf("gagal menambah halaman PDF: %w", pdf.Error())
+		}
+
 		pdf.SetMargins(margin, margin, margin)
 
-		// Judul Kartu
-		pdf.SetFont("Arial", "B", 14)
-		pdf.Cell(0, 10, "KARTU PESERTA UJIAN")
-		pdf.Ln(8)
+		// 1. Draw Card Border
+		pdf.Rect(margin, margin, cardWidth, cardHeight, "D")
 
-		// Data Ujian
-		pdf.SetFont("Arial", "", 10)
-		pdf.CellFormat(40, 5, "Paket Ujian:", "0", 0, "L", false, 0, "")
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(0, 5, "Ujian Master ID: "+ujianMasterID, "0", 0, "L", false, 0, "")
-		pdf.Ln(5)
+		// 2. Header and Title
+		pdf.SetXY(leftOffset, margin+4)
+		pdf.SetFont("Courier", "B", 10)
+		pdf.Cell(0, 0, "KARTU PESERTA UJIAN (UAS)") // Asumsi nama ujian adalah UAS
 
-		// Data Siswa
-		pdf.SetFont("Arial", "", 10)
-		pdf.CellFormat(40, 5, "Nama Siswa:", "0", 0, "L", false, 0, "")
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(0, 5, d.NamaSiswa, "0", 0, "L", false, 0, "")
-		pdf.Ln(5)
+		// 3. Divider Line
+		pdf.Line(margin, margin+8, margin+cardWidth, margin+8)
 
-		pdf.SetFont("Arial", "", 10)
-		pdf.CellFormat(40, 5, "NISN:", "0", 0, "L", false, 0, "")
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(0, 5, d.NISN, "0", 0, "L", false, 0, "")
-		pdf.Ln(5)
+		// 4. Detailed Information (Menggunakan SetXY + Cell untuk stabilitas)
+		y := margin + 12.0 // Starting Y position for details
+		lineHeight := 5.0
 
-		pdf.SetFont("Arial", "", 10)
-		pdf.CellFormat(40, 5, "Kelas:", "0", 0, "L", false, 0, "")
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(0, 5, d.NamaKelas, "0", 0, "L", false, 0, "")
-		pdf.Ln(10)
+		// Nama Siswa
+		pdf.SetXY(leftOffset, y)
+		pdf.SetFont("Courier", "", 9)
+		pdf.Cell(30, lineHeight, "Nama:")
+		pdf.SetFont("Courier", "B", 9)
+		pdf.Cell(0, lineHeight, d.NamaSiswa)
+		y += lineHeight
 
-		// Header Penempatan
-		pdf.SetFillColor(200, 220, 255)
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(40, 8, "No. Ujian", "1", 0, "C", true, 0, "")
-		pdf.CellFormat(40, 8, "Ruangan", "1", 0, "C", true, 0, "")
-		pdf.CellFormat(40, 8, "Nomor Kursi", "1", 0, "C", true, 0, "")
-		pdf.Ln(8)
+		// Kelas / NISN
+		pdf.SetXY(leftOffset, y)
+		pdf.SetFont("Courier", "", 9)
+		pdf.Cell(30, lineHeight, "Kelas/NISN:")
+		pdf.SetFont("Courier", "B", 9)
+		pdf.Cell(0, lineHeight, fmt.Sprintf("%s / %s", d.NamaKelas, d.NISN))
+		y += lineHeight
 
-		// Data Penempatan
-		pdf.SetFont("Arial", "", 10)
-		pdf.CellFormat(40, 8, d.NoUjian, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(40, 8, d.NamaRuangan, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(40, 8, d.NomorKursi, "1", 0, "C", false, 0, "")
-		pdf.Ln(20)
+		// Ruangan / Kursi
+		pdf.SetXY(leftOffset, y)
+		pdf.SetFont("Courier", "", 9)
+		pdf.Cell(30, lineHeight, "Ruangan/Kursi:")
+		pdf.SetFont("Courier", "B", 9)
+		pdf.Cell(0, lineHeight, fmt.Sprintf("%s / K%s", d.NamaRuangan, d.NomorKursi))
+		y += lineHeight
 
-		// Footer (Tanda Tangan)
+		// No Ujian
+		pdf.SetXY(leftOffset, y)
+		pdf.SetFont("Courier", "", 9)
+		pdf.Cell(30, lineHeight, "No. Ujian:")
+		pdf.SetFont("Courier", "B", 9)
+		pdf.Cell(0, lineHeight, d.NoUjian)
+		y += lineHeight + 5 // Spacer before signature
+
+		// 5. Signature
+		pdf.SetXY(leftOffset, y)
+		pdf.SetFont("Courier", "", 8)
 		pdf.Cell(0, 5, "Tanda Tangan Peserta: _________________________")
+
+		// --- END GAMBAR KARTU UJIAN ---
 	}
 
 	var buffer bytes.Buffer
-	// FIX: Memanggil Output() dan mengecek error internal. Ini adalah cara robust untuk output ke buffer.
 	pdf.Output(&buffer)
 
-	// FIX: Mengecek error internal setelah output.
 	if pdf.Err() {
-		return nil, errors.New("gagal menghasilkan file PDF (error internal gofpdf)")
+		return nil, fmt.Errorf("gagal menghasilkan file PDF: %w", pdf.Error())
+	}
+
+	if buffer.Len() == 0 {
+		return nil, errors.New("output PDF kosong, menandakan kegagalan rendering data")
 	}
 
 	return buffer.Bytes(), nil
@@ -352,7 +371,7 @@ func (s *service) RemoveAlokasiRuangan(ctx context.Context, schemaName string, a
 	// Untuk tujuan implementasi tutorial, kita asumsikan Recalculate akan dipanggil secara terpisah atau setelah operasi ini selesai (namun seharusnya ada mekanisme pemicu yang lebih baik di aplikasi nyata).
 
 	// Namun, jika alokasi berhasil dihapus, kita tidak perlu Recalculate karena `jumlah_kursi_terpakai` akan otomatis tidak relevan atau harus di-0-kan untuk alokasi tersebut.
-	// Logic Recalculate lebih penting di DistributeSmart.
+	// Logic Recalculate lebih penting di DistributePesertaSmart.
 	return s.repo.DeleteAlokasiRuangan(ctx, schemaName, arID)
 }
 
