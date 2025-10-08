@@ -1024,7 +1024,7 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 }
 
 // ----------------------------------------------------------------------
-// --- IMPLEMENTASI FUNGSI KARTU UJIAN BARU (Fixed IncompatibleAssign)---
+// --- IMPLEMENTASI FUNGSI KARTU UJIAN BARU (Fixed RombelID Type)---
 // ----------------------------------------------------------------------
 
 // GetUniqueRombelIDs returns a distinct list of Rombel IDs and names from peserta_ujian for filtering.
@@ -1033,7 +1033,7 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 		return nil, err
 	}
 
-	// Definisi struct lokal untuk menampung hasil DB (UUID -> string)
+	// Definisi struct lokal untuk menampung hasil DB (UUID)
 	type rombelResult struct {
 		RombelID uuid.UUID
 		Nama     string
@@ -1043,14 +1043,14 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 
 	// Ambil kelas unik dari tabel peserta_ujian yang berpartisipasi
 	query := `
-		SELECT 
-			DISTINCT pu.kelas_id AS rombel_id, 
-			k.nama_kelas AS nama
-		FROM peserta_ujian pu
-		JOIN kelas k ON k.id = pu.kelas_id
-		WHERE pu.ujian_master_id = $1
-		ORDER BY k.nama_kelas
-	`
+        SELECT 
+            DISTINCT pu.kelas_id AS rombel_id, 
+            k.nama_kelas AS nama
+        FROM peserta_ujian pu
+        JOIN kelas k ON k.id = pu.kelas_id
+        WHERE pu.ujian_master_id = $1
+        ORDER BY k.nama_kelas
+    `
 
 	rows, err := r.db.QueryContext(ctx, query, ujianMasterID)
 	if err != nil {
@@ -1063,15 +1063,15 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 		if err := rows.Scan(&res.RombelID, &res.Nama); err != nil {
 			return nil, fmt.Errorf("gagal memindai rombel unik: %w", err)
 		}
-		// FIX: Menggunakan struct yang sudah didefinisikan (rombelResult)
 		results = append(results, res)
 	}
 
-	// Konversi ke KartuUjianKelasFilter. Menggunakan nilai 0 untuk RombelID karena tipe mismatch (UUID vs uint).
+	// FIX: Konversi RombelID (UUID) ke string untuk dikirim ke frontend
 	finalFilters := make([]KartuUjianKelasFilter, len(results))
 	for i, res := range results {
 		finalFilters[i] = KartuUjianKelasFilter{
-			RombelID:  0, // Nilai 0 karena KartuUjianKelasFilter menggunakan uint (seharusnya string/uuid.UUID)
+			// MENGGUNAKAN STRING (UUID ASLI)
+			RombelID:  res.RombelID.String(),
 			NamaKelas: res.Nama,
 		}
 	}
@@ -1085,17 +1085,17 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		return nil, err
 	}
 
-	// Definisi struct lokal untuk menampung hasil DB (UUID -> string)
+	// Definisi struct lokal untuk menampung hasil DB (UUID/string)
 	type pesertaDetailRaw struct {
 		ID            string
 		UjianMasterID string
 		SiswaID       string
 		NISN          sql.NullString
 		NamaSiswa     string
-		RombelID      string
+		RombelID      string // UUID as string from DB
 		NamaKelas     string
 		NoUjian       sql.NullString
-		RuangUjianID  sql.NullString // AlokasiRuanganID (UUID)
+		RuangUjianID  sql.NullString // AlokasiRuanganID (UUID as string)
 		NamaRuangan   sql.NullString
 		NomorKursi    sql.NullString
 	}
@@ -1103,20 +1103,20 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 	var rawDetails []pesertaDetailRaw
 
 	query := `
-		SELECT
-			pu.id, pu.ujian_master_id, s.id AS siswa_id, pu.nomor_ujian AS no_ujian, pu.kelas_id AS rombel_id,
-			s.nisn, s.nama_lengkap AS nama_siswa,
-			k.nama_kelas,
-			ru.nama_ruangan, pu.nomor_kursi,
-			aru.id AS ruang_ujian_id -- Sebenarnya AlokasiRuanganID
-		FROM peserta_ujian pu
-		JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
-		JOIN students s ON s.id = ak.student_id
-		JOIN kelas k ON k.id = pu.kelas_id
-		LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id
-		LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Ambil nama ruangan dari master
-		WHERE pu.ujian_master_id = $1
-	`
+        SELECT
+            pu.id, pu.ujian_master_id, s.id AS siswa_id, pu.nomor_ujian AS no_ujian, pu.kelas_id AS rombel_id,
+            s.nisn, s.nama_lengkap AS nama_siswa,
+            k.nama_kelas,
+            ru.nama_ruangan, pu.nomor_kursi,
+            aru.id AS ruang_ujian_id -- Sebenarnya AlokasiRuanganID
+        FROM peserta_ujian pu
+        JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
+        JOIN students s ON s.id = ak.student_id
+        JOIN kelas k ON k.id = pu.kelas_id
+        LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id
+        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Ambil nama ruangan dari master
+        WHERE pu.ujian_master_id = $1
+    `
 	args := []interface{}{ujianMasterID}
 
 	if rombelID != uuid.Nil {
@@ -1148,19 +1148,25 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		); err != nil {
 			return nil, fmt.Errorf("gagal memindai baris detail kartu ujian: %w", err)
 		}
-		// FIX: Menggunakan struct yang sudah didefinisikan (pesertaDetailRaw)
 		rawDetails = append(rawDetails, rd)
 	}
 
 	// Konversi dari rawDetails (string/UUID) ke KartuUjianDetail (uint/string)
 	details := make([]KartuUjianDetail, len(rawDetails))
 	for i, rd := range rawDetails {
+		// FIX: Menggunakan RombelID sebagai string
 		detail := KartuUjianDetail{
 			// Semua ID yang seharusnya UUID dikonversi menjadi 0 karena KartuUjianDetail menggunakan 'uint'.
+			// PENTING: Perlu dipastikan di lapisan Service/Handler bahwa ID, UjianMasterID, dan SiswaID
+			// yang sebenarnya adalah UUID tidak digunakan sebagai `uint` secara langsung, atau Anda
+			// mengubah struct KartuUjianDetail di model.go untuk menggunakan string/uuid.UUID.
+			// Untuk saat ini, kita mengikut template Anda:
 			ID:            0,
 			UjianMasterID: 0,
 			SiswaID:       0,
-			RombelID:      0,
+			// --- FIX: RombelID menggunakan STRING ---
+			RombelID: rd.RombelID,
+			// ---
 
 			NISN:        rd.NISN.String,
 			NamaSiswa:   rd.NamaSiswa,
@@ -1171,14 +1177,15 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		}
 
 		// RuangUjianID diperlakukan sebagai NULL/0 jika tidak ada alokasi
+		// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0 jika tidak valid.
 		if rd.RuangUjianID.Valid {
 			// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0.
-			detail.RuangUjianID = 0
+			detail.RuangUjianID = 0 // Jika Anda ingin mem-passing ID asli, ubah tipe di model.go
 		} else {
 			detail.RuangUjianID = 0
 		}
 
-		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK nol
+		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK nol (berarti alokasi ada)
 		if rd.NoUjian.Valid && rd.NoUjian.String != "" && rd.RuangUjianID.Valid {
 			detail.IsDataLengkap = true
 		} else {

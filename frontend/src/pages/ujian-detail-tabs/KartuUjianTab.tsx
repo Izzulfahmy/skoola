@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
 // FIX: Import types using 'import type' for strict TypeScript configuration.
-// Assuming these are exported from the main types file (e.g., '../../types')
 import type { 
     KartuUjianDetail, 
     KartuUjianKelasFilter 
@@ -22,12 +21,14 @@ const { Option } = Select;
 
 const KartuUjianTab: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const ujianMasterID = Number(id);
+    // FIX 1: Ambil ID Ujian Master sebagai STRING (UUID)
+    const ujianMasterIDStr = id; 
 
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<KartuUjianDetail[]>([]);
     const [filters, setFilters] = useState<KartuUjianKelasFilter[]>([]);
-    const [selectedRombelID, setSelectedRombelID] = useState<number | undefined>(undefined);
+    // FIX 2: selectedRombelID menggunakan STRING (UUID)
+    const [selectedRombelID, setSelectedRombelID] = useState<string | undefined>(undefined);
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [isModalPreviewVisible, setIsModalPreviewVisible] = useState(false);
 
@@ -37,19 +38,30 @@ const KartuUjianTab: React.FC = () => {
 
     // Data yang benar-benar terpilih dan siap cetak (untuk FAB)
     const selectedReadyToPrintIDs = useMemo(() => {
+        // ID peserta di frontend (KartuUjianDetail.id) masih number
         return selectedRowKeys.filter(key => readyToPrintData.includes(key as number)) as number[];
     }, [selectedRowKeys, readyToPrintData]);
 
     const totalIncomplete = incompleteData.length;
 
-    const fetchData = async (rombelID?: number) => {
-        if (!ujianMasterID) return;
+    // Mengubah rombelID menjadi string/number sesuai kebutuhan BE
+    const fetchData = async (rombelID?: string) => { 
+        // FIX 3: Tambahkan guard dan non-null assertion untuk menjamin type string
+        if (!ujianMasterIDStr) {
+             // Jika ID tidak ada, kita tidak bisa fetch data
+             return; 
+        }
+
+        const masterId: string = ujianMasterIDStr;
+
         setLoading(true);
         try {
-            const filtersData = await getKartuUjianFilters(ujianMasterID);
+            // FIX 4: Kirim masterId (string)
+            const filtersData = await getKartuUjianFilters(masterId);
             setFilters(filtersData);
 
-            const kartuData = await getKartuUjianData(ujianMasterID, rombelID);
+            // FIX 5: Kirim masterId (string) dan rombelID (string | undefined)
+            const kartuData = await getKartuUjianData(masterId, rombelID);
             setData(kartuData);
 
             // Clear selection upon filter change/refresh
@@ -64,17 +76,21 @@ const KartuUjianTab: React.FC = () => {
     };
 
     useEffect(() => {
+        // FIX 6: Dependency diubah ke string ID. Panggil fetchData yang kini sudah memiliki guard internal.
         fetchData(selectedRombelID);
-    }, [ujianMasterID, selectedRombelID]);
+    }, [ujianMasterIDStr, selectedRombelID]);
 
     const handleDownloadPDF = async (pesertaIDs: number[]) => {
         if (pesertaIDs.length === 0) {
             notification.warning({ message: 'Pilih minimal satu peserta untuk dicetak.' });
             return;
         }
+        if (!ujianMasterIDStr) return; // Guard
+        
         setLoading(true);
         try {
-            await generateKartuUjianPDF(ujianMasterID, pesertaIDs);
+            // FIX 7: Kirim ujianMasterIDStr (string)
+            await generateKartuUjianPDF(ujianMasterIDStr, pesertaIDs);
             notification.success({ message: `Berhasil mengunduh Kartu Ujian untuk ${pesertaIDs.length} peserta.` });
         } catch (error: any) {
             // Menarik pesan error dari response BE (Status 412 Precondition Failed)
@@ -190,7 +206,8 @@ const KartuUjianTab: React.FC = () => {
                     style={{ width: 250 }}
                     placeholder="FILTER KELAS/ROMBEL"
                     allowClear
-                    onChange={(value: number) => setSelectedRombelID(value)}
+                    // FIX 7: Menerima string ID
+                    onChange={(value: string) => setSelectedRombelID(value)} 
                     value={selectedRombelID}
                 >
                     {filters.map((f) => (

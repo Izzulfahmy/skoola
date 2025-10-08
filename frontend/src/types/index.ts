@@ -11,14 +11,17 @@ export interface AuthUser {
 }
 // ------------------------------------
 
-// --- NEW TYPES FOR KARTU UJIAN ---
+// ----------------------------------------------------------------------
+// --- NEW TYPES FOR KARTU UJIAN (FIXED rombel_id) ---
+// ----------------------------------------------------------------------
 export interface KartuUjianDetail {
   id: number; // ID Peserta Ujian
   ujian_master_id: number;
   siswa_id: number;
   nisn: string;
   nama_siswa: string;
-  rombel_id: number;
+  // FIX: RombelID sekarang STRING (UUID)
+  rombel_id: string; 
   nama_kelas: string;
   no_ujian: string;
   ruang_ujian_id: number;
@@ -28,10 +31,11 @@ export interface KartuUjianDetail {
 }
 
 export interface KartuUjianKelasFilter {
-  rombel_id: number;
+  // FIX: RombelID sekarang STRING (UUID)
+  rombel_id: string; 
   nama_kelas: string;
 }
-// ------------------------------------
+// ----------------------------------------------------------------------
 
 
 // --- TIPE BARU UNTUK PRESTASI ---

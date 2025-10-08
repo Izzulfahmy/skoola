@@ -12,7 +12,7 @@ import type {
   AssignRuanganPayload,
   UpdatePesertaSeatingPayload,
   PesertaUjianDetail,
-  // --- TIPE KARTU UJIAN BARU ---
+  // --- TIPE KARTU UJIAN BARU (Diimpor dari ../types) ---
   KartuUjianDetail,
   KartuUjianKelasFilter,
   // --- END TIPE BARU ---
@@ -23,13 +23,14 @@ interface AssignKelasPayload {
 }
 
 // ==============================================================================
-// FUNGSI KARTU UJIAN (Fixed Missing Exports)
+// FUNGSI KARTU UJIAN (Fixed Signatures)
 // ==============================================================================
 
 /**
  * Mengambil daftar kelas unik untuk filtering Kartu Ujian.
  */
-export const getKartuUjianFilters = async (ujianMasterID: number): Promise<KartuUjianKelasFilter[]> => {
+// FIX 1: ujianMasterID menerima STRING
+export const getKartuUjianFilters = async (ujianMasterID: string): Promise<KartuUjianKelasFilter[]> => {
   const response = await apiClient.get(`/ujian-master/${ujianMasterID}/kartu-ujian/filters`);
   return response.data;
 };
@@ -37,9 +38,9 @@ export const getKartuUjianFilters = async (ujianMasterID: number): Promise<Kartu
 /**
  * Mengambil data peserta dengan detail kartu ujian (No. Ujian, Ruangan, Kursi).
  */
-export const getKartuUjianData = async (ujianMasterID: number, rombelID?: number): Promise<KartuUjianDetail[]> => {
-  // Catatan: Endpoint Go Anda mengharapkan rombel_id (uint), sehingga dikirim sebagai query param
-  const params = rombelID && rombelID !== 0 ? { rombel_id: rombelID } : {};
+// FIX 2: ujianMasterID dan rombelID menerima STRING
+export const getKartuUjianData = async (ujianMasterID: string, rombelID?: string): Promise<KartuUjianDetail[]> => {
+  const params = rombelID && rombelID !== '0' ? { rombel_id: rombelID } : {};
   const response = await apiClient.get(`/ujian-master/${ujianMasterID}/kartu-ujian`, { params });
   return response.data;
 };
@@ -47,7 +48,8 @@ export const getKartuUjianData = async (ujianMasterID: number, rombelID?: number
 /**
  * Memicu proses di backend untuk generate dan mengunduh file PDF Kartu Ujian.
  */
-export const generateKartuUjianPDF = async (ujianMasterID: number, pesertaIDs: number[]): Promise<void> => {
+// FIX 3: ujianMasterID menerima STRING
+export const generateKartuUjianPDF = async (ujianMasterID: string, pesertaIDs: number[]): Promise<void> => {
   const response = await apiClient.post(
     `/ujian-master/${ujianMasterID}/kartu-ujian/export-pdf`,
     { peserta_ids: pesertaIDs },

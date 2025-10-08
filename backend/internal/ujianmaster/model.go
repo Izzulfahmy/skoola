@@ -176,19 +176,21 @@ type KartuUjianDetail struct {
 	SiswaID       uint   `json:"siswa_id"`
 	NISN          string `json:"nisn"`
 	NamaSiswa     string `json:"nama_siswa"`
-	RombelID      uint   `json:"rombel_id"`
-	NamaKelas     string `json:"nama_kelas"` // Nama Rombel
-	NoUjian       string `json:"no_ujian"`
-	RuangUjianID  uint   `json:"ruang_ujian_id"`
-	NamaRuangan   string `json:"nama_ruangan"`
-	NomorKursi    string `json:"nomor_kursi"`
+	// FIX: Menggunakan STRING untuk RombelID karena aslinya adalah UUID
+	RombelID     string `json:"rombel_id"`
+	NamaKelas    string `json:"nama_kelas"` // Nama Rombel
+	NoUjian      string `json:"no_ujian"`
+	RuangUjianID uint   `json:"ruang_ujian_id"`
+	NamaRuangan  string `json:"nama_ruangan"`
+	NomorKursi   string `json:"nomor_kursi"`
 	// is_data_lengkap dihitung di layer Repository/Service
 	IsDataLengkap bool `json:"is_data_lengkap"`
 }
 
 // KartuUjianKelasFilter represents the unique classes registered for the exam.
 type KartuUjianKelasFilter struct {
-	RombelID  uint   `json:"rombel_id"`
+	// FIX: Menggunakan STRING untuk RombelID karena aslinya adalah UUID
+	RombelID  string `json:"rombel_id"`
 	NamaKelas string `json:"nama_kelas"`
 }
 
