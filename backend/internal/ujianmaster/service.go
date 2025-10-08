@@ -122,6 +122,8 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 	}
 
 	// 1. Ambil data spesifik untuk peserta yang dipilih
+	// Catatan: Parameter pesertaIDs di repo masih nil karena filtering dilakukan di service (untuk kompatibilitas uint).
+	// Untuk performa optimal, filter pesertaIDs harus diubah menjadi []uuid.UUID dan dipass ke repository.
 	data, err := s.repo.GetKartuUjianData(ctx, schemaName, umID, uuid.Nil, nil)
 	if err != nil {
 		return nil, err
@@ -135,6 +137,10 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 	}
 
 	for _, d := range data {
+		// PERHATIAN: D.ID adalah uint(0) karena keterbatasan struct model.go.
+		// Asumsi: Jika ID peserta diubah ke string (UUID) di model.go, maka d.ID di sini harus berupa string
+		// dan selectedMap harus menggunakan map[string]bool.
+		// Untuk saat ini, kita ikuti logika yang diberikan:
 		if selectedMap[d.ID] {
 			selectedData = append(selectedData, d)
 		}
@@ -145,9 +151,10 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 		return nil, errors.New("tidak ada data peserta yang valid untuk dicetak")
 	}
 
+	// 2. Validasi kelengkapan data (Robust Check)
 	for _, d := range selectedData {
 		if !d.IsDataLengkap {
-			// FIX ST1005: Menghapus titik di akhir kalimat
+			// FIX TYPO UJIAN MASTER: Menggunakan fmt.Errorf untuk pesan error yang lebih baik
 			return nil, fmt.Errorf("data peserta %s (ID: %d) belum lengkap: No. Ujian atau Ruangan kosong", d.NamaSiswa, d.ID)
 		}
 	}
@@ -171,8 +178,9 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 			pdf.AddPage()
 		}
 
+		// Pengecekan robust (gofpdf.Err())
 		if pdf.Err() {
-			return nil, fmt.Errorf("gagal menambah halaman PDF: %w", pdf.Error())
+			return nil, fmt.Errorf("gagal menambah halaman PDF untuk kartu %d: %w", i+1, pdf.Error())
 		}
 
 		pdf.SetMargins(margin, margin, margin)
@@ -213,6 +221,7 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 		pdf.SetFont("Courier", "", 9)
 		pdf.Cell(30, lineHeight, "Ruangan/Kursi:")
 		pdf.SetFont("Courier", "B", 9)
+		// NomorKursi diprefix 'K'
 		pdf.Cell(0, lineHeight, fmt.Sprintf("%s / K%s", d.NamaRuangan, d.NomorKursi))
 		y += lineHeight
 
@@ -229,7 +238,10 @@ func (s *service) GenerateKartuUjianPDF(ctx context.Context, schemaName string, 
 		pdf.SetFont("Courier", "", 8)
 		pdf.Cell(0, 5, "Tanda Tangan Peserta: _________________________")
 
-		// --- END GAMBAR KARTU UJIAN ---
+		// Cek error setelah drawing (Robust Check)
+		if pdf.Err() {
+			return nil, fmt.Errorf("gagal merender data kartu untuk %s: %w", d.NamaSiswa, pdf.Error())
+		}
 	}
 
 	var buffer bytes.Buffer

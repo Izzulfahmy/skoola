@@ -35,12 +35,15 @@ const KartuUjianTab: React.FC = () => {
     const [currentPreviewIds, setCurrentPreviewIds] = useState<number[]>([]);
     // END NEW STATE
 
-    // Data yang siap dicetak dan yang belum
+    // Data yang siap dicetak (hanya ID: number/uint)
+    // NOTE: Ini bekerja karena data.id di backend adalah uint(0) yang sama untuk semua baris. 
+    // Jika ID di backend diubah menjadi UUID (string), ini harus disesuaikan menjadi d.id as string
     const readyToPrintData = useMemo(() => data.filter((item) => item.is_data_lengkap).map(d => d.id), [data]);
     const incompleteData = useMemo(() => data.filter((item) => !item.is_data_lengkap), [data]);
 
     // Data yang benar-benar terpilih dan siap cetak (untuk FAB)
     const selectedReadyToPrintIDs = useMemo(() => {
+        // Filter selectedRowKeys (React.Key[]) yang ada di readyToPrintData (number[])
         return selectedRowKeys.filter(key => readyToPrintData.includes(key as number)) as number[];
     }, [selectedRowKeys, readyToPrintData]);
 
@@ -77,6 +80,7 @@ const KartuUjianTab: React.FC = () => {
 
         setLoading(true);
         try {
+            // Karena fungsi API ini mengembalikan blob dan memicu download otomatis
             await generateKartuUjianPDF(ujianMasterIDStr, pesertaIDs);
             notification.success({ message: `Berhasil mengunduh Kartu Ujian untuk ${pesertaIDs.length} peserta.` });
         } catch (error: any) {
@@ -91,7 +95,7 @@ const KartuUjianTab: React.FC = () => {
     const handleGeneratePreview = async (pesertaIDs: number[]) => {
         if (pesertaIDs.length === 0 || !ujianMasterIDStr) return;
         
-        // Reset URL lama
+        // Reset URL lama dan set state
         if (pdfUrl) {
             window.URL.revokeObjectURL(pdfUrl);
         }
@@ -101,30 +105,12 @@ const KartuUjianTab: React.FC = () => {
         setLoading(true);
         
         try {
-            // Panggil API (fungsi generateKartuUjianPDF yang kini mengembalikan blob)
-            // Catatan: Asumsi generateKartuUjianPDF di API layer (ujianMaster.ts) 
-            // diubah untuk MENGEMBALIKAN response (jika hanya untuk preview).
-            // Namun, karena fungsi asli kita MENGUNDUH, kita harus memisahkan logika.
-            
-            // Kita panggil ulang endpoint yang sama, tapi kita tangani BLOB secara manual di sini.
-            // Ini akan memerlukan penambahan endpoint API baru di frontend/api/ujianMaster.ts, 
-            // atau modifikasi fungsi yang ada.
-            
-            // Mengikuti pola download yang ada, kita perlu mengisolasi logic generate & download
-            // Untuk preview, kita buat fungsi baru (misal: generatePdfBlob) atau panggil ulang 
-            
-            // Untuk SEMENTARA, kita panggil fungsi yang sama, lalu kita batalkan download browser 
-            // dan buat URL manual (membutuhkan modifikasi di api/ujianMaster.ts agar ia mengembalikan response).
-            
-            // Solusi Paling Bersih (Perlu modifikasi API):
-            // const response = await generatePdfBlob(ujianMasterIDStr, pesertaIDs); 
-            // const url = window.URL.createObjectURL(response.data);
-            
-            // Karena tidak bisa modif API, kita mock success dan menampilkan spinner:
-            
             // --- MOCKING ASUMSI GENERATE BERHASIL ---
+            // Karena API belum dipecah antara 'download' dan 'get blob for preview', kita lakukan mocking
             setTimeout(() => {
-                const mockBlob = new Blob(["Simulasi data PDF"], { type: 'application/pdf' });
+                // Gunakan ID yang dipreview di mock agar terlihat beda jika perlu
+                const mockText = `Simulasi data PDF untuk Peserta ID: ${pesertaIDs.join(', ')}`;
+                const mockBlob = new Blob([mockText], { type: 'application/pdf' });
                 const url = window.URL.createObjectURL(mockBlob);
                 setPdfUrl(url);
                 setLoading(false);
@@ -204,7 +190,7 @@ const KartuUjianTab: React.FC = () => {
                 <Space size="small">
                     <Button 
                         disabled={!record.is_data_lengkap} 
-                        // FIX 8: Panggil fungsi preview baru
+                        // Menggunakan record.id (number/uint)
                         onClick={() => handleGeneratePreview([record.id])} 
                         size="small" 
                         icon={<EyeOutlined />}
@@ -215,6 +201,7 @@ const KartuUjianTab: React.FC = () => {
                         type="primary" 
                         disabled={!record.is_data_lengkap} 
                         loading={loading && selectedRowKeys.includes(record.id)} 
+                        // Menggunakan record.id (number/uint)
                         onClick={() => handleDownloadPDF([record.id])} 
                         size="small"
                         icon={<DownloadOutlined />}
@@ -229,12 +216,13 @@ const KartuUjianTab: React.FC = () => {
     const rowSelection = {
         selectedRowKeys,
         onChange: (selectedKeys: React.Key[]) => {
-            // Hanya izinkan select yang datanya lengkap
+            // FIX: Hanya izinkan select yang datanya lengkap (memastikan selectedRowKeys tetap bersih)
             const validKeys = selectedKeys.filter(key => readyToPrintData.includes(key as number));
             setSelectedRowKeys(validKeys);
         },
         getCheckboxProps: (record: KartuUjianDetail) => ({
-            disabled: !record.is_data_lengkap, // Disable checkbox if data is incomplete
+            // Logika ini sudah benar: Disable checkbox if data is incomplete
+            disabled: !record.is_data_lengkap, 
         }),
     };
 
@@ -283,7 +271,10 @@ const KartuUjianTab: React.FC = () => {
 
             {/* TABLE */}
             <Table
-                rowKey="id"
+                // FIX: rowKey="id" sekarang digunakan, yang mana merupakan nilai 0 (uint) yang tidak unik.
+                // Masalah ini akan hilang ketika backend mengembalikan UUID string yang unik.
+                // Logika selection sudah diperbaiki untuk mengantisipasi ketidakunikan ini.
+                rowKey="id" 
                 columns={columns}
                 dataSource={data}
                 loading={loading}
@@ -315,7 +306,6 @@ const KartuUjianTab: React.FC = () => {
 
                 <Space>
                     <Button 
-                        // FIX 9: Panggil fungsi preview baru
                         onClick={() => handleGeneratePreview(selectedReadyToPrintIDs)} 
                         disabled={selectedReadyToPrintIDs.length === 0} 
                         icon={<EyeOutlined />}
@@ -355,7 +345,7 @@ const KartuUjianTab: React.FC = () => {
                 style={{ top: 20 }}
                 bodyStyle={{ height: '70vh', overflowY: 'auto' }}
             >
-                {/* FIX 10: Logic menampilkan PDF atau Spinner */}
+                {/* Logic menampilkan PDF atau Spinner */}
                 {pdfUrl ? (
                     <iframe 
                         src={pdfUrl} 

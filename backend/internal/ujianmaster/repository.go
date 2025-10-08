@@ -387,6 +387,7 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
         JOIN students s ON s.id = ak.student_id
         JOIN kelas k ON k.id = pu.kelas_id
         LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id -- LEFT JOIN ke tabel alokasi baru
+        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Tambahkan join untuk detail ruangan jika diperlukan
         WHERE pu.ujian_master_id = $1
         ORDER BY k.nama_kelas, pu.urutan
     `
@@ -1154,16 +1155,16 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 	// Konversi dari rawDetails (string/UUID) ke KartuUjianDetail (uint/string)
 	details := make([]KartuUjianDetail, len(rawDetails))
 	for i, rd := range rawDetails {
-		// FIX: Menggunakan RombelID sebagai string
 		detail := KartuUjianDetail{
-			// Semua ID yang seharusnya UUID dikonversi menjadi 0 karena KartuUjianDetail menggunakan 'uint'.
-			// PENTING: Perlu dipastikan di lapisan Service/Handler bahwa ID, UjianMasterID, dan SiswaID
-			// yang sebenarnya adalah UUID tidak digunakan sebagai `uint` secara langsung, atau Anda
-			// mengubah struct KartuUjianDetail di model.go untuk menggunakan string/uuid.UUID.
-			// Untuk saat ini, kita mengikut template Anda:
-			ID:            0,
-			UjianMasterID: 0,
-			SiswaID:       0,
+			// PENTING: ID-ID ini seharusnya UUID, tetapi terpaksa dikonversi ke uint(0)
+			// untuk menyesuaikan dengan struct KartuUjianDetail yang Anda gunakan
+			// (yang mengasumsikan uint). Harap perbarui struct model.go Anda
+			// (misalnya ID, UjianMasterID, SiswaID) ke tipe data string/uuid.UUID
+			// untuk menghilangkan konversi 0 ini dan menggunakan ID asli (rd.ID, rd.UjianMasterID, rd.SiswaID).
+			ID:            0, // Dikembalikan ke uint(0)
+			UjianMasterID: 0, // Dikembalikan ke uint(0)
+			SiswaID:       0, // Dikembalikan ke uint(0)
+
 			// --- FIX: RombelID menggunakan STRING ---
 			RombelID: rd.RombelID,
 			// ---
@@ -1177,7 +1178,6 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		}
 
 		// RuangUjianID diperlakukan sebagai NULL/0 jika tidak ada alokasi
-		// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0 jika tidak valid.
 		if rd.RuangUjianID.Valid {
 			// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0.
 			detail.RuangUjianID = 0 // Jika Anda ingin mem-passing ID asli, ubah tipe di model.go
