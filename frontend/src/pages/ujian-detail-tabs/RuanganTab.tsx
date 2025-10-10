@@ -338,7 +338,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
   return (
     <Row gutter={24} style={{ minHeight: '70vh' }}>
       <Col span={6}>
-        <Title level={5}>Peserta Unassigned ({unplacedParticipants.length})</Title>
+        <Title level={5}>Belum Dapat Kursi ({unplacedParticipants.length})</Title>
         <Card 
             size="small" 
             style={{ 
@@ -407,7 +407,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
       </Col>
 
       <Col span={7}>
-        <Title level={5} style={{ marginBottom: 16 }}>Legenda ({legendData.length} Kursi Terisi)</Title>
+        <Title level={5} style={{ marginBottom: 16 }}>Daftar {legendData.length} Kursi Terisi</Title>
         <Card 
             size="small"
             style={{ height: 'calc(70vh - 50px)', overflowY: 'auto' }}
