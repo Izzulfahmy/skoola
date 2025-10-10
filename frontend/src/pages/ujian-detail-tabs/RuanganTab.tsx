@@ -451,7 +451,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   const [isSeatingModalOpen, setIsSeatingModalOpen] = useState(false); 
   const [selectedAlokasi, setSelectedAlokasi] = useState<AlokasiRuanganUjian | null>(null); 
   
-  // --- Query Data dan Mutations (TIDAK BERUBAH) ---
+  // --- Query Data dan Mutations ---
   const { data: ruanganMaster, isLoading: isRuanganMasterLoading } = useQuery<RuanganUjian[]>({
     queryKey: ['ruanganMaster'],
     queryFn: getAllRuanganMaster,
@@ -546,7 +546,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     },
   });
 
-  // --- Handlers (TIDAK BERUBAH) ---
+  // --- Handlers ---
   
   const showMasterModal = (ruangan: RuanganUjian | null = null) => {
     setEditingRuangan(ruangan);
@@ -573,6 +573,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
   
   const handleShowAssignModal = () => {
+      // ✅ Perbaikan 2: Hapus `.data` yang berlebihan
       const alokasiList = alokasiRuangan || []; 
       const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
       setLocalTargetKeys(initialTargetIDs);
@@ -615,11 +616,22 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
 
   const handleAssignRuangan = (targetKeys: string[]) => {
-    if (targetKeys.length === 0) {
-        message.warning('Pilih minimal satu ruangan untuk dialokasikan.');
-        return;
+    
+    // Perbaikan: Hapus deklarasi variabel yang tidak terpakai (initialTargetIDs)
+    // const alokasiList = alokasiRuangan || []; 
+    // const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
+    
+    const idsToAssign = targetKeys;
+    
+    if (idsToAssign.length === 0) {
+         message.warning('Pilih minimal satu ruangan untuk dialokasikan.');
+         setIsAssignModalOpen(false);
+         return;
     }
-    assignMutation.mutate({ ujianMasterId, ruangan_ids: targetKeys });
+    
+    // Logika ini mengirimkan ID ruangan BARU yang dipilih dari Transfer (karena source sudah difilter).
+    assignMutation.mutate({ ujianMasterId, ruangan_ids: idsToAssign });
+    
   };
   
   const handleRemoveAlokasi = (alokasiID: string) => {
@@ -627,7 +639,10 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   };
   
   const handleSmartDistribution = () => {
-      if (!alokasiRuangan || alokasiRuangan.length === 0) {
+      // ✅ Perbaikan 1: Gunakan penegasan tipe (type assertion) yang aman
+      const alokasiList: AlokasiRuanganUjian[] = alokasiRuangan || []; 
+      
+      if (alokasiList.length === 0) {
           message.error('Silakan alokasikan ruangan terlebih dahulu.');
           return;
       }
@@ -636,21 +651,41 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   
   if (!ujianDetail) return <Spin />;
 
-  const alokasiList = alokasiRuangan || []; 
-  const ruanganMasterList = ruanganMaster || []; 
+  // -----------------------------------------------------------
+  // ✅ Perbaikan 1: Gunakan penegasan tipe (type assertion) yang aman
+  const ruanganMasterList: RuanganUjian[] = ruanganMaster || []; 
+  const alokasiList: AlokasiRuanganUjian[] = alokasiRuangan || []; 
+  // -----------------------------------------------------------
+  
   const totalPeserta = ujianDetail.detail.jumlah_peserta;
   const totalKapasitasAlokasi = alokasiList.reduce((sum, ar) => sum + ar.kapasitas_ruangan, 0);
 
+  // 1. Siapkan daftar ID yang SUDAH dialokasikan
   const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
-  
-  const sourceData = ruanganMasterList.map(r => ({
+
+  // 2. Konversi daftar Master Ruangan ke format Transfer
+  const allMasterDataForTransfer = ruanganMasterList.map(r => ({
       key: r.id,
       title: r.nama_ruangan,
       description: `Kapasitas: ${r.kapasitas} kursi`,
-      isAllocated: initialTargetIDs.includes(r.id),
-      ruangan: r,
+      // Tambahkan ruangan untuk keperluan modal master 
+      ruangan: r, 
   }));
-  
+
+  // ✅ Logika FILTER FINAL: Filter data sumber (sisi kiri) agar TIDAK menampilkan ruangan yang sudah dialokasikan.
+  const availableSourceData = allMasterDataForTransfer.filter(
+      // Hanya masukkan item yang ID-nya TIDAK ada di daftar ID yang sudah dialokasikan
+      item => !initialTargetIDs.includes(item.key)
+  );
+
+  // Data lama (sebelum difilter) - hanya digunakan di Modal Master
+  const sourceDataMaster = allMasterDataForTransfer.map(item => ({
+      ...item,
+      // Tambahkan properti untuk List di Modal Master
+      isAllocated: initialTargetIDs.includes(item.key)
+  }));
+
+
   // Custom Component untuk menampilkan Kapasitas (Non-editable)
   const CalculatedCapacityDisplay = () => {
     return (
@@ -698,7 +733,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                     type="primary" 
                     icon={<PlusOutlined />} 
                     onClick={handleShowAssignModal} 
-                    disabled={isRuanganMasterLoading || (ruanganMasterList.length === 0)}
+                    // Pastikan tombol disabled jika SEMUA ruangan sudah dialokasikan
+                    disabled={isRuanganMasterLoading || (availableSourceData.length === 0)}
                 >
                     Alokasikan Ruangan
                 </Button>
@@ -929,26 +965,26 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         
         <Divider>Daftar Master Ruangan Sekolah</Divider>
          <Spin spinning={isRuanganMasterLoading}>
-             {ruanganMasterList.length > 0 ? (
+             {sourceDataMaster.length > 0 ? (
                  <List
-                    dataSource={ruanganMasterList}
+                    dataSource={sourceDataMaster}
                     renderItem={item => {
-                        const isAllocated = alokasiList.some(ar => ar.ruangan_id === item.id);
+                        const isAllocated = item.isAllocated;
                         return (
                             <List.Item
                                 // Action button di-render di sini
                                 actions={[
-                                    <Button type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item)} key="edit" size="small"/>,
+                                    <Button type='text' icon={<EditOutlined />} onClick={() => showMasterModal(item.ruangan)} key="edit" size="small"/>,
                                     <Popconfirm 
                                         title={isAllocated ? 'Ruangan sedang digunakan! Hapus akan membatalkan semua alokasi yang terkait.' : 'Hapus Master Ruangan?'}
-                                        onConfirm={() => handleDeleteMaster(item.id)}
+                                        onConfirm={() => handleDeleteMaster(item.key)}
                                         okText="Ya, Hapus"
                                         cancelText="Batal"
-                                        disabled={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.id}
+                                        disabled={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.key}
                                         key="delete"
                                     >
                                         <Button type='text' danger icon={<DeleteOutlined />} 
-                                            loading={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.id}
+                                            loading={deleteMasterMutation.isPending && deleteMasterMutation.variables === item.key}
                                             size="small"
                                         />
                                     </Popconfirm>
@@ -960,13 +996,13 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                 <Row style={{ width: '100%' }} align="middle">
                                     {/* Kolom Nama Ruangan (Ambil ruang yang tersisa) */}
                                     <Col flex="1 1 35%">
-                                        <Text strong>{item.nama_ruangan}</Text>
+                                        <Text strong>{item.title}</Text>
                                     </Col>
                                     
                                     {/* Kolom Tags Detail (Rata Kanan di dalam Col) */}
                                     <Col flex="1 1 65%" style={{ textAlign: 'right' }}>
                                         <Space size="middle">
-                                            <Tag icon={<UserOutlined />} style={{ minWidth: 70, textAlign: 'center' }}>{item.kapasitas} Kursi</Tag>
+                                            <Tag icon={<UserOutlined />} style={{ minWidth: 70, textAlign: 'center' }}>{item.ruangan.kapasitas} Kursi</Tag>
                                             <Tag color={isAllocated ? 'warning' : 'green'} style={{ minWidth: 90, textAlign: 'center' }}>
                                                 {isAllocated ? 'Dialokasikan' : 'Tersedia'}
                                             </Tag>
@@ -990,7 +1026,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         onCancel={() => setIsAssignModalOpen(false)}
         okText="Alokasikan"
         onOk={() => {
-            handleAssignRuangan(localTargetKeys);
+            // Kita harus kirim localTargetKeys karena <Transfer> kita sudah difilter di sourceData
+            handleAssignRuangan(localTargetKeys); 
         }}
         confirmLoading={assignMutation.isPending}
         width={700}
@@ -998,18 +1035,23 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       >
         <Paragraph>
             Pilih ruangan fisik dari daftar kiri untuk dialokasikan ke ujian **{ujianDetail.detail.nama_paket_ujian}**.
-            Ruangan yang sudah dialokasikan akan ditandai.
+            Ruangan yang sudah dialokasikan **TIDAK** akan ditampilkan di sisi kiri.
         </Paragraph>
         <Divider />
         <Spin spinning={isRuanganMasterLoading || assignMutation.isPending}>
         <Transfer
-            dataSource={sourceData}
+            // ✅ Gunakan availableSourceData (yang sudah difilter) sebagai dataSource
+            dataSource={availableSourceData}
+            
+            // targetKeys tetap menggunakan state lokal untuk mencatat pilihan
             targetKeys={localTargetKeys} 
             onChange={(nextTargetKeys) => { 
+                // Karena data source hanya berisi yang belum dialokasikan, nextTargetKeys 
+                // akan berisi ID dari ruangan yang BARU DIPILIH
                 setLocalTargetKeys(nextTargetKeys as string[]);
             }}
             render={item => item.title}
-            titles={['Ruangan Master', 'Ruangan Dialokasikan']}
+            titles={['Ruangan Tersedia', 'Ruangan Dialokasikan (Baru)']} 
             listStyle={{
                 width: 300,
                 height: 300,
