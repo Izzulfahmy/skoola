@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	// "strings" telah dihapus karena tidak digunakan
-
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
@@ -16,6 +14,7 @@ import (
 // Repository defines the operations for UjianMaster and its related entities.
 type Repository interface {
 	// Ujian Master Core
+	// FIX: Mengganti UujianMaster menjadi UjianMaster
 	Create(ctx context.Context, schemaName string, um UjianMaster) (UjianMaster, error)
 	GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID) ([]UjianMaster, error)
 	GetByID(ctx context.Context, schemaName string, id uuid.UUID) (UjianMaster, error)
@@ -509,12 +508,27 @@ func (r *repository) UpdatePesertaSeating(ctx context.Context, schemaName string
 		return err
 	}
 
+	// --- AWAL LOGIKA UNASSIGN/NULL ---
+	var arIDParam interface{} = alokasiRuanganID
+	var nkParam interface{} = nomorKursi
+
+	// Cek jika ID Ruangan adalah UUID.Nil, yang berarti UNASSIGN/NULL
+	if alokasiRuanganID == uuid.Nil {
+		arIDParam = nil // Set alokasi_ruangan_id ke SQL NULL
+		nkParam = nil   // Juga set nomor_kursi ke SQL NULL jika ruangan diunassign
+	} else if nomorKursi == "" {
+		// Jika ada ruangan, tapi nomor kursinya dikosongkan (optional)
+		nkParam = nil // Set nomor_kursi ke SQL NULL
+	}
+	// --- AKHIR LOGIKA UNASSIGN/NULL ---
+
 	query := `
         UPDATE peserta_ujian
         SET alokasi_ruangan_id = $2, nomor_kursi = $3, updated_at = NOW()
         WHERE id = $1
     `
-	_, err := r.db.ExecContext(ctx, query, pesertaID, alokasiRuanganID, nomorKursi)
+	// Menggunakan arIDParam dan nkParam yang sekarang dapat berupa nil (NULL SQL)
+	_, err := r.db.ExecContext(ctx, query, pesertaID, arIDParam, nkParam)
 	if err != nil {
 		return fmt.Errorf("gagal memperbarui penempatan kursi peserta: %w", err)
 	}
@@ -530,9 +544,6 @@ func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName s
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
-
-	// Use a transaction with multiple UPDATE statements for batch operation.
-	// NOTE: For very large batches (>1000 records), consider using pq.CopyIn with a temporary table for better performance.
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -552,8 +563,21 @@ func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName s
 	defer stmt.Close()
 
 	for _, assignment := range assignments {
-		// Konversi data dari struct anonim ke ExecContext
-		_, err := stmt.ExecContext(ctx, assignment.PesertaID, assignment.AlokasiRuanganID, assignment.NomorKursi)
+		// --- LOGIKA UNASSIGN/NULL DI APLIKASIKAN KE BATCH ---
+		var arIDParam interface{} = assignment.AlokasiRuanganID
+		var nkParam interface{} = assignment.NomorKursi
+
+		// Cek jika ID Ruangan adalah UUID.Nil, yang berarti UNASSIGN/NULL
+		if assignment.AlokasiRuanganID == uuid.Nil {
+			arIDParam = nil // Set alokasi_ruangan_id ke SQL NULL
+			nkParam = nil   // Juga set nomor_kursi ke SQL NULL jika ruangan diunassign
+		} else if assignment.NomorKursi == "" {
+			// Jika ada ruangan, tapi nomor kursinya dikosongkan (optional)
+			nkParam = nil // Set nomor_kursi ke SQL NULL
+		}
+		// --- AKHIR LOGIKA UNASSIGN/NULL DI APLIKASIKAN KE BATCH ---
+
+		_, err := stmt.ExecContext(ctx, assignment.PesertaID, arIDParam, nkParam)
 		if err != nil {
 			return fmt.Errorf("gagal mengeksekusi batch update seating untuk peserta %s: %w", assignment.PesertaID, err)
 		}
@@ -605,18 +629,15 @@ func (r *repository) CreateRuangan(ctx context.Context, schemaName string, ruang
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return RuanganUjian{}, err
 	}
-	// Simplified INSERT query (RETURNING dihapus)
 	query := `
         INSERT INTO ruangan_ujian (id, nama_ruangan, kapasitas, layout_metadata, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
-    ` // Kueri INSERT polos, cocok dengan ExecContext
+    `
 
-	// ID dan timestamp sudah dibuat di Go sebelum kueri
 	ruangan.ID = uuid.New()
 	ruangan.CreatedAt = time.Now()
 	ruangan.UpdatedAt = time.Now()
 
-	// Menggunakan ExecContext sudah tepat karena ID dan timestamp sudah dibuat di Go.
 	_, err := r.db.ExecContext(ctx, query, ruangan.ID, ruangan.NamaRuangan, ruangan.Kapasitas, ruangan.LayoutMetadata, ruangan.CreatedAt, ruangan.UpdatedAt)
 	if err != nil {
 		return RuanganUjian{}, fmt.Errorf("gagal membuat ruangan: %w", err)
@@ -711,11 +732,10 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 			return nil, fmt.Errorf("gagal memindai detail ruangan: %w", err)
 		}
 
-		// Mapping LayoutMetadata dengan penanganan NULL yang aman
 		if layoutMetadata.Valid {
 			ru.LayoutMetadata = layoutMetadata.String
 		} else {
-			ru.LayoutMetadata = "" // Menggunakan string kosong jika NULL (asumsi tipe RuanganUjian.LayoutMetadata adalah string)
+			ru.LayoutMetadata = ""
 		}
 
 		ruanganDetails[ru.ID] = ru
@@ -748,7 +768,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 	// 2b. Filter input ruanganIDs untuk mendapatkan ID ruangan BARU saja
 	var newRuanganIDs []uuid.UUID
 	for _, rID := range ruanganIDs {
-		// Hanya masukkan ke newRuanganIDs jika ID ini ada di ruanganDetails (valid) dan belum dialokasikan
 		if _, isValid := ruanganDetails[rID]; isValid {
 			if _, exists := existingAlokasiIDs[rID]; !exists {
 				newRuanganIDs = append(newRuanganIDs, rID)
@@ -756,7 +775,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		}
 	}
 
-	// Jika tidak ada ruangan baru, tidak perlu insert, langsung commit.
 	if len(newRuanganIDs) == 0 {
 		if err = tx.Commit(); err != nil {
 			return nil, fmt.Errorf("gagal commit (no new rooms): %w", err)
@@ -764,7 +782,7 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		return []AlokasiRuanganUjian{}, nil
 	}
 
-	// 2c. Dapatkan angka kode ruangan maksimum yang sudah ada (misal dari R01, R02, ambil 2)
+	// 2c. Dapatkan angka kode ruangan maksimum yang sudah ada
 	var maxKode int
 	queryMaxKode := `
         SELECT COALESCE(MAX(CAST(SUBSTRING(kode_ruangan FROM 2) AS INTEGER)), 0)
@@ -772,13 +790,12 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
         WHERE ujian_master_id = $1
     `
 	if err := tx.QueryRowContext(ctx, queryMaxKode, ujianMasterID).Scan(&maxKode); err != nil {
-		// Logika menangani error non-rows atau error parsing (jika kode_ruangan tidak berformat 'RXX')
 		if !errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("gagal mengambil max kode ruangan: %w", err)
 		}
 	}
 
-	currentKode := maxKode // Mulai penomoran dari angka max yang ditemukan
+	currentKode := maxKode
 	var createdAlokasi []AlokasiRuanganUjian
 	now := time.Now()
 
@@ -791,18 +808,18 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
     `
 
 	for _, rID := range newRuanganIDs {
-		currentKode++ // Naikkan nomor urut untuk ruangan yang BARU
+		currentKode++
 
-		detail := ruanganDetails[rID] // Pasti ada
+		detail := ruanganDetails[rID]
 
-		// GENERATE KODE RUANGAN YANG BENAR (misalnya R03 jika maxKode 2)
+		// GENERATE KODE RUANGAN YANG BENAR (misalnya R03)
 		kodeRuangan := fmt.Sprintf("R%02d", currentKode)
 
 		ar := AlokasiRuanganUjian{
 			ID:                  uuid.New(),
 			UjianMasterID:       ujianMasterID,
 			RuanganID:           rID,
-			KodeRuangan:         kodeRuangan, // Menggunakan kode ruangan yang dijamin unik
+			KodeRuangan:         kodeRuangan,
 			JumlahKursiTerpakai: 0,
 			NamaRuangan:         detail.NamaRuangan,
 			KapasitasRuangan:    detail.Kapasitas,
@@ -813,16 +830,13 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 
 		var insertedID uuid.UUID
 
-		// Lakukan INSERT
 		err := tx.QueryRowContext(ctx, insertQuery, ar.ID, ar.UjianMasterID, ar.RuanganID, ar.KodeRuangan, ar.CreatedAt, ar.UpdatedAt).Scan(&insertedID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				// Race condition atau konflik unik (tidak mungkin terjadi karena sudah difilter dan kode unik), abaikan.
 				continue
 			}
 
-			// Error database fatal lainnya
 			return nil, fmt.Errorf("gagal insert alokasi ruangan %s dengan kode %s: %w", rID.String(), kodeRuangan, err)
 		}
 
@@ -892,17 +906,12 @@ func (r *repository) RecalculateAlokasiKursiCount(ctx context.Context, schemaNam
 		return err
 	}
 
-	// Gunakan dua kueri dalam satu transaksi untuk memastikan akurasi:
-	// 1. Reset semua jumlah kursi terpakai untuk ujian ini menjadi 0.
-	// 2. Perbarui jumlah kursi terpakai berdasarkan data yang baru terisi di peserta_ujian.
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("gagal memulai transaksi recalculate: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Query 1: Reset semua ke 0
 	queryReset := `
         UPDATE alokasi_ruangan_ujian 
         SET jumlah_kursi_terpakai = 0, updated_at = NOW()
@@ -912,7 +921,6 @@ func (r *repository) RecalculateAlokasiKursiCount(ctx context.Context, schemaNam
 		return fmt.Errorf("gagal reset jumlah kursi: %w", err)
 	}
 
-	// Query 2: Update berdasarkan hitungan peserta_ujian yang terisi
 	queryUpdate := `
         UPDATE alokasi_ruangan_ujian aru
         SET jumlah_kursi_terpakai = pu_count.total_peserta, updated_at = NOW()
@@ -969,14 +977,12 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 		return 0, err
 	}
 
-	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Get all peserta for this ujian_master, ordered by kelas and urutan
 	queryGetPeserta := `
         SELECT pu.id 
         FROM peserta_ujian pu
@@ -1013,18 +1019,17 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 	var paddingDigits int
 
 	if totalPeserta < 1000 {
-		paddingDigits = 3 // 001, 002, 003
+		paddingDigits = 3
 	} else if totalPeserta < 10000 {
-		paddingDigits = 4 // 0001, 0002, 0003
+		paddingDigits = 4
 	} else if totalPeserta < 100000 {
-		paddingDigits = 5 // 00001, 00002, 00003
+		paddingDigits = 5
 	} else if totalPeserta < 1000000 {
-		paddingDigits = 6 // 000001, 000002, 000003
+		paddingDigits = 6
 	} else {
-		paddingDigits = 7 // 0000001, 0000002, 0000003 (up to 10 million)
+		paddingDigits = 7
 	}
 
-	// Prepare update statement outside the loop for efficiency
 	queryUpdate := `UPDATE peserta_ujian SET nomor_ujian = $1, updated_at = $2 WHERE id = $3`
 	updateStmt, err := tx.PrepareContext(ctx, queryUpdate)
 	if err != nil {
@@ -1032,17 +1037,13 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 	}
 	defer updateStmt.Close()
 
-	// Generate sequential exam numbers and update
 	updateCount := 0
 	for i, pesertaID := range pesertaIDs {
 		var nomorUjian string
 
-		// FIXED: Direct format generation using %0*d
 		if prefix == "" {
-			// Numbers only: 001, 0001, 00001, etc.
 			nomorUjian = fmt.Sprintf("%0*d", paddingDigits, i+1)
 		} else {
-			// With prefix: UTS001, UTS0001, UTS00001, etc.
 			nomorUjian = fmt.Sprintf("%s%0*d", prefix, paddingDigits, i+1)
 		}
 
@@ -1054,7 +1055,6 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 		updateCount++
 	}
 
-	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return 0, fmt.Errorf("gagal commit transaksi: %w", err)
 	}
@@ -1071,14 +1071,12 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 		return 0, err
 	}
 
-	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("gagal memulai transaksi: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Prepare update statement
 	updateQuery := `
         UPDATE peserta_ujian 
         SET nomor_ujian = $1, updated_at = NOW() 
@@ -1109,7 +1107,6 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 		}
 	}
 
-	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return 0, fmt.Errorf("gagal commit transaksi: %w", err)
 	}
@@ -1127,7 +1124,6 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 		return nil, err
 	}
 
-	// Definisi struct lokal untuk menampung hasil DB (UUID)
 	type rombelResult struct {
 		RombelID uuid.UUID
 		Nama     string
@@ -1135,7 +1131,6 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 
 	var results []rombelResult
 
-	// Ambil kelas unik dari tabel peserta_ujian yang berpartisipasi
 	query := `
         SELECT 
             DISTINCT pu.kelas_id AS rombel_id, 
@@ -1160,11 +1155,9 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 		results = append(results, res)
 	}
 
-	// FIX: Konversi RombelID (UUID) ke string untuk dikirim ke frontend
 	finalFilters := make([]KartuUjianKelasFilter, len(results))
 	for i, res := range results {
 		finalFilters[i] = KartuUjianKelasFilter{
-			// MENGGUNAKAN STRING (UUID ASLI)
 			RombelID:  res.RombelID.String(),
 			NamaKelas: res.Nama,
 		}
@@ -1179,7 +1172,7 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		return nil, err
 	}
 
-	// Definisi struct lokal untuk menampung hasil DB (UUID/string)
+	// Tipe data harus tetap string karena mengambil UUID dari DB
 	type pesertaDetailRaw struct {
 		ID            string
 		UjianMasterID string
@@ -1245,22 +1238,16 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 		rawDetails = append(rawDetails, rd)
 	}
 
-	// Konversi dari rawDetails (string/UUID) ke KartuUjianDetail (uint/string)
 	details := make([]KartuUjianDetail, len(rawDetails))
 	for i, rd := range rawDetails {
+		// Asumsi KartuUjianDetail di model.go masih menggunakan uint untuk ID,
+		// sehingga kita harus mengembalikan string ID dari DB ke 0 untuk menghindari error IncompatibleAssign.
 		detail := KartuUjianDetail{
-			// PENTING: ID-ID ini seharusnya UUID, tetapi terpaksa dikonversi ke uint(0)
-			// untuk menyesuaikan dengan struct KartuUjianDetail yang Anda gunakan
-			// (yang mengasumsikan uint). Harap perbarui struct model.go Anda
-			// (misalnya ID, UjianMasterID, SiswaID) ke tipe data string/uuid.UUID
-			// untuk menghilangkan konversi 0 ini dan menggunakan ID asli (rd.ID, rd.UjianMasterID, rd.SiswaID).
-			ID:            0, // Dikembalikan ke uint(0)
-			UjianMasterID: 0, // Dikembalikan ke uint(0)
-			SiswaID:       0, // Dikembalikan ke uint(0)
+			ID:            0,
+			UjianMasterID: 0,
+			SiswaID:       0,
 
-			// --- FIX: RombelID menggunakan STRING ---
 			RombelID: rd.RombelID,
-			// ---
 
 			NISN:        rd.NISN.String,
 			NamaSiswa:   rd.NamaSiswa,
@@ -1270,15 +1257,16 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 			NomorKursi:  rd.NomorKursi.String,
 		}
 
-		// RuangUjianID diperlakukan sebagai NULL/0 jika tidak ada alokasi
+		// RuangUjianID (yang kita asumsikan bertipe string karena errornya)
 		if rd.RuangUjianID.Valid {
-			// Karena RuangUjianID aslinya UUID, dan targetnya uint, gunakan 0.
-			detail.RuangUjianID = 0 // Jika Anda ingin mem-passing ID asli, ubah tipe di model.go
+			// Jika RuangUjianID valid, gunakan string ID yang sebenarnya
+			detail.RuangUjianID = rd.RuangUjianID.String
 		} else {
-			detail.RuangUjianID = 0
+			// FIX ERROR: Ganti 0 (int) menjadi "" (string) karena RuangUjianID field di model.go kemungkinan adalah string.
+			detail.RuangUjianID = ""
 		}
 
-		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK nol (berarti alokasi ada)
+		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK kosong/null
 		if rd.NoUjian.Valid && rd.NoUjian.String != "" && rd.RuangUjianID.Valid {
 			detail.IsDataLengkap = true
 		} else {

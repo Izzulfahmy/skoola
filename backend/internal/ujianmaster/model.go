@@ -160,9 +160,12 @@ type AssignRuanganInput struct {
 
 // Tambahkan DTO untuk mengupdate penempatan per peserta (untuk implementasi drag/drop manual)
 type UpdatePesertaSeatingInput struct {
-	PesertaID        string `json:"peserta_id" validate:"required,uuid"`
-	AlokasiRuanganID string `json:"alokasi_ruangan_id" validate:"required,uuid"`
-	NomorKursi       string `json:"nomor_kursi" validate:"required,max=10"`
+	PesertaID string `json:"peserta_id" validate:"required,uuid"`
+	// Ganti 'required,uuid' menjadi 'omitempty,uuid'.
+	// 'omitempty' mengizinkan string kosong. Jika ada isinya, baru divalidasi sebagai UUID.
+	AlokasiRuanganID string `json:"alokasi_ruangan_id" validate:"omitempty,uuid"`
+	// Hapus 'required' untuk mengizinkan string kosong (unassign kursi).
+	NomorKursi string `json:"nomor_kursi" validate:"omitempty,max=10"`
 }
 
 // ----------------------------------------------------------------------
@@ -177,10 +180,11 @@ type KartuUjianDetail struct {
 	NISN          string `json:"nisn"`
 	NamaSiswa     string `json:"nama_siswa"`
 	// FIX: Menggunakan STRING untuk RombelID karena aslinya adalah UUID
-	RombelID     string `json:"rombel_id"`
-	NamaKelas    string `json:"nama_kelas"` // Nama Rombel
-	NoUjian      string `json:"no_ujian"`
-	RuangUjianID uint   `json:"ruang_ujian_id"`
+	RombelID  string `json:"rombel_id"`
+	NamaKelas string `json:"nama_kelas"` // Nama Rombel
+	NoUjian   string `json:"no_ujian"`
+	// FIX: Menggunakan STRING untuk RuangUjianID karena aslinya adalah UUID
+	RuangUjianID string `json:"ruang_ujian_id"`
 	NamaRuangan  string `json:"nama_ruangan"`
 	NomorKursi   string `json:"nomor_kursi"`
 	// is_data_lengkap dihitung di layer Repository/Service

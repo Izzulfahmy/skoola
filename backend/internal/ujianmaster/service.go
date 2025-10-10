@@ -408,16 +408,31 @@ func (s *service) GetAlokasiKursi(ctx context.Context, schemaName string, ujianM
 	return peserta, alokasiRuangan, nil
 }
 
+// UpdatePesertaSeating menangani pembaruan penempatan kursi peserta, termasuk unassign.
 func (s *service) UpdatePesertaSeating(ctx context.Context, schemaName string, input UpdatePesertaSeatingInput) error {
 	pID, err := uuid.Parse(input.PesertaID)
 	if err != nil {
 		return errors.New("ID peserta tidak valid")
 	}
-	arID, err := uuid.Parse(input.AlokasiRuanganID)
-	if err != nil {
-		return errors.New("ID alokasi ruangan tidak valid")
-	}
 
+	var arID uuid.UUID
+	arIDStr := strings.TrimSpace(input.AlokasiRuanganID)
+
+	// START FIX: Cek ID kosong/zero sebelum parsing UUID
+	// Ini memungkinkan string kosong ("") atau zero UUID (000...) untuk diinterpretasikan sebagai NULL/unassign.
+	if arIDStr == "" || arIDStr == "00000000-0000-0000-0000-000000000000" {
+		arID = uuid.Nil // Set ke uuid.Nil, yang akan diinterpretasikan sebagai NULL di Repository
+	} else {
+		// Coba parse UUID yang sebenarnya
+		arID, err = uuid.Parse(arIDStr)
+		if err != nil {
+			// Jika string ada isinya, tapi bukan UUID valid, return error
+			return errors.New("ID alokasi ruangan tidak valid")
+		}
+	}
+	// END FIX
+
+	// Repository (yang sudah Anda perbaiki) sekarang akan menerima uuid.Nil
 	return s.repo.UpdatePesertaSeating(ctx, schemaName, pID, arID, input.NomorKursi)
 }
 
