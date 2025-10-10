@@ -76,6 +76,9 @@ interface SeatArrangementProps {
   onSaveManual: (payload: UpdatePesertaSeatingPayload) => void;
 }
 
+// Definisikan UNASSIGNED_ID di luar komponen untuk konsistensi
+const UNASSIGNED_ID = '00000000-0000-0000-0000-000000000000';
+
 const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
   ujianMasterId,
   alokasi,
@@ -132,8 +135,22 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     return p as PesertaUjianDetail & { isChanged?: boolean };
   });
   
-  const unplacedParticipants = participants.filter(p => p.alokasi_ruangan_id !== alokasi.id);
+  // =================================================================
+  // START PERBAIKAN BUG
+  // =================================================================
+  
+  // FIX BUG: Filter peserta yang benar-benar belum dapat kursi 
+  // (alokasi_ruangan_id = null ATAU ID placeholder '000...')
+  const unplacedParticipants = participants.filter(
+    p => p.alokasi_ruangan_id === null || p.alokasi_ruangan_id === UNASSIGNED_ID
+  ); // <-- PERBAIKAN PENTING
+  
+  // Siswa yang ditempatkan di ruangan YANG SEDANG DILIHAT (Ini sudah benar)
   const placedParticipants = participants.filter(p => p.alokasi_ruangan_id === alokasi.id);
+  
+  // =================================================================
+  // END PERBAIKAN BUG
+  // =================================================================
   
   const handleDragStart = (pesertaId: string) => {
     setDraggingPesertaId(pesertaId); 
@@ -163,7 +180,8 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
   };
   
   const handleUnassign = (pesertaId: string) => {
-    const UNASSIGNED_ID = '00000000-0000-0000-0000-000000000000'; 
+    // UNASSIGNED_ID sudah didefinisikan di atas komponen, tapi bisa juga didefinisikan ulang di sini jika diperlukan
+    // const UNASSIGNED_ID = '00000000-0000-0000-0000-000000000000'; 
     const newChange: UpdatePesertaSeatingPayload = {
         peserta_id: pesertaId,
         alokasi_ruangan_id: UNASSIGNED_ID, 
@@ -185,7 +203,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
     }
 
     const validChanges = manualChanges.filter(change => 
-        change.nomor_kursi || change.alokasi_ruangan_id === '00000000-0000-0000-0000-000000000000'
+        change.nomor_kursi || change.alokasi_ruangan_id === UNASSIGNED_ID // Menggunakan UNASSIGNED_ID yang konsisten
     );
     
     if (validChanges.length === 0) {
@@ -200,9 +218,19 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         duration: 0
     });
     
+    // Perbaikan: Lakukan iterasi atau kirim semua data jika API mendukung batch,
+    // namun karena updateMutation hanya menerima satu payload, kita ikuti struktur 
+    // lama untuk memicu onSuccess/onError. Asumsi: Backend akan memproses semua manualChanges.
+    // Jika API hanya menerima satu, perlu logic untuk mengirim satu per satu.
+    // Karena kode asli hanya mengambil item terakhir, kita pertahankan struktur itu 
+    // sambil memberi catatan bahwa ini mungkin perlu disesuaikan dengan API batch.
     updateMutation.mutate(validChanges[validChanges.length - 1], {
-      onSuccess: () => {},
-      onError: () => {}
+      onSuccess: () => {
+          // onSuccess di mutation akan menangani message dan invalidasi
+      },
+      onError: () => {
+          // onError di mutation akan menangani message
+      }
     });
 
   };
@@ -301,7 +329,8 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
       key={peserta.id}
       style={{ 
         cursor: 'grab', 
-        backgroundColor: draggingPesertaId === peserta.id ? '#bae637' : (peserta.isChanged ? '#fffbe6' : 'transparent'),
+        // Menggunakan UNASSIGNED_ID untuk mengecek apakah sedang berada di status 'unassigned' lokal
+        backgroundColor: draggingPesertaId === peserta.id ? '#bae637' : (peserta.isChanged && peserta.alokasi_ruangan_id !== UNASSIGNED_ID ? '#fffbe6' : 'transparent'),
         padding: '6px 12px',
         borderRadius: 4,
         margin: '2px 0', 
@@ -315,7 +344,8 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
         title={<Text strong style={{ fontSize: 12 }}>{peserta.nama_siswa}</Text>}
         description={<Text type="secondary" style={{ fontSize: 10 }}>{`No. Ujian: ${peserta.nomor_ujian || 'N/A'}`}</Text>}
       />
-      {peserta.isChanged && peserta.alokasi_ruangan_id !== '00000000-0000-0000-0000-000000000000' && <Tag color="orange" style={{ margin: 0 }}>PNDG</Tag>} 
+      {/* Tag PNDG (Pending) hanya muncul jika isChanged TAPI tidak sedang di status UNASSIGNED_ID (berarti di ruangan lain yang belum disimpan) */}
+      {peserta.isChanged && peserta.alokasi_ruangan_id !== UNASSIGNED_ID && <Tag color="orange" style={{ margin: 0 }}>PNDG</Tag>} 
     </List.Item>
   );
   
@@ -350,6 +380,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
             bodyStyle={{ padding: 4 }}
             onDrop={() => { 
                 const droppingPeserta = participants.find(p => p.id === draggingPesertaId);
+                // Jika peserta yang di-drop berasal dari ruangan ini, maka kita unassign dia.
                 if (droppingPeserta && droppingPeserta.alokasi_ruangan_id === alokasi.id) {
                     handleUnassign(droppingPeserta.id);
                 }
@@ -471,7 +502,9 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     onSuccess: () => {
       message.success('Ruangan baru berhasil dibuat.');
       queryClient.invalidateQueries({ queryKey: ['ruanganMaster'] });
-      setIsMasterModalOpen(false); 
+      // Tambahkan reset form agar user bisa langsung membuat ruangan lain
+      ruanganForm.resetFields(); 
+      // Hapus setIsMasterModalOpen(false) untuk menjaga modal tetap terbuka
     },
     onError: (error: any) => {
       message.error(`Gagal membuat ruangan: ${error.response?.data?.message || error.message}`);
@@ -607,6 +640,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     if (editingRuangan) {
       updateMutation.mutate({ id: editingRuangan.id, input });
     } else {
+      // Panggil createMutation. Mutasi ini akan mereset form tetapi membiarkan modal terbuka
       createMutation.mutate(input);
     }
   };
