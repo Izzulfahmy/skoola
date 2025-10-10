@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	// "strings" telah dihapus karena tidak digunakan
+
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
@@ -678,6 +680,8 @@ func (r *repository) DeleteRuangan(ctx context.Context, schemaName string, ruang
 
 // --- ROOM ALLOCATION ---
 
+// CreateAlokasiRuanganBatch MENGALOKASIKAN satu atau lebih ruangan ke master ujian, mengabaikan duplikat dan
+// memastikan kode ruangan berurutan.
 func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -689,41 +693,116 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 	}
 	defer tx.Rollback()
 
-	// 1. Get Room details for KodeRuangan and Kapasitas
+	// 1. Ambil detail ruangan yang akan dialokasikan (diperlukan untuk detail NamaRuangan, Kapasitas, dll.)
 	ruanganDetails := make(map[uuid.UUID]RuanganUjian)
-	queryDetails := `SELECT id, nama_ruangan, kapasitas, layout_metadata FROM ruangan_ujian WHERE id = ANY($1)`
-	rows, err := tx.QueryContext(ctx, queryDetails, pq.Array(ruanganIDs))
+	queryRuangan := `SELECT id, nama_ruangan, kapasitas, layout_metadata FROM ruangan_ujian WHERE id = ANY($1)`
+
+	rows, err := tx.QueryContext(ctx, queryRuangan, pq.Array(ruanganIDs))
 	if err != nil {
-		return nil, fmt.Errorf("gagal mengambil detail ruangan: %w", err)
+		return nil, fmt.Errorf("gagal query detail ruangan: %w", err)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var ru RuanganUjian
-		if err := rows.Scan(&ru.ID, &ru.NamaRuangan, &ru.Kapasitas, &ru.LayoutMetadata); err != nil {
+		var layoutMetadata sql.NullString // Variabel temporary untuk HANDLE NULL
+
+		if err := rows.Scan(&ru.ID, &ru.NamaRuangan, &ru.Kapasitas, &layoutMetadata); err != nil {
 			return nil, fmt.Errorf("gagal memindai detail ruangan: %w", err)
 		}
+
+		// Mapping LayoutMetadata dengan penanganan NULL yang aman
+		if layoutMetadata.Valid {
+			ru.LayoutMetadata = layoutMetadata.String
+		} else {
+			ru.LayoutMetadata = "" // Menggunakan string kosong jika NULL (asumsi tipe RuanganUjian.LayoutMetadata adalah string)
+		}
+
 		ruanganDetails[ru.ID] = ru
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterasi detail ruangan: %w", err)
+	}
 
-	// 2. Insert Batch
+	// =================================================================================
+	// 2. LOGIKA UTAMA PERBAIKAN: Identifikasi ruangan baru & tentukan kode ruangan sekuensial
+	// =================================================================================
+
+	// 2a. Ambil ID ruangan yang sudah dialokasikan untuk memfilter input
+	existingAlokasiIDs := make(map[uuid.UUID]struct{})
+	queryExisting := `SELECT ruangan_id FROM alokasi_ruangan_ujian WHERE ujian_master_id = $1`
+	rowsExisting, err := tx.QueryContext(ctx, queryExisting, ujianMasterID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal query existing alokasi: %w", err)
+	}
+	defer rowsExisting.Close()
+
+	for rowsExisting.Next() {
+		var rID uuid.UUID
+		if err := rowsExisting.Scan(&rID); err != nil {
+			return nil, fmt.Errorf("gagal scan existing ruangan ID: %w", err)
+		}
+		existingAlokasiIDs[rID] = struct{}{}
+	}
+
+	// 2b. Filter input ruanganIDs untuk mendapatkan ID ruangan BARU saja
+	var newRuanganIDs []uuid.UUID
+	for _, rID := range ruanganIDs {
+		// Hanya masukkan ke newRuanganIDs jika ID ini ada di ruanganDetails (valid) dan belum dialokasikan
+		if _, isValid := ruanganDetails[rID]; isValid {
+			if _, exists := existingAlokasiIDs[rID]; !exists {
+				newRuanganIDs = append(newRuanganIDs, rID)
+			}
+		}
+	}
+
+	// Jika tidak ada ruangan baru, tidak perlu insert, langsung commit.
+	if len(newRuanganIDs) == 0 {
+		if err = tx.Commit(); err != nil {
+			return nil, fmt.Errorf("gagal commit (no new rooms): %w", err)
+		}
+		return []AlokasiRuanganUjian{}, nil
+	}
+
+	// 2c. Dapatkan angka kode ruangan maksimum yang sudah ada (misal dari R01, R02, ambil 2)
+	var maxKode int
+	queryMaxKode := `
+        SELECT COALESCE(MAX(CAST(SUBSTRING(kode_ruangan FROM 2) AS INTEGER)), 0)
+        FROM alokasi_ruangan_ujian
+        WHERE ujian_master_id = $1
+    `
+	if err := tx.QueryRowContext(ctx, queryMaxKode, ujianMasterID).Scan(&maxKode); err != nil {
+		// Logika menangani error non-rows atau error parsing (jika kode_ruangan tidak berformat 'RXX')
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("gagal mengambil max kode ruangan: %w", err)
+		}
+	}
+
+	currentKode := maxKode // Mulai penomoran dari angka max yang ditemukan
 	var createdAlokasi []AlokasiRuanganUjian
 	now := time.Now()
+
+	// 2d. Lakukan INSERT hanya untuk ruangan BARU
 	insertQuery := `
         INSERT INTO alokasi_ruangan_ujian (id, ujian_master_id, ruangan_id, kode_ruangan, jumlah_kursi_terpakai, created_at, updated_at)
         VALUES ($1, $2, $3, $4, 0, $5, $6)
+        ON CONFLICT (ujian_master_id, ruangan_id) DO NOTHING
+        RETURNING id
     `
-	for i, rID := range ruanganIDs {
-		detail, ok := ruanganDetails[rID]
-		if !ok {
-			continue // Skip if room not found
-		}
+
+	for _, rID := range newRuanganIDs {
+		currentKode++ // Naikkan nomor urut untuk ruangan yang BARU
+
+		detail := ruanganDetails[rID] // Pasti ada
+
+		// GENERATE KODE RUANGAN YANG BENAR (misalnya R03 jika maxKode 2)
+		kodeRuangan := fmt.Sprintf("R%02d", currentKode)
 
 		ar := AlokasiRuanganUjian{
-			ID:            uuid.New(),
-			UjianMasterID: ujianMasterID,
-			RuanganID:     rID,
-			// Simplified KodeRuangan generation based on index (in a real app, this should be a robust unique code)
-			KodeRuangan:         fmt.Sprintf("R%02d", i+1),
+			ID:                  uuid.New(),
+			UjianMasterID:       ujianMasterID,
+			RuanganID:           rID,
+			KodeRuangan:         kodeRuangan, // Menggunakan kode ruangan yang dijamin unik
 			JumlahKursiTerpakai: 0,
 			NamaRuangan:         detail.NamaRuangan,
 			KapasitasRuangan:    detail.Kapasitas,
@@ -732,16 +811,30 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 			UpdatedAt:           now,
 		}
 
-		_, err := tx.ExecContext(ctx, insertQuery, ar.ID, ar.UjianMasterID, ar.RuanganID, ar.KodeRuangan, ar.CreatedAt, ar.UpdatedAt)
+		var insertedID uuid.UUID
+
+		// Lakukan INSERT
+		err := tx.QueryRowContext(ctx, insertQuery, ar.ID, ar.UjianMasterID, ar.RuanganID, ar.KodeRuangan, ar.CreatedAt, ar.UpdatedAt).Scan(&insertedID)
+
 		if err != nil {
-			return nil, fmt.Errorf("gagal insert alokasi ruangan: %w", err)
+			if errors.Is(err, sql.ErrNoRows) {
+				// Race condition atau konflik unik (tidak mungkin terjadi karena sudah difilter dan kode unik), abaikan.
+				continue
+			}
+
+			// Error database fatal lainnya
+			return nil, fmt.Errorf("gagal insert alokasi ruangan %s dengan kode %s: %w", rID.String(), kodeRuangan, err)
 		}
+
+		ar.ID = insertedID
 		createdAlokasi = append(createdAlokasi, ar)
 	}
 
+	// 3. Commit Transaction
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("gagal commit transaksi alokasi: %w", err)
 	}
+
 	return createdAlokasi, nil
 }
 
