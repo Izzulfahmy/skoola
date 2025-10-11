@@ -21,7 +21,7 @@ import {
 import { Layout, Menu, Button, theme, Typography, Drawer, Avatar, Dropdown, Space, ConfigProvider } from 'antd'; 
 import type { MenuProps } from 'antd';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // ✅ KEMBALIKAN KE PATH ASLI DARI PROMPT ANDA
+import { useAuth } from '../context/AuthContext';
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -95,30 +95,27 @@ const AdminLayout = () => {
       item !== null && typeof item === 'object' && 'key' in item && item.key !== undefined
   );
   
-  // Logic to find the active key based on the current URL path
   const activeKey = validMenuItems
     .sort((a, b) => (typeof b.key === 'string' ? b.key.length : 0) - (typeof a.key === 'string' ? a.key.length : 0))
     .find(item => typeof item.key === 'string' && location.pathname.startsWith(item.key))?.key || '/admin/dashboard';
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header Logo/Title */}
       <div style={{
         height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif',
-        flexShrink: 0, // Penting agar div ini tidak ikut di-scroll
+        flexShrink: 0,
       }}>
         {isMobile || !collapsed ? 'Admin Panel' : ''} 
       </div>
       
-      {/* Menu - Sekarang mengambil sisa ruang dan bisa di-scroll */}
       <Menu
         theme="dark"
         mode="inline"
         selectedKeys={[activeKey.toString()]} 
         items={allMenuItems}
         onClick={isMobile ? () => setDrawerVisible(false) : undefined}
-        style={{ flex: 1, borderRight: 0, overflowY: 'auto' }} // ✅ PERBAIKAN: flex: 1 dan overflowY: 'auto'
+        style={{ flex: 1, borderRight: 0, overflowY: 'auto' }}
       />
     </div>
   );
@@ -139,7 +136,7 @@ const AdminLayout = () => {
         },
       }}
     >
-      <Layout style={{ minHeight: '100vh' }}> {/* ✅ PERBAIKAN: minHeight agar konten utama bisa mendorong footer ke bawah */}
+      <Layout style={{ minHeight: '100vh' }}>
         {!isMobile && (
           <Sider 
             trigger={null} 
@@ -154,20 +151,17 @@ const AdminLayout = () => {
               top: 0,
               bottom: 0,
               zIndex: 10,
-              // ✅ PERBAIKAN: Hapus display:flex/flexDirection:column dan tambahkan overflowY: 'auto'
-              overflowY: 'auto', // ✅ Memungkinkan Sider untuk di-scroll secara independen
+              overflowY: 'auto',
             }}
           >
              <style>
               {`
-                /* Menjaga agar ikon tetap di tengah saat Sider dikempiskan */
                 .ant-menu-inline-collapsed > .ant-menu-item {
                   padding: 0 calc(50% - 16px) !important;
                 }
               `}
             </style>
-            {/* ✅ PERBAIKAN: Div menuContent sekarang memiliki height: 100% untuk mengisi Sider */}
-            <div style={{ height: '100%' }}> 
+            <div style={{ height: '100%' }}>
               {menuContent}
             </div>
           </Sider>
@@ -175,14 +169,12 @@ const AdminLayout = () => {
 
         <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s', minHeight: '100vh' }}>
           <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 48, lineHeight: '48px' }}>
-            {/* Toggle Button */}
             <Button
               type="text"
               icon={isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => isMobile ? setDrawerVisible(true) : setCollapsed(!collapsed)}
               style={{ fontSize: '16px', width: 48, height: 48 }}
             />
-            {/* User Info and Dropdown */}
             <Space align="center">
               {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, {user?.name || user?.username || 'Admin'}!</Text>}
               <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
@@ -192,7 +184,6 @@ const AdminLayout = () => {
               </Dropdown>
             </Space>
           </Header>
-          {/* ✅ PERBAIKAN: Hapus overflow: 'auto' dari Content agar scroll utama hanya pada body/window jika diperlukan. */}
           <Content style={{ margin: isMobile ? '16px 8px' : '24px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ padding: isMobile ? 12 : 24, background: token.colorBgContainer, borderRadius: token.borderRadiusLG, flex: 1, overflow: 'auto' }}>
               <Outlet />
@@ -203,7 +194,6 @@ const AdminLayout = () => {
           </Content>
         </Layout>
 
-        {/* Mobile Drawer for Menu */}
         {isMobile && (
           <Drawer
             placement="left"

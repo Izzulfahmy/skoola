@@ -11,10 +11,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// Repository defines the operations for UjianMaster and its related entities.
 type Repository interface {
-	// Ujian Master Core
-	// FIX: Mengganti UujianMaster menjadi UjianMaster
 	Create(ctx context.Context, schemaName string, um UjianMaster) (UjianMaster, error)
 	GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID) ([]UjianMaster, error)
 	GetByID(ctx context.Context, schemaName string, id uuid.UUID) (UjianMaster, error)
@@ -26,9 +23,8 @@ type Repository interface {
 	CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error
 	DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error)
 
-	// Peserta & Seating
-	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)                  // Updated to include seating/room info
-	FindPesertaDetailByUjianIDWithSeating(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) // Alias/Mirror of FindPesertaByUjianID for clarity
+	FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
+	FindPesertaDetailByUjianIDWithSeating(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error)
 	FindAllPesertaByUjianID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]PesertaUjian, error)
 	UpdatePesertaSeating(ctx context.Context, schemaName string, pesertaID uuid.UUID, alokasiRuanganID uuid.UUID, nomorKursi string) error
 	UpdatePesertaSeatingBatch(ctx context.Context, schemaName string, assignments []struct {
@@ -38,29 +34,24 @@ type Repository interface {
 	}) error
 	ClearAllSeatingByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error
 
-	// Room Master
 	CreateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error)
 	GetAllRuangan(ctx context.Context, schemaName string) ([]RuanganUjian, error)
 	UpdateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error)
 	DeleteRuangan(ctx context.Context, schemaName string, ruanganID uuid.UUID) error
 
-	// Room Allocation
 	CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error)
 	GetAlokasiRuanganByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]AlokasiRuanganUjian, error)
 	DeleteAlokasiRuangan(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error
-	ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error // Helper for cleanup
+	ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error
 
-	// [BARU] Fungsi untuk menghitung ulang kursi terpakai
 	RecalculateAlokasiKursiCount(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error
 
-	// Generate & Import
 	GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, prefix string) (int, error)
 	UpdatePesertaNomorUjianFromExcel(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, updates []struct {
 		NamaLengkap string
 		NomorUjian  string
 	}) (int, error)
 
-	// --- KARTU UJIAN ---
 	GetUniqueRombelIDs(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]KartuUjianKelasFilter, error)
 	GetKartuUjianData(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, rombelID uuid.UUID, pesertaIDs []uuid.UUID) ([]KartuUjianDetail, error)
 }
@@ -69,7 +60,6 @@ type repository struct {
 	db *sql.DB
 }
 
-// NewRepository creates a new UjianMaster repository.
 func NewRepository(db *sql.DB) Repository {
 	return &repository{db: db}
 }
@@ -79,7 +69,6 @@ func (r *repository) setSchema(ctx context.Context, schemaName string) error {
 	return err
 }
 
-// Create inserts a new UjianMaster record into the database.
 func (r *repository) Create(ctx context.Context, schemaName string, um UjianMaster) (UjianMaster, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return UjianMaster{}, err
@@ -99,7 +88,6 @@ func (r *repository) Create(ctx context.Context, schemaName string, um UjianMast
 	return um, nil
 }
 
-// GetAllByTahunAjaran retrieves all UjianMaster records for a specific academic year.
 func (r *repository) GetAllByTahunAjaran(ctx context.Context, schemaName string, tahunAjaranID uuid.UUID) ([]UjianMaster, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -139,7 +127,6 @@ func (r *repository) GetAllByTahunAjaran(ctx context.Context, schemaName string,
 	return results, nil
 }
 
-// GetByID retrieves a single UjianMaster by its ID.
 func (r *repository) GetByID(ctx context.Context, schemaName string, id uuid.UUID) (UjianMaster, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return UjianMaster{}, err
@@ -166,7 +153,6 @@ func (r *repository) GetByID(ctx context.Context, schemaName string, id uuid.UUI
 	return um, nil
 }
 
-// Update modifies an existing UjianMaster record.
 func (r *repository) Update(ctx context.Context, schemaName string, um UjianMaster) (UjianMaster, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return UjianMaster{}, err
@@ -184,7 +170,6 @@ func (r *repository) Update(ctx context.Context, schemaName string, um UjianMast
 	return um, nil
 }
 
-// Delete removes an UjianMaster record from the database.
 func (r *repository) Delete(ctx context.Context, schemaName string, id uuid.UUID) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -329,7 +314,6 @@ func (r *repository) AssignKelasToUjian(ctx context.Context, schemaName string, 
 	return len(pengajarKelasIDs), nil
 }
 
-// CreatePesertaUjianBatch creates multiple peserta ujian records
 func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName string, peserta []PesertaUjian) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -364,7 +348,6 @@ func (r *repository) CreatePesertaUjianBatch(ctx context.Context, schemaName str
 	return tx.Commit()
 }
 
-// FindPesertaByUjianID retrieves detailed participant data, now including seating info.
 func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -378,17 +361,15 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
             pu.urutan,
             pu.nomor_ujian,
             k.nama_kelas,
-            -- --- KOLOM BARU UNTUK RUANGAN ---
             aru.id AS alokasi_ruangan_id,
-            aru.kode_ruangan,
+            ru.nama_ruangan AS kode_ruangan,
             pu.nomor_kursi
-            -- -------------------------------
         FROM peserta_ujian pu
         JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
         JOIN students s ON s.id = ak.student_id
         JOIN kelas k ON k.id = pu.kelas_id
-        LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id -- LEFT JOIN ke tabel alokasi baru
-        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Tambahkan join untuk detail ruangan jika diperlukan
+        LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id
+        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id
         WHERE pu.ujian_master_id = $1
         ORDER BY k.nama_kelas, pu.urutan
     `
@@ -404,11 +385,9 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 		var detail PesertaUjianDetail
 		var nomorUjian sql.NullString
 		var nisn sql.NullString
-		// --- BARU ---
 		var alokasiRuanganID sql.NullString
 		var kodeRuangan sql.NullString
 		var nomorKursi sql.NullString
-		// ------------
 
 		if err := rows.Scan(
 			&detail.ID,
@@ -417,11 +396,9 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 			&detail.Urutan,
 			&nomorUjian,
 			&detail.NamaKelas,
-			// --- BARU ---
 			&alokasiRuanganID,
 			&kodeRuangan,
 			&nomorKursi,
-			// ------------
 		); err != nil {
 			return nil, fmt.Errorf("gagal memindai baris peserta: %w", err)
 		}
@@ -432,7 +409,6 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 		if nisn.Valid {
 			detail.NISN = &nisn.String
 		}
-		// --- BARU ---
 		if alokasiRuanganID.Valid {
 			detail.AlokasiRuanganID = &alokasiRuanganID.String
 		}
@@ -442,7 +418,6 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 		if nomorKursi.Valid {
 			detail.NomorKursi = &nomorKursi.String
 		}
-		// ------------
 
 		results = append(results, detail)
 	}
@@ -454,12 +429,10 @@ func (r *repository) FindPesertaByUjianID(ctx context.Context, schemaName string
 	return results, nil
 }
 
-// FindPesertaDetailByUjianIDWithSeating is a mirror/alias of the updated FindPesertaByUjianID
 func (r *repository) FindPesertaDetailByUjianIDWithSeating(ctx context.Context, schemaName string, ujianID uuid.UUID) ([]PesertaUjianDetail, error) {
 	return r.FindPesertaByUjianID(ctx, schemaName, ujianID)
 }
 
-// FindAllPesertaByUjianID retrieves only the core PesertaUjian records.
 func (r *repository) FindAllPesertaByUjianID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]PesertaUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -502,32 +475,26 @@ func (r *repository) FindAllPesertaByUjianID(ctx context.Context, schemaName str
 	return results, nil
 }
 
-// UpdatePesertaSeating updates the room allocation and seat number for a single participant.
 func (r *repository) UpdatePesertaSeating(ctx context.Context, schemaName string, pesertaID uuid.UUID, alokasiRuanganID uuid.UUID, nomorKursi string) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
 	}
 
-	// --- AWAL LOGIKA UNASSIGN/NULL ---
 	var arIDParam interface{} = alokasiRuanganID
 	var nkParam interface{} = nomorKursi
 
-	// Cek jika ID Ruangan adalah UUID.Nil, yang berarti UNASSIGN/NULL
 	if alokasiRuanganID == uuid.Nil {
-		arIDParam = nil // Set alokasi_ruangan_id ke SQL NULL
-		nkParam = nil   // Juga set nomor_kursi ke SQL NULL jika ruangan diunassign
+		arIDParam = nil
+		nkParam = nil
 	} else if nomorKursi == "" {
-		// Jika ada ruangan, tapi nomor kursinya dikosongkan (optional)
-		nkParam = nil // Set nomor_kursi ke SQL NULL
+		nkParam = nil
 	}
-	// --- AKHIR LOGIKA UNASSIGN/NULL ---
 
 	query := `
         UPDATE peserta_ujian
         SET alokasi_ruangan_id = $2, nomor_kursi = $3, updated_at = NOW()
         WHERE id = $1
     `
-	// Menggunakan arIDParam dan nkParam yang sekarang dapat berupa nil (NULL SQL)
 	_, err := r.db.ExecContext(ctx, query, pesertaID, arIDParam, nkParam)
 	if err != nil {
 		return fmt.Errorf("gagal memperbarui penempatan kursi peserta: %w", err)
@@ -535,7 +502,6 @@ func (r *repository) UpdatePesertaSeating(ctx context.Context, schemaName string
 	return nil
 }
 
-// UpdatePesertaSeatingBatch updates seating for multiple participants.
 func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName string, assignments []struct {
 	PesertaID        uuid.UUID
 	AlokasiRuanganID uuid.UUID
@@ -563,19 +529,15 @@ func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName s
 	defer stmt.Close()
 
 	for _, assignment := range assignments {
-		// --- LOGIKA UNASSIGN/NULL DI APLIKASIKAN KE BATCH ---
 		var arIDParam interface{} = assignment.AlokasiRuanganID
 		var nkParam interface{} = assignment.NomorKursi
 
-		// Cek jika ID Ruangan adalah UUID.Nil, yang berarti UNASSIGN/NULL
 		if assignment.AlokasiRuanganID == uuid.Nil {
-			arIDParam = nil // Set alokasi_ruangan_id ke SQL NULL
-			nkParam = nil   // Juga set nomor_kursi ke SQL NULL jika ruangan diunassign
+			arIDParam = nil
+			nkParam = nil
 		} else if assignment.NomorKursi == "" {
-			// Jika ada ruangan, tapi nomor kursinya dikosongkan (optional)
-			nkParam = nil // Set nomor_kursi ke SQL NULL
+			nkParam = nil
 		}
-		// --- AKHIR LOGIKA UNASSIGN/NULL DI APLIKASIKAN KE BATCH ---
 
 		_, err := stmt.ExecContext(ctx, assignment.PesertaID, arIDParam, nkParam)
 		if err != nil {
@@ -586,7 +548,6 @@ func (r *repository) UpdatePesertaSeatingBatch(ctx context.Context, schemaName s
 	return tx.Commit()
 }
 
-// ClearAllSeatingByUjianMasterID sets alokasi_ruangan_id and nomor_kursi to NULL for all participants in an exam.
 func (r *repository) ClearAllSeatingByUjianMasterID(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -604,7 +565,6 @@ func (r *repository) ClearAllSeatingByUjianMasterID(ctx context.Context, schemaN
 	return nil
 }
 
-// ClearSeatingByAlokasiRuanganID clears seating for participants assigned to a specific room allocation.
 func (r *repository) ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaName string, alokasiRuanganID uuid.UUID) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -622,9 +582,6 @@ func (r *repository) ClearSeatingByAlokasiRuanganID(ctx context.Context, schemaN
 	return nil
 }
 
-// --- ROOM MASTER CRUD ---
-
-// CreateRuangan menerapkan perbaikan dengan menghapus klausa RETURNING.
 func (r *repository) CreateRuangan(ctx context.Context, schemaName string, ruangan RuanganUjian) (RuanganUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return RuanganUjian{}, err
@@ -699,10 +656,6 @@ func (r *repository) DeleteRuangan(ctx context.Context, schemaName string, ruang
 	return nil
 }
 
-// --- ROOM ALLOCATION ---
-
-// CreateAlokasiRuanganBatch MENGALOKASIKAN satu atau lebih ruangan ke master ujian, mengabaikan duplikat dan
-// memastikan kode ruangan berurutan.
 func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, ruanganIDs []uuid.UUID) ([]AlokasiRuanganUjian, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -714,7 +667,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 	}
 	defer tx.Rollback()
 
-	// 1. Ambil detail ruangan yang akan dialokasikan (diperlukan untuk detail NamaRuangan, Kapasitas, dll.)
 	ruanganDetails := make(map[uuid.UUID]RuanganUjian)
 	queryRuangan := `SELECT id, nama_ruangan, kapasitas, layout_metadata FROM ruangan_ujian WHERE id = ANY($1)`
 
@@ -726,7 +678,7 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 
 	for rows.Next() {
 		var ru RuanganUjian
-		var layoutMetadata sql.NullString // Variabel temporary untuk HANDLE NULL
+		var layoutMetadata sql.NullString
 
 		if err := rows.Scan(&ru.ID, &ru.NamaRuangan, &ru.Kapasitas, &layoutMetadata); err != nil {
 			return nil, fmt.Errorf("gagal memindai detail ruangan: %w", err)
@@ -744,11 +696,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		return nil, fmt.Errorf("error iterasi detail ruangan: %w", err)
 	}
 
-	// =================================================================================
-	// 2. LOGIKA UTAMA PERBAIKAN: Identifikasi ruangan baru & tentukan kode ruangan sekuensial
-	// =================================================================================
-
-	// 2a. Ambil ID ruangan yang sudah dialokasikan untuk memfilter input
 	existingAlokasiIDs := make(map[uuid.UUID]struct{})
 	queryExisting := `SELECT ruangan_id FROM alokasi_ruangan_ujian WHERE ujian_master_id = $1`
 	rowsExisting, err := tx.QueryContext(ctx, queryExisting, ujianMasterID)
@@ -765,7 +712,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		existingAlokasiIDs[rID] = struct{}{}
 	}
 
-	// 2b. Filter input ruanganIDs untuk mendapatkan ID ruangan BARU saja
 	var newRuanganIDs []uuid.UUID
 	for _, rID := range ruanganIDs {
 		if _, isValid := ruanganDetails[rID]; isValid {
@@ -782,7 +728,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		return []AlokasiRuanganUjian{}, nil
 	}
 
-	// 2c. Dapatkan angka kode ruangan maksimum yang sudah ada
 	var maxKode int
 	queryMaxKode := `
         SELECT COALESCE(MAX(CAST(SUBSTRING(kode_ruangan FROM 2) AS INTEGER)), 0)
@@ -799,7 +744,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 	var createdAlokasi []AlokasiRuanganUjian
 	now := time.Now()
 
-	// 2d. Lakukan INSERT hanya untuk ruangan BARU
 	insertQuery := `
         INSERT INTO alokasi_ruangan_ujian (id, ujian_master_id, ruangan_id, kode_ruangan, jumlah_kursi_terpakai, created_at, updated_at)
         VALUES ($1, $2, $3, $4, 0, $5, $6)
@@ -811,8 +755,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		currentKode++
 
 		detail := ruanganDetails[rID]
-
-		// GENERATE KODE RUANGAN YANG BENAR (misalnya R03)
 		kodeRuangan := fmt.Sprintf("R%02d", currentKode)
 
 		ar := AlokasiRuanganUjian{
@@ -844,7 +786,6 @@ func (r *repository) CreateAlokasiRuanganBatch(ctx context.Context, schemaName s
 		createdAlokasi = append(createdAlokasi, ar)
 	}
 
-	// 3. Commit Transaction
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("gagal commit transaksi alokasi: %w", err)
 	}
@@ -900,7 +841,6 @@ func (r *repository) DeleteAlokasiRuangan(ctx context.Context, schemaName string
 	return nil
 }
 
-// RecalculateAlokasiKursiCount menghitung ulang jumlah kursi terpakai berdasarkan peserta_ujian
 func (r *repository) RecalculateAlokasiKursiCount(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) error {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return err
@@ -941,9 +881,6 @@ func (r *repository) RecalculateAlokasiKursiCount(ctx context.Context, schemaNam
 	return tx.Commit()
 }
 
-// --- OTHER EXISTING METHODS ---
-
-// DeletePesertaByMasterAndKelas deletes peserta ujian by kelas
 func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaName string, masterID uuid.UUID, kelasID uuid.UUID) (int64, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return 0, err
@@ -971,7 +908,6 @@ func (r *repository) DeletePesertaByMasterAndKelas(ctx context.Context, schemaNa
 	return rowsAffected, nil
 }
 
-// GenerateNomorUjianForUjianMaster generates sequential exam numbers with smart padding
 func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, prefix string) (int, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return 0, err
@@ -1014,7 +950,6 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 		return 0, errors.New("tidak ada peserta yang ditemukan untuk ujian ini")
 	}
 
-	// SMART PADDING: Calculate required digits based on total count
 	totalPeserta := len(pesertaIDs)
 	var paddingDigits int
 
@@ -1062,7 +997,6 @@ func (r *repository) GenerateNomorUjianForUjianMaster(ctx context.Context, schem
 	return updateCount, nil
 }
 
-// UpdatePesertaNomorUjianFromExcel updates nomor ujian from Excel import
 func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, updates []struct {
 	NamaLengkap string
 	NomorUjian  string
@@ -1114,11 +1048,6 @@ func (r *repository) UpdatePesertaNomorUjianFromExcel(ctx context.Context, schem
 	return updatedCount, nil
 }
 
-// ----------------------------------------------------------------------
-// --- IMPLEMENTASI FUNGSI KARTU UJIAN BARU (Fixed RombelID Type)---
-// ----------------------------------------------------------------------
-
-// GetUniqueRombelIDs returns a distinct list of Rombel IDs and names from peserta_ujian for filtering.
 func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, ujianMasterID uuid.UUID) ([]KartuUjianKelasFilter, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
@@ -1166,23 +1095,21 @@ func (r *repository) GetUniqueRombelIDs(ctx context.Context, schemaName string, 
 	return finalFilters, nil
 }
 
-// GetKartuUjianData fetches all necessary data for exam card printing with optional rombelID filtering.
 func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, ujianMasterID uuid.UUID, rombelID uuid.UUID, pesertaIDs []uuid.UUID) ([]KartuUjianDetail, error) {
 	if err := r.setSchema(ctx, schemaName); err != nil {
 		return nil, err
 	}
 
-	// Tipe data harus tetap string karena mengambil UUID dari DB
 	type pesertaDetailRaw struct {
 		ID            string
 		UjianMasterID string
 		SiswaID       string
 		NISN          sql.NullString
 		NamaSiswa     string
-		RombelID      string // UUID as string from DB
+		RombelID      string
 		NamaKelas     string
 		NoUjian       sql.NullString
-		RuangUjianID  sql.NullString // AlokasiRuanganID (UUID as string)
+		RuangUjianID  sql.NullString
 		NamaRuangan   sql.NullString
 		NomorKursi    sql.NullString
 	}
@@ -1195,13 +1122,13 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
             s.nisn, s.nama_lengkap AS nama_siswa,
             k.nama_kelas,
             ru.nama_ruangan, pu.nomor_kursi,
-            aru.id AS ruang_ujian_id -- Sebenarnya AlokasiRuanganID
+            aru.id AS ruang_ujian_id
         FROM peserta_ujian pu
         JOIN anggota_kelas ak ON ak.id = pu.anggota_kelas_id
         JOIN students s ON s.id = ak.student_id
         JOIN kelas k ON k.id = pu.kelas_id
         LEFT JOIN alokasi_ruangan_ujian aru ON aru.id = pu.alokasi_ruangan_id
-        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id -- Ambil nama ruangan dari master
+        LEFT JOIN ruangan_ujian ru ON ru.id = aru.ruangan_id
         WHERE pu.ujian_master_id = $1
     `
 	args := []interface{}{ujianMasterID}
@@ -1240,33 +1167,25 @@ func (r *repository) GetKartuUjianData(ctx context.Context, schemaName string, u
 
 	details := make([]KartuUjianDetail, len(rawDetails))
 	for i, rd := range rawDetails {
-		// Asumsi KartuUjianDetail di model.go masih menggunakan uint untuk ID,
-		// sehingga kita harus mengembalikan string ID dari DB ke 0 untuk menghindari error IncompatibleAssign.
 		detail := KartuUjianDetail{
 			ID:            0,
 			UjianMasterID: 0,
 			SiswaID:       0,
-
-			RombelID: rd.RombelID,
-
-			NISN:        rd.NISN.String,
-			NamaSiswa:   rd.NamaSiswa,
-			NamaKelas:   rd.NamaKelas,
-			NoUjian:     rd.NoUjian.String,
-			NamaRuangan: rd.NamaRuangan.String,
-			NomorKursi:  rd.NomorKursi.String,
+			RombelID:      rd.RombelID,
+			NISN:          rd.NISN.String,
+			NamaSiswa:     rd.NamaSiswa,
+			NamaKelas:     rd.NamaKelas,
+			NoUjian:       rd.NoUjian.String,
+			NamaRuangan:   rd.NamaRuangan.String,
+			NomorKursi:    rd.NomorKursi.String,
 		}
 
-		// RuangUjianID (yang kita asumsikan bertipe string karena errornya)
 		if rd.RuangUjianID.Valid {
-			// Jika RuangUjianID valid, gunakan string ID yang sebenarnya
 			detail.RuangUjianID = rd.RuangUjianID.String
 		} else {
-			// FIX ERROR: Ganti 0 (int) menjadi "" (string) karena RuangUjianID field di model.go kemungkinan adalah string.
 			detail.RuangUjianID = ""
 		}
 
-		// Logic IsDataLengkap: NoUjian TIDAK kosong DAN RuangUjianID TIDAK kosong/null
 		if rd.NoUjian.Valid && rd.NoUjian.String != "" && rd.RuangUjianID.Valid {
 			detail.IsDataLengkap = true
 		} else {
