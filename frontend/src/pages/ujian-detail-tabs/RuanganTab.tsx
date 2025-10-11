@@ -686,13 +686,20 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   if (!ujianDetail) return <Spin />;
 
   // -----------------------------------------------------------
-  // ✅ Perbaikan 1: Gunakan penegasan tipe (type assertion) yang aman
+  // ✅ PERBAIKAN LOGIKA PERHITUNGAN DINAMIS
+  // -----------------------------------------------------------
+  
   const ruanganMasterList: RuanganUjian[] = ruanganMaster || []; 
   const alokasiList: AlokasiRuanganUjian[] = alokasiRuangan || []; 
-  // -----------------------------------------------------------
   
   const totalPeserta = ujianDetail.detail.jumlah_peserta;
   const totalKapasitasAlokasi = alokasiList.reduce((sum, ar) => sum + ar.kapasitas_ruangan, 0);
+
+  // Menghitung total kursi yang sudah terpakai (dinamis)
+  const totalKursiTerpakai = alokasiList.reduce((sum, ar) => sum + ar.jumlah_kursi_terpakai, 0);
+  
+  // Menghitung Sisa Kursi Fisik (Total Kapasitas - Total Terpakai)
+  const sisaKursiFisik = totalKapasitasAlokasi - totalKursiTerpakai; 
 
   // 1. Siapkan daftar ID yang SUDAH dialokasikan
   const initialTargetIDs = alokasiList.map(ar => ar.ruangan_id);
@@ -788,9 +795,11 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       
       <Divider orientation="left">Daftar Alokasi Ruangan Ujian ({alokasiList.length} Ruangan)</Divider>
       
-      {/* --- Visualisasi Alokasi & Kapasitas (DIPERBAIKI DENGAN ANGKA DI KIRI DAN KANAN) --- */}
+      {/* --- Visualisasi Alokasi & Kapasitas: DIBAGI 3 KOLOM (sm=8) --- */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12}>
+        
+        {/* KOLOM 1: TOTAL KAPASITAS */}
+        <Col xs={24} sm={8}>
             <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
                 <Row justify="space-between" align="middle">
                     <Col>
@@ -809,21 +818,49 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                 </Row>
             </Card>
         </Col>
-        <Col xs={24} sm={12}>
+        
+        {/* KOLOM 2: TOTAL TERISI (Diperbesar dengan tag status) */}
+        <Col xs={24} sm={8}>
+            <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
+                <Row justify="space-between" align="middle">
+                    <Col>
+                        <Text strong style={{ 
+                            fontSize: 28, 
+                            color: totalKursiTerpakai < totalPeserta ? '#fa8c16' : 'green' 
+                        }}>
+                            {totalKursiTerpakai}
+                        </Text>
+                    </Col>
+                    <Col style={{ textAlign: 'right' }}>
+                        <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
+                            Total Terisi
+                        </Text>
+                        <Tag color={totalKursiTerpakai === totalPeserta ? 'green' : (totalKursiTerpakai > 0 ? 'orange' : 'default')} style={{ margin: 0 }}>
+                            {totalKursiTerpakai === totalPeserta ? 'Terisi Penuh' : (totalKursiTerpakai > 0 ? 'Terisi Sebagian' : 'Kosong')}
+                        </Tag>
+                    </Col>
+                </Row>
+            </Card>
+        </Col>
+        
+        {/* KOLOM 3: SISA KURSI (Diperbesar dengan tag status) */}
+        <Col xs={24} sm={8}>
             <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
                  <Row justify="space-between" align="middle">
                     <Col>
-                        <Text strong style={{ fontSize: 28, color: (totalKapasitasAlokasi - totalPeserta) < 0 ? 'red' : 'blue' }}>
-                            {totalKapasitasAlokasi - totalPeserta}
+                        <Text strong style={{ fontSize: 28, 
+                               color: sisaKursiFisik < 0 ? 'red' : 'blue' 
+                        }}>
+                            {sisaKursiFisik}
                         </Text>
                     </Col>
                     <Col style={{ textAlign: 'right' }}>
                         <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
                             Sisa Kursi
                         </Text>
-                        <Paragraph style={{ margin: 0, fontSize: 12 }}>
-                            Untuk {Math.max(0, totalPeserta)} Peserta.
-                        </Paragraph>
+                        <Tag color={sisaKursiFisik < 0 ? 'red' : (sisaKursiFisik > 0 ? 'blue' : 'orange')} style={{ margin: 0 }}>
+                            {sisaKursiFisik < 0 ? 'Over Kapasitas' : (sisaKursiFisik > 0 ? 'Tersedia' : 'Kritis')}
+                        </Tag>
                     </Col>
                 </Row>
             </Card>
