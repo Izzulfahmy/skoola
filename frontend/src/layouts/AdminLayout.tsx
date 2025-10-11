@@ -102,21 +102,23 @@ const AdminLayout = () => {
   
   const menuContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* 🟢 PERBAIKAN: Jika collapsed (dan tidak mobile), tampilkan string kosong ('') */}
+      {/* Header Logo/Title */}
       <div style={{
         height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
+        fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif',
+        flexShrink: 0, // Penting agar div ini tidak ikut di-scroll
       }}>
         {isMobile || !collapsed ? 'Admin Panel' : ''} 
       </div>
       
+      {/* Menu - Sekarang mengambil sisa ruang dan bisa di-scroll */}
       <Menu
         theme="dark"
         mode="inline"
         selectedKeys={[activeKey.toString()]} 
         items={allMenuItems}
         onClick={isMobile ? () => setDrawerVisible(false) : undefined}
-        style={{ flex: 1, borderRight: 0 }}
+        style={{ flex: 1, borderRight: 0, overflowY: 'auto' }} // ✅ PERBAIKAN: flex: 1 dan overflowY: 'auto'
       />
     </div>
   );
@@ -137,7 +139,7 @@ const AdminLayout = () => {
         },
       }}
     >
-      <Layout style={{ height: '100vh' }}>
+      <Layout style={{ minHeight: '100vh' }}> {/* ✅ PERBAIKAN: minHeight agar konten utama bisa mendorong footer ke bawah */}
         {!isMobile && (
           <Sider 
             trigger={null} 
@@ -152,8 +154,8 @@ const AdminLayout = () => {
               top: 0,
               bottom: 0,
               zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
+              // ✅ PERBAIKAN: Hapus display:flex/flexDirection:column dan tambahkan overflowY: 'auto'
+              overflowY: 'auto', // ✅ Memungkinkan Sider untuk di-scroll secara independen
             }}
           >
              <style>
@@ -164,11 +166,14 @@ const AdminLayout = () => {
                 }
               `}
             </style>
-            {menuContent}
+            {/* ✅ PERBAIKAN: Div menuContent sekarang memiliki height: 100% untuk mengisi Sider */}
+            <div style={{ height: '100%' }}> 
+              {menuContent}
+            </div>
           </Sider>
         )}
 
-        <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s' }}>
+        <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? siderCollapsedWidth : siderWidth), transition: 'margin-left 0.2s', minHeight: '100vh' }}>
           <Header style={{ padding: '0 16px', background: token.colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 48, lineHeight: '48px' }}>
             {/* Toggle Button */}
             <Button
@@ -187,8 +192,9 @@ const AdminLayout = () => {
               </Dropdown>
             </Space>
           </Header>
-          <Content style={{ margin: isMobile ? '16px 8px' : '24px 16px', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: isMobile ? 12 : 24, background: token.colorBgContainer, borderRadius: token.borderRadiusLG, flex: 1 }}>
+          {/* ✅ PERBAIKAN: Hapus overflow: 'auto' dari Content agar scroll utama hanya pada body/window jika diperlukan. */}
+          <Content style={{ margin: isMobile ? '16px 8px' : '24px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={{ padding: isMobile ? 12 : 24, background: token.colorBgContainer, borderRadius: token.borderRadiusLG, flex: 1, overflow: 'auto' }}>
               <Outlet />
             </div>
             <Footer style={{ textAlign: 'center', padding: '12px 24px', flexShrink: 0 }}>
