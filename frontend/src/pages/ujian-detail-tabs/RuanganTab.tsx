@@ -456,7 +456,7 @@ const SeatArrangementVisualizer: React.FC<SeatArrangementProps> = ({
                 renderItem={renderLegendItem}
             />
             {legendData.length === 0 && (
-                 <Empty description="Belum ada kursi yang terisi." image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+                 <Empty description="Belum ada kursi yang terisi." image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
         </Card>
       </Col>
@@ -686,7 +686,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
   if (!ujianDetail) return <Spin />;
 
   // -----------------------------------------------------------
-  // ✅ PERBAIKAN LOGIKA PERHITUNGAN DINAMIS
+  // ✅ LOGIKA PERHITUNGAN DINAMIS
   // -----------------------------------------------------------
   
   const ruanganMasterList: RuanganUjian[] = ruanganMaster || []; 
@@ -751,6 +751,56 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     );
   };
 
+  // --- LOGIKA WARNA DINAMIS UNTUK KOLOM 2 DAN 3 ---
+
+  // Warna Angka Kolom Total Terisi
+  let colorTotalTerisi = 'default';
+  
+  // Warna Tag Kolom Total Terisi & Text Status
+  let tagColorTotalTerisi = 'default';
+  let tagTextTotalTerisi = 'Kosong';
+
+  if (totalKursiTerpakai === totalPeserta) {
+    colorTotalTerisi = 'green';
+    tagColorTotalTerisi = 'green';
+    tagTextTotalTerisi = 'Terisi Penuh';
+  } else if (totalKursiTerpakai > 0 && totalKursiTerpakai < totalPeserta) {
+    colorTotalTerisi = 'orange';
+    tagColorTotalTerisi = 'orange';
+    tagTextTotalTerisi = 'Terisi Sebagian';
+  } else if (totalKursiTerpakai > totalPeserta) {
+    colorTotalTerisi = 'red';
+    tagColorTotalTerisi = 'red';
+    tagTextTotalTerisi = 'Over Alokasi';
+  } else {
+    // totalKursiTerpakai === 0: Menggunakan warna biru cerah/netral
+    colorTotalTerisi = '#1890ff'; // Biru Ant Design primary color
+    tagColorTotalTerisi = 'blue';
+    tagTextTotalTerisi = 'Kursi Terisi'; // <--- PERUBAHAN DI SINI
+  }
+  
+  // Warna Angka Kolom Sisa Kursi
+  let colorSisaKursi = sisaKursiFisik < 0 ? 'red' : 'blue';
+
+  // Warna Tag Kolom Sisa Kursi & Text Status
+  let tagColorSisaKursi = 'default';
+  let tagTextSisaKursi = 'Tersedia';
+
+  if (sisaKursiFisik < 0) {
+      tagColorSisaKursi = 'red';
+      tagTextSisaKursi = 'Over Kapasitas';
+  } else if (sisaKursiFisik === 0) {
+      tagColorSisaKursi = 'orange';
+      tagTextSisaKursi = 'Kritis/Penuh';
+  } else {
+      // sisaKursiFisik > 0
+      tagColorSisaKursi = 'blue';
+      tagTextSisaKursi = 'Tersedia';
+  }
+  
+  // -----------------------------------------------
+
+
   return (
     // PERBAIKAN: Mengurangi padding atas (paddingTop: 0)
     <div style={{ paddingTop: 0 }}>
@@ -798,7 +848,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
       {/* --- Visualisasi Alokasi & Kapasitas: DIBAGI 3 KOLOM (sm=8) --- */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         
-        {/* KOLOM 1: TOTAL KAPASITAS */}
+        {/* KOLOM 1: TOTAL KAPASITAS (Warna Default/Existing) */}
         <Col xs={24} sm={8}>
             <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
                 <Row justify="space-between" align="middle">
@@ -819,14 +869,14 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
             </Card>
         </Col>
         
-        {/* KOLOM 2: TOTAL TERISI (Diperbesar dengan tag status) */}
+        {/* KOLOM 2: TOTAL TERISI (WARNA DISESUAIKAN - Biru untuk Kosong) */}
         <Col xs={24} sm={8}>
             <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
                 <Row justify="space-between" align="middle">
                     <Col>
                         <Text strong style={{ 
                             fontSize: 28, 
-                            color: totalKursiTerpakai < totalPeserta ? '#fa8c16' : 'green' 
+                            color: colorTotalTerisi // Warna Dinamis
                         }}>
                             {totalKursiTerpakai}
                         </Text>
@@ -835,22 +885,23 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                         <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
                             Total Terisi
                         </Text>
-                        <Tag color={totalKursiTerpakai === totalPeserta ? 'green' : (totalKursiTerpakai > 0 ? 'orange' : 'default')} style={{ margin: 0 }}>
-                            {totalKursiTerpakai === totalPeserta ? 'Terisi Penuh' : (totalKursiTerpakai > 0 ? 'Terisi Sebagian' : 'Kosong')}
+                        <Tag color={tagColorTotalTerisi} style={{ margin: 0 }}> {/* Tag Dinamis */}
+                            {tagTextTotalTerisi}
                         </Tag>
                     </Col>
                 </Row>
             </Card>
         </Col>
         
-        {/* KOLOM 3: SISA KURSI (Diperbesar dengan tag status) */}
+        {/* KOLOM 3: SISA KURSI (WARNA DISESUAIKAN) */}
         <Col xs={24} sm={8}>
             <Card size="small" style={{ height: '100%' }} bodyStyle={{ padding: 16 }}>
                  <Row justify="space-between" align="middle">
                     <Col>
                         <Text strong style={{ fontSize: 28, 
-                               color: sisaKursiFisik < 0 ? 'red' : 'blue' 
+                               color: colorSisaKursi // Warna Dinamis
                         }}>
+                            {/* Menampilkan nilai Sisa Kursi Fisik */}
                             {sisaKursiFisik}
                         </Text>
                     </Col>
@@ -858,8 +909,8 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                         <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }} type="secondary">
                             Sisa Kursi
                         </Text>
-                        <Tag color={sisaKursiFisik < 0 ? 'red' : (sisaKursiFisik > 0 ? 'blue' : 'orange')} style={{ margin: 0 }}>
-                            {sisaKursiFisik < 0 ? 'Over Kapasitas' : (sisaKursiFisik > 0 ? 'Tersedia' : 'Kritis')}
+                        <Tag color={tagColorSisaKursi} style={{ margin: 0 }}> {/* Tag Dinamis */}
+                            {tagTextSisaKursi}
                         </Tag>
                     </Col>
                 </Row>
@@ -872,9 +923,33 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
         {alokasiList.length > 0 ? (
             <Row gutter={[16, 16]}>
                 {alokasiList.map(alokasi => {
-                    const filledPercentage = alokasi.kapasitas_ruangan > 0 
-                                            ? Math.min(100, Math.round((alokasi.jumlah_kursi_terpakai / alokasi.kapasitas_ruangan) * 100))
+                    // Logic untuk Progress Bar di setiap alokasi
+                    const filledPercentageRaw = alokasi.kapasitas_ruangan > 0 
+                                            ? (alokasi.jumlah_kursi_terpakai / alokasi.kapasitas_ruangan) * 100
                                             : 0;
+                    const filledPercentage = Math.min(100, Math.round(filledPercentageRaw));
+
+                    let progressStatus: 'success' | 'exception' | 'active' | 'normal' = 'normal';
+                    let progressStrokeColor = '#d9d9d9'; // Default Light Grey
+                    let tagAlokasiColor = 'default';
+
+                    if (alokasi.jumlah_kursi_terpakai > alokasi.kapasitas_ruangan) {
+                        progressStatus = 'exception';
+                        progressStrokeColor = '#f5222d'; // Merah (Over Capacity)
+                        tagAlokasiColor = 'red';
+                    } else if (filledPercentage === 100) {
+                        progressStatus = 'success';
+                        progressStrokeColor = '#52c41a'; // Hijau (Full)
+                        tagAlokasiColor = 'green';
+                    } else if (filledPercentage > 0) {
+                        progressStatus = 'active';
+                        progressStrokeColor = '#1890ff'; // Biru (Partial)
+                        tagAlokasiColor = 'blue';
+                    } else {
+                        tagAlokasiColor = 'default';
+                        progressStrokeColor = '#d9d9d9'; // Abu-abu terang untuk 0%
+                    }
+
                     
                     let rows = 0;
                     let cols = 0;
@@ -901,7 +976,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                             <Tag icon={<BlockOutlined />} color="blue">
                                                 Kapasitas: {alokasi.kapasitas_ruangan}
                                             </Tag>
-                                            <Tag icon={<CheckCircleOutlined />} color={filledPercentage > 95 ? 'red' : (filledPercentage > 0 ? 'green' : 'default')}>
+                                            <Tag icon={<CheckCircleOutlined />} color={tagAlokasiColor}>
                                                 Terisi: {alokasi.jumlah_kursi_terpakai}
                                             </Tag>
                                         </Space>
@@ -926,16 +1001,18 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
                                 bodyStyle={{ padding: 12 }}
                             >
                                 
-                                {/* UI/UX: Progress Bar Keterisian */}
+                                {/* UI/UX: Progress Bar Keterisian (LOGIC WARNA DISESUAIKAN) */}
                                 <Paragraph style={{ marginBottom: 4, fontSize: 12 }} type="secondary">
                                     Tingkat Keterisian Kursi:
                                 </Paragraph>
                                 <Progress 
                                     percent={filledPercentage} 
                                     size="small" 
-                                    status={filledPercentage >= 100 ? 'exception' : 'active'}
-                                    strokeColor={filledPercentage > 95 ? '#f5222d' : '#1890ff'}
+                                    status={progressStatus}
+                                    strokeColor={progressStrokeColor}
                                     style={{ marginBottom: 16 }}
+                                    // Tampilkan nilai aktual jika over-alokasi
+                                    format={(percent) => (filledPercentageRaw > 100) ? `${alokasi.jumlah_kursi_terpakai} (${Math.round(filledPercentageRaw)}%)` : `${percent}%`}
                                 />
 
                                 {/* UI/UX: Tombol Action Block */}
