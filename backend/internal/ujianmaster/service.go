@@ -54,7 +54,8 @@ type Service interface {
 
 	// Phase 1: Get data for visual layout
 	GetAlokasiKursi(ctx context.Context, schemaName string, ujianMasterID string) ([]PesertaUjianDetail, []AlokasiRuanganUjian, error)
-	UpdatePesertaSeating(ctx context.Context, schemaName string, input UpdatePesertaSeatingInput) error
+	// PERUBAHAN: UpdatePesertaSeating sekarang menerima ujianMasterID
+	UpdatePesertaSeating(ctx context.Context, schemaName string, ujianMasterID string, input UpdatePesertaSeatingInput) error
 
 	// Phase 3: Smart distribution
 	DistributePesertaSmart(ctx context.Context, schemaName string, ujianMasterID string) error
@@ -294,7 +295,7 @@ func (s *service) UpdateRuangan(ctx context.Context, schemaName string, ruanganI
 	// Cek keberadaan ruangan (Opsional, tapi disarankan)
 	// _, err = s.repo.GetRuanganByID(ctx, schemaName, rID)
 	// if err != nil {
-	//  return RuanganUjian{}, errors.New("ruangan tidak ditemukan")
+	// 	return RuanganUjian{}, errors.New("ruangan tidak ditemukan")
 	// }
 
 	ruangan := RuanganUjian{
@@ -409,7 +410,8 @@ func (s *service) GetAlokasiKursi(ctx context.Context, schemaName string, ujianM
 }
 
 // UpdatePesertaSeating menangani pembaruan penempatan kursi peserta, termasuk unassign.
-func (s *service) UpdatePesertaSeating(ctx context.Context, schemaName string, input UpdatePesertaSeatingInput) error {
+// PERUBAHAN: Sekarang menerima ujianMasterID
+func (s *service) UpdatePesertaSeating(ctx context.Context, schemaName string, ujianMasterID string, input UpdatePesertaSeatingInput) error {
 	pID, err := uuid.Parse(input.PesertaID)
 	if err != nil {
 		return errors.New("ID peserta tidak valid")
@@ -432,8 +434,25 @@ func (s *service) UpdatePesertaSeating(ctx context.Context, schemaName string, i
 	}
 	// END FIX
 
-	// Repository (yang sudah Anda perbaiki) sekarang akan menerima uuid.Nil
-	return s.repo.UpdatePesertaSeating(ctx, schemaName, pID, arID, input.NomorKursi)
+	// 1. Lakukan update penempatan kursi di repository
+	if err := s.repo.UpdatePesertaSeating(ctx, schemaName, pID, arID, input.NomorKursi); err != nil {
+		return fmt.Errorf("gagal update seating di repo: %w", err)
+	}
+
+	// 2. [FIX BARU] Ambil ujianMasterID dan panggil recalculation
+	umID, err := uuid.Parse(ujianMasterID)
+	if err != nil {
+		// Harusnya tidak terjadi karena sudah di-parse di handler, tapi kita cek lagi
+		return errors.New("ID paket ujian tidak valid")
+	}
+
+	// Panggil RecalculateAlokasiKursiCount untuk memperbarui jumlah_kursi_terpakai
+	err = s.repo.RecalculateAlokasiKursiCount(ctx, schemaName, umID)
+	if err != nil {
+		return fmt.Errorf("gagal sinkronisasi counter kursi: %w", err)
+	}
+
+	return nil
 }
 
 func (s *service) DistributePesertaSmart(ctx context.Context, schemaName string, ujianMasterID string) error {

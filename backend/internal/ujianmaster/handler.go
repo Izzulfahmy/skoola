@@ -280,7 +280,8 @@ func (h *Handler) GetAlokasiKursi(w http.ResponseWriter, r *http.Request) {
 // UpdateSeating handles POST /ujian-master/{id}/alokasi-kursi/manual (Drag/Drop manual)
 func (h *Handler) UpdateSeating(w http.ResponseWriter, r *http.Request) {
 	schemaName := r.Context().Value(middleware.SchemaNameKey).(string)
-	// ujianMasterID := chi.URLParam(r, "id") // ID UjianMaster tidak digunakan langsung di sini
+	// **PERUBAHAN INI:** Baca ujianMasterID dari URL parameter
+	ujianMasterID := chi.URLParam(r, "id")
 
 	var input UpdatePesertaSeatingInput
 
@@ -294,7 +295,8 @@ func (h *Handler) UpdateSeating(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.service.UpdatePesertaSeating(r.Context(), schemaName, input)
+	// **PERUBAHAN INI:** Teruskan ujianMasterID ke service call
+	err := h.service.UpdatePesertaSeating(r.Context(), schemaName, ujianMasterID, input)
 	if err != nil {
 		http.Error(w, "Gagal memperbarui penempatan kursi: "+err.Error(), http.StatusInternalServerError)
 		return
