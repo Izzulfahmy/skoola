@@ -776,7 +776,7 @@ const RuanganTab: React.FC<RuanganTabProps> = ({ ujianMasterId, ujianDetail }) =
     // totalKursiTerpakai === 0: Menggunakan warna biru cerah/netral
     colorTotalTerisi = '#1890ff'; // Biru Ant Design primary color
     tagColorTotalTerisi = 'blue';
-    tagTextTotalTerisi = 'Kursi Terisi'; // <--- PERUBAHAN DI SINI
+    tagTextTotalTerisi = 'Kursi Sudah Terisi'; // <--- PERUBAHAN DI SINI
   }
   
   // Warna Angka Kolom Sisa Kursi
