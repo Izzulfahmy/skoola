@@ -1,21 +1,20 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
-// FIX: Import types using 'import type' for strict TypeScript configuration.
 import type { 
     KartuUjianDetail, 
     KartuUjianKelasFilter 
 } from '../../types'; 
 
-// FIX: Import functions from the API file (where they must be defined/exported)
 import {
     getKartuUjianData,
     getKartuUjianFilters,
-    generateKartuUjianPDF, // Fungsi ini sekarang juga digunakan untuk generate preview
+    generateKartuUjianPDF, 
 } from '../../api/ujianMaster';
 
-import { Table, Select, Button, Tag, Space, Checkbox, notification, Modal, Spin } from 'antd'; // Tambahkan Spin
-import { DownloadOutlined, SyncOutlined, EyeOutlined } from '@ant-design/icons'; // Assuming Ant Design Icons
+// Hapus Checkbox dari import karena tidak digunakan lagi
+import { Table, Select, Button, Tag, Space, notification, Modal, Spin } from 'antd'; 
+import { DownloadOutlined, SyncOutlined, EyeOutlined } from '@ant-design/icons'; 
 
 const { Option } = Select;
 
@@ -27,7 +26,8 @@ const KartuUjianTab: React.FC = () => {
     const [data, setData] = useState<KartuUjianDetail[]>([]);
     const [filters, setFilters] = useState<KartuUjianKelasFilter[]>([]);
     const [selectedRombelID, setSelectedRombelID] = useState<string | undefined>(undefined);
-    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    // State selectedRowKeys tidak digunakan lagi, tapi tidak dihapus agar tidak menimbulkan error jika ada sisa kode yang menggunakannya (walau seharusnya sudah dihapus)
+    // const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]); 
     const [isModalPreviewVisible, setIsModalPreviewVisible] = useState(false);
     
     // NEW STATE: Untuk menyimpan URL Blob PDF dan ID yang dipreview
@@ -36,16 +36,15 @@ const KartuUjianTab: React.FC = () => {
     // END NEW STATE
 
     // Data yang siap dicetak (hanya ID: number/uint)
-    // NOTE: Ini bekerja karena data.id di backend adalah uint(0) yang sama untuk semua baris. 
-    // Jika ID di backend diubah menjadi UUID (string), ini harus disesuaikan menjadi d.id as string
     const readyToPrintData = useMemo(() => data.filter((item) => item.is_data_lengkap).map(d => d.id), [data]);
     const incompleteData = useMemo(() => data.filter((item) => !item.is_data_lengkap), [data]);
 
-    // Data yang benar-benar terpilih dan siap cetak (untuk FAB)
-    const selectedReadyToPrintIDs = useMemo(() => {
-        // Filter selectedRowKeys (React.Key[]) yang ada di readyToPrintData (number[])
-        return selectedRowKeys.filter(key => readyToPrintData.includes(key as number)) as number[];
-    }, [selectedRowKeys, readyToPrintData]);
+    // Variabel ini tidak digunakan lagi karena FAB dihapus, tapi dipertahankan untuk kompatibilitas jika ada kode lain yang mengacu
+    // const selectedReadyToPrintIDs = useMemo(() => {
+    //     return selectedRowKeys
+    //         .filter(key => readyToPrintData.includes(key as number)) 
+    //         .map(key => key as number);
+    // }, [selectedRowKeys, readyToPrintData]);
 
     const totalIncomplete = incompleteData.length;
 
@@ -59,8 +58,7 @@ const KartuUjianTab: React.FC = () => {
             const kartuData = await getKartuUjianData(ujianMasterIDStr, rombelID);
             setData(kartuData);
 
-            // Clear selection upon filter change/refresh
-            setSelectedRowKeys([]);
+            // setSelectedRowKeys([]); // Dihapus karena rowSelection dihilangkan
 
         } catch (error) {
             notification.error({ message: 'Gagal memuat data Kartu Ujian' });
@@ -80,7 +78,6 @@ const KartuUjianTab: React.FC = () => {
 
         setLoading(true);
         try {
-            // Karena fungsi API ini mengembalikan blob dan memicu download otomatis
             await generateKartuUjianPDF(ujianMasterIDStr, pesertaIDs);
             notification.success({ message: `Berhasil mengunduh Kartu Ujian untuk ${pesertaIDs.length} peserta.` });
         } catch (error: any) {
@@ -91,11 +88,10 @@ const KartuUjianTab: React.FC = () => {
         }
     };
 
-    // NEW FUNCTION: Fungsi untuk generate PDF dan menampilkan URL Blob di modal
+    // Fungsi untuk generate PDF dan menampilkan URL Blob di modal
     const handleGeneratePreview = async (pesertaIDs: number[]) => {
         if (pesertaIDs.length === 0 || !ujianMasterIDStr) return;
         
-        // Reset URL lama dan set state
         if (pdfUrl) {
             window.URL.revokeObjectURL(pdfUrl);
         }
@@ -106,10 +102,8 @@ const KartuUjianTab: React.FC = () => {
         
         try {
             // --- MOCKING ASUMSI GENERATE BERHASIL ---
-            // Karena API belum dipecah antara 'download' dan 'get blob for preview', kita lakukan mocking
             setTimeout(() => {
-                // Gunakan ID yang dipreview di mock agar terlihat beda jika perlu
-                const mockText = `Simulasi data PDF untuk Peserta ID: ${pesertaIDs.join(', ')}`;
+                const mockText = `Simulasi data PDF untuk Peserta ID: ${pesertaIDs.join(', ')}. Ini adalah data yang sedang ditampilkan (terfilter atau terpilih).`;
                 const mockBlob = new Blob([mockText], { type: 'application/pdf' });
                 const url = window.URL.createObjectURL(mockBlob);
                 setPdfUrl(url);
@@ -117,12 +111,25 @@ const KartuUjianTab: React.FC = () => {
             }, 1500);
             // --- END MOCKING ---
 
-
         } catch (error: any) {
             notification.error({ message: 'Gagal membuat file PDF untuk Preview.' });
             setPdfUrl(null);
             setLoading(false);
             setIsModalPreviewVisible(false);
+        }
+    };
+
+    // Digunakan oleh tombol di atas tabel untuk semua data yang difilter
+    const handleMassAction = async (action: 'preview' | 'print', pesertaIDs: number[]) => {
+        if (pesertaIDs.length === 0) {
+            notification.warning({ message: 'Tidak ada peserta yang siap cetak (Data belum lengkap atau tidak ada data yang difilter).' });
+            return;
+        }
+
+        if (action === 'preview') {
+            await handleGeneratePreview(pesertaIDs);
+        } else if (action === 'print') {
+            await handleDownloadPDF(pesertaIDs);
         }
     };
 
@@ -138,16 +145,17 @@ const KartuUjianTab: React.FC = () => {
 
     const columns = [
         {
-            title: 'NAMA SISWA',
+            title: 'NAMA SISWA', 
             dataIndex: 'nama_siswa',
             key: 'nama_siswa',
-            render: (_: string, record: KartuUjianDetail) => (
-                <div>
-                    <strong>{record.nama_siswa}</strong>
-                    <small style={{ display: 'block', color: '#888' }}>NISN: {record.nisn}</small>
-                </div>
-            ),
+            render: (text: string) => <div style={{ fontWeight: 'bold' }}>{text}</div>,
             sorter: (a: KartuUjianDetail, b: KartuUjianDetail) => a.nama_siswa.localeCompare(b.nama_siswa),
+        },
+        {
+            title: 'NISN', // Kolom NISN terpisah
+            dataIndex: 'nisn',
+            key: 'nisn',
+            render: (text: string) => text || '-',
         },
         {
             title: 'KELAS',
@@ -173,7 +181,7 @@ const KartuUjianTab: React.FC = () => {
             dataIndex: 'is_data_lengkap',
             key: 'is_data_lengkap',
             render: (isComplete: boolean) => (
-                <Tag color={isComplete ? 'success' : 'warning'}>
+                <Tag color={isComplete ? 'success' : 'warning'} style={{ margin: '0' }}>
                     {isComplete ? '✅ Lengkap' : '⚠️ Belum Lkp'}
                 </Tag>
             ),
@@ -183,159 +191,95 @@ const KartuUjianTab: React.FC = () => {
             ],
             onFilter: (value: boolean | React.Key, record: KartuUjianDetail) => record.is_data_lengkap === value,
         },
-        {
-            title: 'AKSI INDIVIDU',
-            key: 'action',
-            render: (_: string, record: KartuUjianDetail) => (
-                <Space size="small">
-                    <Button 
-                        disabled={!record.is_data_lengkap} 
-                        // Menggunakan record.id (number/uint)
-                        onClick={() => handleGeneratePreview([record.id])} 
-                        size="small" 
-                        icon={<EyeOutlined />}
-                    >
-                        Preview
-                    </Button>
-                    <Button 
-                        type="primary" 
-                        disabled={!record.is_data_lengkap} 
-                        loading={loading && selectedRowKeys.includes(record.id)} 
-                        // Menggunakan record.id (number/uint)
-                        onClick={() => handleDownloadPDF([record.id])} 
-                        size="small"
-                        icon={<DownloadOutlined />}
-                    >
-                        Cetak
-                    </Button>
-                </Space>
-            ),
-        },
     ];
 
-    const rowSelection = {
-        selectedRowKeys,
-        onChange: (selectedKeys: React.Key[]) => {
-            // FIX: Hanya izinkan select yang datanya lengkap (memastikan selectedRowKeys tetap bersih)
-            const validKeys = selectedKeys.filter(key => readyToPrintData.includes(key as number));
-            setSelectedRowKeys(validKeys);
-        },
-        getCheckboxProps: (record: KartuUjianDetail) => ({
-            // Logika ini sudah benar: Disable checkbox if data is incomplete
-            disabled: !record.is_data_lengkap, 
-        }),
-    };
+    // Hilangkan rowSelection
+    // const rowSelection = { ... };
 
-    // FAB Style (Sticky Footer) - Implementasi Sticky Footer
-    const fabStyle: React.CSSProperties = {
-        position: 'sticky',
-        bottom: 0,
-        padding: '10px 20px',
-        backgroundColor: '#fff',
-        borderTop: '1px solid #f0f0f0',
-        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
-        zIndex: 10,
-        display: selectedReadyToPrintIDs.length > 0 ? 'flex' : 'none',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: '20px',
-    };
+    // Hilangkan fabStyle
 
     return (
         <div>
-            {/* FILTER AREA */}
-            <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-                <Select
-                    style={{ width: 250 }}
-                    placeholder="FILTER KELAS/ROMBEL"
-                    allowClear
-                    onChange={(value: string) => setSelectedRombelID(value)} 
-                    value={selectedRombelID}
-                >
-                    {filters.map((f) => (
-                        <Option key={f.rombel_id} value={f.rombel_id}>
-                            {f.nama_kelas}
-                        </Option>
-                    ))}
-                </Select>
-                <Button onClick={() => fetchData(selectedRombelID)} loading={loading} icon={<SyncOutlined />}>
-                    Refresh Data
-                </Button>
-                <Tag color="success" style={{ padding: '5px 10px', fontSize: '14px' }}>
-                    ✅ {readyToPrintData.length} Siswa Siap Cetak
-                </Tag>
-                <Tag color="error" style={{ padding: '5px 10px', fontSize: '14px' }}>
-                    ⚠️ {totalIncomplete} Siswa Belum Lengkap
-                </Tag>
-            </Space>
-
-            {/* TABLE */}
-            <Table
-                // FIX: rowKey="id" sekarang digunakan, yang mana merupakan nilai 0 (uint) yang tidak unik.
-                // Masalah ini akan hilang ketika backend mengembalikan UUID string yang unik.
-                // Logika selection sudah diperbaiki untuk mengantisipasi ketidakunikan ini.
-                rowKey="id" 
-                columns={columns}
-                dataSource={data}
-                loading={loading}
-                rowSelection={rowSelection}
-                pagination={{ pageSize: 20 }}
-                scroll={{ x: 1000 }}
-            />
-
-            {/* FLOATING ACTION BAR (FAB) / STICKY FOOTER */}
-            <div style={fabStyle}>
+            {/* FILTER & BUTTON AREA (Memenuhi layout sejajar dengan filter) */}
+            <Space style={{ marginBottom: 16, flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' }}>
+                
+                {/* Left Side: Filter and Refresh */}
                 <Space>
-                    <Checkbox
-                        checked={selectedReadyToPrintIDs.length === readyToPrintData.length && readyToPrintData.length > 0}
-                        indeterminate={selectedReadyToPrintIDs.length > 0 && selectedReadyToPrintIDs.length < readyToPrintData.length}
-                        onChange={(e) => {
-                            if (e.target.checked) {
-                                setSelectedRowKeys(readyToPrintData); // Pilih hanya yang datanya lengkap
-                            } else {
-                                setSelectedRowKeys([]);
-                            }
-                        }}
+                    <Select
+                        style={{ width: 250 }}
+                        placeholder="FILTER KELAS/ROMBEL"
+                        allowClear
+                        onChange={(value: string) => setSelectedRombelID(value)} 
+                        value={selectedRombelID}
                     >
-                        Pilih Semua Siap Cetak ({selectedReadyToPrintIDs.length} dari {readyToPrintData.length} total)
-                    </Checkbox>
-                    <span style={{ fontWeight: 'bold', marginLeft: '10px' }}>
-                        {selectedReadyToPrintIDs.length} Siswa Terpilih
-                    </span>
+                        {filters.map((f) => (
+                            <Option key={f.rombel_id} value={f.rombel_id}>
+                                {f.nama_kelas}
+                            </Option>
+                        ))}
+                    </Select>
+                    <Button onClick={() => fetchData(selectedRombelID)} loading={loading} icon={<SyncOutlined />}>
+                        Refresh Data
+                    </Button>
                 </Space>
 
+                {/* Right Side: Combined Button for ALL FILTERED DATA (Acuan tabel) */}
                 <Space>
+                    <Tag color="success">✅ {readyToPrintData.length} Siap Cetak</Tag>
+                    {totalIncomplete > 0 && (
+                        <Tag color="error">⚠️ {totalIncomplete} Belum Lengkap</Tag>
+                    )}
                     <Button 
-                        onClick={() => handleGeneratePreview(selectedReadyToPrintIDs)} 
-                        disabled={selectedReadyToPrintIDs.length === 0} 
+                        onClick={() => handleMassAction('preview', readyToPrintData)}
+                        disabled={loading || readyToPrintData.length === 0} 
                         icon={<EyeOutlined />}
                     >
-                        Preview ({selectedReadyToPrintIDs.length})
+                        Preview All Filtered
                     </Button>
                     <Button
                         type="primary"
                         loading={loading}
-                        disabled={selectedReadyToPrintIDs.length === 0}
-                        onClick={() => handleDownloadPDF(selectedReadyToPrintIDs)}
+                        disabled={loading || readyToPrintData.length === 0}
+                        onClick={() => handleMassAction('print', readyToPrintData)}
                         icon={<DownloadOutlined />}
                     >
-                        Cetak/Download PDF ({selectedReadyToPrintIDs.length})
+                        Cetak All Filtered
                     </Button>
                 </Space>
-            </div>
+            </Space>
+
+            {/* TABLE */}
+            <Table
+                rowKey="id" 
+                columns={columns}
+                dataSource={data}
+                loading={loading}
+                // HILANGKAN rowSelection
+                // HILANGKAN paginasi
+                pagination={false} 
+                size="small" 
+                scroll={{ x: 1000 }}
+            />
+
+            {/* FLOATING ACTION BAR (FAB) / STICKY FOOTER DIHILANGKAN */}
 
             {/* MODAL PREVIEW (Menampilkan PDF Iframe) */}
             <Modal
                 title={`Preview Kartu Ujian (${currentPreviewIds.length} Kartu)`}
                 open={isModalPreviewVisible}
                 onCancel={handleCloseModal}
-                // Hapus tombol Tutup di footer karena sudah ada handleCloseModal
                 footer={[
+                    <Button 
+                        key="back" 
+                        onClick={handleCloseModal}
+                    >
+                        Tutup
+                    </Button>,
                     <Button 
                         key="submit" 
                         type="primary" 
                         loading={loading}
-                        onClick={() => handleDownloadPDF(currentPreviewIds)} // Gunakan currentPreviewIds
+                        onClick={() => handleDownloadPDF(currentPreviewIds)} 
                         icon={<DownloadOutlined />}
                     >
                         Cetak/Download PDF ({currentPreviewIds.length})
