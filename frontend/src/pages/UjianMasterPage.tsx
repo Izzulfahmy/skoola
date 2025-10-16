@@ -28,6 +28,11 @@ import { id } from 'date-fns/locale';
 
 const { Title, Text } = Typography;
 
+// ---
+// Karena kita tidak dapat menjamin CSS global dimuat, 
+// kita akan menggunakan inline style di onRow Ant Design untuk cursor: pointer.
+// ---
+
 const UjianMasterPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -53,6 +58,7 @@ const UjianMasterPage = () => {
       if (activeTahunAjaran) {
         setSelectedTahunAjaran(activeTahunAjaran.id);
       } else if (tahunAjaranData.length > 0) {
+        // Fallback: pilih tahun ajaran pertama jika tidak ada yang aktif
         setSelectedTahunAjaran(tahunAjaranData[0].id);
       }
     }
@@ -80,6 +86,7 @@ const UjianMasterPage = () => {
         handleCancel();
     },
     onError: (error: any) => {
+        // Akses response.data.message jika tersedia, atau gunakan pesan default
         message.error(error.response?.data?.message || 'Gagal menyimpan paket ujian.');
     }
   });
@@ -126,17 +133,19 @@ const UjianMasterPage = () => {
     };
     mutation.mutate({ isEditing: !!editingUjian, id: editingUjian?.id, payload });
   };
+  
+  const handleRowClick = (record: UjianMaster) => {
+      navigate(`/admin/ujian/${record.id}`);
+  };
+
 
   const columns: TableProps<UjianMaster>['columns'] = [
     {
       title: 'Nama Paket Ujian',
       dataIndex: 'nama_paket_ujian',
       key: 'nama_paket_ujian',
-      render: (text: string, record: UjianMaster) => (
-        <a onClick={() => navigate(`/admin/ujian/${record.id}`)}>
-          <Text strong>{text}</Text>
-        </a>
-      ),
+      // Mengubah render agar tidak lagi menjadi link, karena seluruh baris akan menjadi link
+      render: (text: string) => <Text strong>{text}</Text>,
     },
     { 
       title: 'Dibuat', 
@@ -145,7 +154,7 @@ const UjianMasterPage = () => {
       align: 'center',
       width: 150,
       render: (text:string) => format(new Date(text), 'd MMM yyyy', { locale: id }),
-      responsive: ['md'], // Kunci: Kolom ini hilang di layar 'xs' dan 'sm'
+      responsive: ['md'],
     },
     {
         title: 'Aksi',
@@ -153,9 +162,10 @@ const UjianMasterPage = () => {
         align: 'center',
         width: 120,
         render: (_: any, record: UjianMaster) => (
-            <Space>
+            // Menghentikan penyebaran event klik agar klik tombol Aksi tidak memicu handleRowClick
+            <Space onClick={(e) => e.stopPropagation()}>
                 <Tooltip title="Edit">
-                  <Button icon={<EditOutlined/>} onClick={() => showModal(record)} />
+                  <Button icon={<EditOutlined/>} onClick={() => showModal(record)} size="small" />
                 </Tooltip>
                 <Tooltip title="Hapus">
                   <Popconfirm 
@@ -165,7 +175,7 @@ const UjianMasterPage = () => {
                     okText="Ya, Hapus"
                     cancelText="Batal"
                   >
-                      <Button icon={<DeleteOutlined />} danger />
+                      <Button icon={<DeleteOutlined />} danger size="small" />
                   </Popconfirm>
                 </Tooltip>
             </Space>
@@ -173,7 +183,7 @@ const UjianMasterPage = () => {
     }
   ];
 
-  const isLoading = isTahunAjaranLoading || (!!selectedTahunAjaran && isUjianLoading);
+  const isLoading = isTahunAjaranLoading || (!!selectedTahunAjaran && isUjianLoading) || mutation.isPending || deleteMutation.isPending;
 
   return (
     <>
@@ -199,6 +209,7 @@ const UjianMasterPage = () => {
                             type="primary" 
                             icon={<PlusOutlined />} 
                             onClick={() => showModal(null)}
+                            disabled={!selectedTahunAjaran} // Nonaktifkan jika tahun ajaran belum dipilih
                         >
                             Buat Paket
                         </Button>
@@ -219,8 +230,23 @@ const UjianMasterPage = () => {
                           cell: (props: any) => <th {...props} style={tableHeaderStyle} />,
                         },
                     }}
+                    // --- Bagian perbaikan agar baris terlihat 'clickable' ---
+                    // rowClassName="clickable-row" // Tidak diperlukan jika style inline
+                    onRow={(record) => {
+                        return {
+                            onClick: () => handleRowClick(record),
+                            style: { cursor: 'pointer' }, // Tambahkan style kursor di sini
+                        };
+                    }}
+                    // --------------------------------------------------------
                 />
             </Spin>
+            {/* Menambahkan peringatan jika tahun ajaran belum dipilih dan data ujian belum dimuat */}
+            {!selectedTahunAjaran && !isTahunAjaranLoading && (
+                 <div style={{ marginTop: 16 }}>
+                    <Text type="secondary">Silakan pilih Tahun Ajaran untuk melihat dan mengelola Paket Ujian.</Text>
+                 </div>
+            )}
         </Card>
         <Modal
             title={editingUjian ? 'Edit Paket Ujian' : 'Buat Paket Ujian Baru'}
