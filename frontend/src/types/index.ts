@@ -1,5 +1,32 @@
 // file: src/types/index.ts
 
+// --- NEW TYPES FOR PAPER SIZE (UKURAN KERTAS) ---
+export interface PaperSize {
+  id: string; // UUID
+  nama_kertas: string;
+  satuan: 'mm' | 'cm' | 'in';
+  panjang: number;
+  lebar: number;
+  margin_atas: number;
+  margin_bawah: number;
+  margin_kiri: number;
+  margin_kanan: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertPaperSizeInput {
+  nama_kertas: string;
+  satuan: 'mm' | 'cm' | 'in';
+  panjang: number;
+  lebar: number;
+  margin_atas: number;
+  margin_bawah: number;
+  margin_kiri: number;
+  margin_kanan: number;
+}
+// ---------------------------------------------------
+
 // --- TIPE BARU UNTUK AUTH CONTEXT (Dipindahkan ke atas untuk akses global) ---
 // Fix: 2339 - Menambahkan AuthUser agar property 'user' ada.
 export interface AuthUser {
@@ -21,7 +48,7 @@ export interface KartuUjianDetail {
   nisn: string;
   nama_siswa: string;
   // FIX: RombelID sekarang STRING (UUID)
-  rombel_id: string; 
+  rombel_id: string;
   nama_kelas: string;
   no_ujian: string;
   ruang_ujian_id: number;
@@ -32,7 +59,7 @@ export interface KartuUjianDetail {
 
 export interface KartuUjianKelasFilter {
   // FIX: RombelID sekarang STRING (UUID)
-  rombel_id: string; 
+  rombel_id: string;
   nama_kelas: string;
 }
 // ----------------------------------------------------------------------
@@ -857,12 +884,12 @@ export interface AlokasiRuanganUjian {
   ruangan_id: string;
   kode_ruangan: string; // Example: R01, R02
   jumlah_kursi_terpakai: number;
-  
+
   // Data dari Join Ruangan Master:
   nama_ruangan: string;
   kapasitas_ruangan: number;
   layout_metadata: string;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -887,7 +914,7 @@ export interface PesertaUjianDetail {
   urutan: number;
   nomor_ujian: string | null;
   nama_kelas: string;
-  
+
   // Field Ruangan Baru
   alokasi_ruangan_id: string | null;
   kode_ruangan: string | null;

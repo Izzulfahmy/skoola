@@ -1,5 +1,5 @@
 // file: frontend/src/pages/SettingsPage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // <-- Pastikan ini ada
 import { Card, Tabs, Typography } from 'antd';
 import type { TabsProps } from 'antd';
 import AdminSettingsTab from '../components/AdminSettingsTab';
@@ -8,11 +8,13 @@ import JabatanTab from '../components/JabatanTab';
 import TingkatanTab from '../components/TingkatanTab';
 import JenisUjianTab from '../components/JenisUjianTab';
 import ConnectionTestTab from '../components/ConnectionTestTab';
-// import EkstrakurikulerTab from '../components/EkstrakurikulerTab'; // <-- BARIS INI DIHAPUS
+// --- NEW IMPORT ---
+import PaperSizeTab from '../components/PaperSizeTab'; // <-- Tambahkan import ini
 
 const { Title } = Typography;
 
 // Hook untuk mendeteksi ukuran layar
+// --- DEFINISI useWindowSize DIKEMBALIKAN ---
 const useWindowSize = () => {
   const [size, setSize] = useState({ width: window.innerWidth });
   useEffect(() => {
@@ -22,38 +24,41 @@ const useWindowSize = () => {
   }, []);
   return size;
 };
-
+// ------------------------------------------
 
 const items: TabsProps['items'] = [
   {
-    key: '0',
+    key: '0', 
+    label: 'Ukuran Kertas', // <-- Tab Ukuran Kertas
+    children: <PaperSizeTab />, 
+  },
+  {
+    key: '1', 
     label: 'Jenis Ujian',
     children: <JenisUjianTab />,
   },
   {
-    key: '1',
+    key: '2', 
     label: 'Tingkatan Kelas',
     children: <TingkatanTab />,
   },
-  // Item 'Ekstrakurikuler' (key: '2') telah DIHAPUS
-  // Kunci tab di bawah ini disesuaikan:
   {
-    key: '2', 
+    key: '3', 
     label: 'Jabatan',
     children: <JabatanTab />,
   },
   {
-    key: '3', 
+    key: '4', 
     label: 'Jenjang Pendidikan',
     children: <JenjangPendidikanTab />,
   },
   {
-    key: '4', 
+    key: '5', 
     label: 'Pengaturan Admin',
     children: <AdminSettingsTab />,
   },
   {
-    key: '5', 
+    key: '6', 
     label: 'Tes Koneksi',
     children: <ConnectionTestTab />,
   },

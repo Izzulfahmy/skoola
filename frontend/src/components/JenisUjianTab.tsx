@@ -58,7 +58,7 @@ const JenisUjianTab = () => {
       handleCancel();
       fetchData();
     } catch (err: any) {
-      const errorMessage = err.response?.data || 'Gagal menyimpan data. Pastikan Kode Ujian unik.';
+      const errorMessage = err.response?.data?.error || err.response?.data || 'Gagal menyimpan data. Pastikan Kode Ujian unik.';
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -67,7 +67,9 @@ const JenisUjianTab = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await deleteJenisUjian(id);
+      // Perhatian: Jika ID jenis ujian di backend Anda adalah UUID (string), 
+      // pastikan tipe di sini juga string, bukan number.
+      await deleteJenisUjian(id); 
       message.success('Jenis Ujian berhasil dihapus!');
       fetchData();
     } catch (err: any) {
@@ -80,27 +82,32 @@ const JenisUjianTab = () => {
     { 
       title: 'Kode Ujian', 
       dataIndex: 'kode_ujian', 
-      key: 'kode_ujian' 
+      key: 'kode_ujian',
+      // Mengurangi padding cell
+      onCell: () => ({ style: { padding: '8px 16px' } })
     },
     { 
       title: 'Nama Ujian', 
       dataIndex: 'nama_ujian', 
-      key: 'nama_ujian' 
+      key: 'nama_ujian',
+      onCell: () => ({ style: { padding: '8px 16px' } })
     },
     { 
       title: 'Tanggal Dibuat', 
       dataIndex: 'created_at', 
       key: 'created_at', 
       render: (date) => format(new Date(date), 'dd MMMM yyyy, HH:mm'),
-      responsive: ['md']
+      responsive: ['md'],
+      onCell: () => ({ style: { padding: '8px 16px' } })
     },
     {
       title: 'Aksi',
       key: 'action',
       align: 'center',
+      width: 120, // Tambahkan width agar tombol tidak terlalu rapat
       render: (_, record) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => showModal(record)} />
+        <Space size="small">
+          <Button icon={<EditOutlined />} size="small" onClick={() => showModal(record)} />
           <Popconfirm
             title="Hapus Jenis Ujian"
             description="Apakah Anda yakin ingin menghapus data ini?"
@@ -108,10 +115,11 @@ const JenisUjianTab = () => {
             okText="Ya, Hapus"
             cancelText="Batal"
           >
-            <Button danger icon={<DeleteOutlined />} />
+            <Button danger icon={<DeleteOutlined />} size="small" />
           </Popconfirm>
         </Space>
       ),
+      onCell: () => ({ style: { padding: '8px 8px' } })
     },
   ];
 
@@ -132,6 +140,8 @@ const JenisUjianTab = () => {
         loading={loading}
         rowKey="id"
         pagination={false}
+        size="small" // <-- PROPERTI UNTUK MEMPERPENDEK BARIS
+        scroll={{ x: 'max-content' }} // Untuk memastikan responsif jika kolom banyak
       />
       <Modal
         title={editingData ? 'Edit Jenis Ujian' : 'Tambah Jenis Ujian'}

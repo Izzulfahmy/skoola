@@ -18,6 +18,7 @@ import (
 	"skoola/internal/kelompokmapel"
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
+	"skoola/internal/papersize" // TAMBAHKAN IMPOR BARU INI
 	"skoola/internal/pembelajaran"
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
@@ -119,6 +120,8 @@ func main() {
 	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
 	prestasiRepo := prestasi.NewRepository(db)
 	ujianMasterRepo := ujianmaster.NewRepository(db)
+	// ADD NEW REPO
+	paperSizeRepo := papersize.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(teacherRepo, tenantRepo, jwtSecret)
@@ -144,6 +147,8 @@ func main() {
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
 	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, rombelService)
+	// ADD NEW SERVICE
+	paperSizeService := papersize.NewService(paperSizeRepo, validate)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -171,6 +176,8 @@ func main() {
 	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
 	prestasiHandler := prestasi.NewHandler(prestasiService)
 	ujianMasterHandler := ujianmaster.NewHandler(ujianMasterService)
+	// ADD NEW HANDLER
+	paperSizeHandler := papersize.NewHandler(paperSizeService)
 
 	r := chi.NewRouter()
 
@@ -378,6 +385,15 @@ func main() {
 			r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
+
+		// --- ROUTES BARU UNTUK UKURAN KERTAS ---
+		r.Route("/paper-size", func(r chi.Router) {
+			r.With(auth.Authorize("admin")).Get("/", paperSizeHandler.GetAll)
+			r.With(auth.Authorize("admin")).Post("/", paperSizeHandler.Create)
+			r.With(auth.Authorize("admin")).Put("/{id}", paperSizeHandler.Update)
+			r.With(auth.Authorize("admin")).Delete("/{id}", paperSizeHandler.Delete)
+		})
+		// ----------------------------------------
 
 		// =================================================================================
 		// UJIAN MASTER ROUTING (UPDATED)
