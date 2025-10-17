@@ -24,14 +24,16 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const { Header, Sider, Content, Footer } = Layout;
-const { Text } = Typography;
+// Fix 1: Removed 'Text' from the Typography destructuring as it is unused.
+const {} = Typography;
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
-  const { logout, user } = useAuth();
+  // Fix 2: Removed 'user' from the useAuth destructuring as it is unused.
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -176,7 +178,6 @@ const AdminLayout = () => {
               style={{ fontSize: '16px', width: 48, height: 48 }}
             />
             <Space align="center">
-              {!isMobile && <Text style={{ marginRight: '8px' }}>Halo, {user?.name || user?.username || 'Admin'}!</Text>}
               <Dropdown menu={{ items: profileMenuItems }} trigger={['click']}>
                 <a onClick={(e) => e.preventDefault()} style={{ cursor: 'pointer' }}>
                   <Avatar style={{ backgroundColor: '#1890ff' }} icon={<UserOutlined />} />
