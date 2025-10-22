@@ -8,8 +8,6 @@ npm install
 npm install @tanstack/react-query @tanstack/react-query-devtools
 
 
-Anda benar sekali. Pertanyaan Anda sangat tepat\!
-
 Ketika Anda menggunakan `tmux` dan menjalankan server di dalamnya, lalu Anda mengetikkan `exit` di dalam salah satu panel atau jendela, proses yang berjalan di panel tersebut **akan terhenti** (karena `exit` menghentikan *shell* yang menjalankan proses server Anda).
 
 Tujuan utama menggunakan **tmux** adalah agar Anda bisa **melepaskan diri (detach)** dari sesi terminal, tetapi membiarkan proses di dalamnya (server *backend* dan *frontend*) **tetap berjalan di *background***.
