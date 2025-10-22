@@ -1,93 +1,103 @@
-⚙️ Proyek Monorepo: Setup Lingkungan & Pengembangan
-Dokumen ini memuat panduan langkah demi langkah untuk menyiapkan lingkungan pengembangan (Backend Go & Frontend React/Vite) pada sistem operasi Debian, termasuk penggunaan tmux untuk mengelola proses background.
+## 🌐 Dokumentasi Setup Lingkungan Pengembangan
 
-I. Prasyarat Sistem & Dependensi
-Pastikan dependensi utama berikut telah terinstal pada sistem Anda:
+Dokumen ini memandu penyiapan lingkungan pengembangan proyek monorepo (Go Backend dan React/Vite Frontend) pada sistem operasi berbasis Linux (Debian/Ubuntu).
 
-Go (Golang): Bahasa pemrograman untuk backend.
+### I. Persiapan Lingkungan dan Dependensi
 
-PostgreSQL: Basis data utama.
+Pastikan dependensi sistem berikut telah terinstal dan dikonfigurasi dengan benar:
 
-Node.js & npm: Lingkungan runtime dan manajer paket untuk frontend.
+| Komponen | Tujuan |
+| :--- | :--- |
+| **Go (Golang)** | Lingkungan *runtime* dan kompilasi untuk layanan *backend*. |
+| **Node.js & npm** | Lingkungan eksekusi dan manajer paket untuk *frontend*. |
+| **PostgreSQL** | Sistem manajemen basis data relasional. |
+| **Git** | Kontrol versi proyek. |
+| **Tmux** | *Terminal Multiplexer* untuk manajemen sesi persisten. |
 
-Git: Sistem kontrol versi.
+#### Instalasi Dependensi (Contoh Referensi)
 
-Tmux: Terminal multiplexer untuk mengelola sesi.
+Gunakan manajer paket sistem (`apt`, `brew`, dsb.) untuk menginstal komponen di atas:
 
-Instalasi (Contoh Perintah)
-Bash
+```bash
+# Contoh: Instalasi umum pada Debian/Ubuntu
+sudo apt update
+sudo apt install git tmux
+# Instalasi Go, Node.js, dan PostgreSQL harus mengikuti panduan resmi
+# untuk memastikan versi yang kompatibel dan konfigurasi yang tepat.
+```
 
-# Instalasi (Sesuaikan dengan metode instalasi resmi/preferensi Anda)
-# 
-# Golang
-# ...
-# PostgreSQL
-# ...
-# Node.js/npm
-# ...
-# Tmux
-# sudo apt install tmux
-# Git
-# sudo apt install git
-II. Setup Proyek
-Setelah repository dikloning, instal dependensi JavaScript pada frontend:
+### II. Penyiapan Proyek & Dependensi Aplikasi
 
-Bash
+Setelah *repository* dikloning, lakukan instalasi dependensi untuk komponen *frontend*:
 
-# Pindah ke direktori proyek
-cd /path/to/your/project
-# Instal dependensi frontend
+```bash
+# Navigasi ke root direktori proyek
+cd /path/to/project/
+# Instalasi dependensi Node.js
 npm install
-# Instal dependensi React Query
+# Instalasi pustaka React Query dan Devtools
 npm install @tanstack/react-query @tanstack/react-query-devtools
-🚀 Panduan Penggunaan Tmux (Sesi Persisten)
-Tmux digunakan untuk memastikan proses server (backend dan frontend) tetap berjalan di background meskipun koneksi SSH terputus (detach).
+```
 
-Penting: Jangan pernah menggunakan exit di dalam panel tmux jika Anda ingin server tetap berjalan. Selalu gunakan mekanisme Detach.
+-----
 
-1. Memulai Sesi Baru
-Mulai sesi tmux baru dengan nama (misalnya skoola):
+## ⚙️ Manajemen Sesi dengan Tmux
 
-Bash
+**Tmux** digunakan untuk memastikan proses server aplikasi (Go dan Node.js) tetap berjalan di *background* (*daemonized*) meskipun koneksi SSH terputus (*detachment*).
 
+**Peringatan Penting:** Untuk mempertahankan proses berjalan, selalu gunakan mekanisme **Detach**. Menggunakan perintah `exit` di dalam panel `tmux` akan menghentikan *shell* dan semua proses yang dijalankannya.
+
+### 1\. Memulai dan Mengidentifikasi Sesi
+
+Mulai sesi `tmux` baru dengan penamaan sesi yang jelas (`skoola`):
+
+```bash
 tmux new -s skoola
-2. Konfigurasi Panel (Opsional)
-Untuk memisahkan backend dan frontend dalam satu jendela:
+```
 
-Tekan Ctrl+b (prefix default).
+### 2\. Konfigurasi Jendela (Splitting)
 
-Lepaskan, lalu tekan: % (Membagi panel secara vertikal).
+Untuk memisahkan *backend* dan *frontend* dalam tampilan yang sama:
 
-Pindah antar panel: Ctrl+b lalu [Panah Kiri/Kanan].
+1.  Tekan **`Ctrl+b`** (*prefix* default).
+2.  Lepaskan, lalu tekan: **`%`** (Membagi panel secara vertikal).
+3.  Navigasi antar panel: **`Ctrl+b`** lalu **`[Panah Kiri/Kanan]`**.
 
-3. Menjalankan Server
-Panel Kiri (Backend Go)
-Bash
+### 3\. Eksekusi Server
 
-# Pindah ke direktori backend
+#### Panel 1: Backend (Go Service)
+
+```bash
+# Navigasi ke direktori backend
 cd backend
-# Jalankan server Go
+# Eksekusi server API
 go run cmd/api/main.go
-Panel Kanan (Frontend React/Vite)
-Bash
+```
 
-# Pindah ke direktori frontend
+#### Panel 2: Frontend (React/Vite Development)
+
+```bash
+# Navigasi ke direktori frontend
 cd frontend
 # Jalankan development server
 npm run dev
-4. Melepaskan Sesi (Detach)
-Setelah kedua server berjalan, lepaskan diri dari sesi tmux tanpa menghentikan proses:
+```
 
-Tekan Ctrl+b (prefix default).
+### 4\. Melepaskan Sesi (Detach)
 
-Lepaskan, lalu tekan: d (detach).
+Lepaskan diri dari sesi `tmux` tanpa menghentikan proses yang sedang berjalan:
 
-Anda akan melihat notifikasi [detached (from session skoola)] dan dapat menutup koneksi SSH Anda. Proses server tetap aktif.
+1.  Tekan **`Ctrl+b`** (*prefix* default).
+2.  Lepaskan, lalu tekan: **`d`** (Detach).
 
-5. Menyambungkan Kembali Sesi (Reattach)
-Ketika Anda kembali masuk ke server, sambungkan kembali ke sesi yang sudah berjalan:
+Sistem akan menampilkan konfirmasi `[detached (from session skoola)]`. Proses server kini berjalan secara persisten di *background*.
 
-Bash
+### 5\. Menyambungkan Kembali Sesi (Reattach)
 
+Ketika kembali masuk ke server, sambungkan kembali ke sesi yang telah dibuat:
+
+```bash
 tmux attach -t skoola
-Anda akan kembali ke sesi tmux dengan semua proses dan log yang sedang berjalan.
+```
+
+Anda akan dikembalikan ke status terminal dan proses yang sama persis saat sesi dilepaskan.
