@@ -69,7 +69,7 @@ Untuk memisahkan *backend* dan *frontend* dalam tampilan yang sama:
 
 ```bash
 # Navigasi ke direktori backend
-cd skoola/backend
+cd /skoola/backend
 # Eksekusi server API
 go run cmd/api/main.go
 ```
@@ -78,7 +78,7 @@ go run cmd/api/main.go
 
 ```bash
 # Navigasi ke direktori frontend
-cd skoola/frontend
+cd /skoola/frontend
 # Jalankan development server
 npm run dev
 ```
