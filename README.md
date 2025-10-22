@@ -1,84 +1,93 @@
-Install Golang
-Install Postgres
-Install Node js
-Install Npm
-Install Tmux
-Install git
+⚙️ Proyek Monorepo: Setup Lingkungan & Pengembangan
+Dokumen ini memuat panduan langkah demi langkah untuk menyiapkan lingkungan pengembangan (Backend Go & Frontend React/Vite) pada sistem operasi Debian, termasuk penggunaan tmux untuk mengelola proses background.
+
+I. Prasyarat Sistem & Dependensi
+Pastikan dependensi utama berikut telah terinstal pada sistem Anda:
+
+Go (Golang): Bahasa pemrograman untuk backend.
+
+PostgreSQL: Basis data utama.
+
+Node.js & npm: Lingkungan runtime dan manajer paket untuk frontend.
+
+Git: Sistem kontrol versi.
+
+Tmux: Terminal multiplexer untuk mengelola sesi.
+
+Instalasi (Contoh Perintah)
+Bash
+
+# Instalasi (Sesuaikan dengan metode instalasi resmi/preferensi Anda)
+# 
+# Golang
+# ...
+# PostgreSQL
+# ...
+# Node.js/npm
+# ...
+# Tmux
+# sudo apt install tmux
+# Git
+# sudo apt install git
+II. Setup Proyek
+Setelah repository dikloning, instal dependensi JavaScript pada frontend:
+
+Bash
+
+# Pindah ke direktori proyek
+cd /path/to/your/project
+# Instal dependensi frontend
 npm install
+# Instal dependensi React Query
 npm install @tanstack/react-query @tanstack/react-query-devtools
+🚀 Panduan Penggunaan Tmux (Sesi Persisten)
+Tmux digunakan untuk memastikan proses server (backend dan frontend) tetap berjalan di background meskipun koneksi SSH terputus (detach).
 
+Penting: Jangan pernah menggunakan exit di dalam panel tmux jika Anda ingin server tetap berjalan. Selalu gunakan mekanisme Detach.
 
-Ketika Anda menggunakan `tmux` dan menjalankan server di dalamnya, lalu Anda mengetikkan `exit` di dalam salah satu panel atau jendela, proses yang berjalan di panel tersebut **akan terhenti** (karena `exit` menghentikan *shell* yang menjalankan proses server Anda).
+1. Memulai Sesi Baru
+Mulai sesi tmux baru dengan nama (misalnya skoola):
 
-Tujuan utama menggunakan **tmux** adalah agar Anda bisa **melepaskan diri (detach)** dari sesi terminal, tetapi membiarkan proses di dalamnya (server *backend* dan *frontend*) **tetap berjalan di *background***.
+Bash
 
-Berikut adalah panduan yang benar untuk menjalankan server Go dan Node.js/Vite di dalam `tmux` tanpa menghentikannya saat Anda menutup koneksi SSH:
-
------
-
-## 🚀 Panduan Menggunakan tmux (Detach & Reattach)
-
-Asumsikan Anda sudah masuk ke server Debian Anda via SSH.
-
-### 1\. Memulai Sesi tmux
-
-Jalankan perintah ini untuk memulai sesi `tmux` baru (Anda bisa memberi nama sesinya, misal `skoola`).
-
-```bash
 tmux new -s skoola
-```
+2. Konfigurasi Panel (Opsional)
+Untuk memisahkan backend dan frontend dalam satu jendela:
 
-### 2\. Menyiapkan Panel (Opsional, tapi Direkomendasikan)
+Tekan Ctrl+b (prefix default).
 
-Setelah sesi dimulai, Anda dapat membagi jendela menjadi dua panel (satu untuk *backend* dan satu untuk *frontend*):
+Lepaskan, lalu tekan: % (Membagi panel secara vertikal).
 
-1.  Tekan kombinasi tombol: **`Ctrl+b`** (ini adalah *prefix* default)
-2.  Lepaskan, lalu tekan: **`%`** (Ini akan membagi jendela secara vertikal).
-3.  Pindah ke panel baru (jika perlu): **`Ctrl+b`** lalu **`[Panah Kiri/Kanan]`**
+Pindah antar panel: Ctrl+b lalu [Panah Kiri/Kanan].
 
-### 3\. Menjalankan Server Anda
+3. Menjalankan Server
+Panel Kiri (Backend Go)
+Bash
 
-Di Panel Kiri (**Backend Go**):
-
-```bash
 # Pindah ke direktori backend
 cd backend
-# Jalankan server Go Anda
+# Jalankan server Go
 go run cmd/api/main.go
-```
+Panel Kanan (Frontend React/Vite)
+Bash
 
-Di Panel Kanan (**Frontend React/Vite**):
-
-```bash
 # Pindah ke direktori frontend
 cd frontend
-# Pastikan dependensi sudah terinstal (hanya jika belum)
-# npm install 
 # Jalankan development server
 npm run dev
-```
+4. Melepaskan Sesi (Detach)
+Setelah kedua server berjalan, lepaskan diri dari sesi tmux tanpa menghentikan proses:
 
-### 4\. Melepaskan Sesi (Detach) - Server Tetap Berjalan\!
+Tekan Ctrl+b (prefix default).
 
-Setelah kedua server berjalan dan menampilkan *log* di panel masing-masing, Anda bisa keluar dari sesi `tmux` tanpa menghentikan prosesnya.
+Lepaskan, lalu tekan: d (detach).
 
-Tekan kombinasi tombol: **`Ctrl+b`** (ini adalah *prefix* default)
-Lepaskan, lalu tekan: **`d`** (untuk **d**etach)
+Anda akan melihat notifikasi [detached (from session skoola)] dan dapat menutup koneksi SSH Anda. Proses server tetap aktif.
 
-Anda akan kembali ke terminal Debian Anda dengan pesan seperti: `[detached (from session skoola)]`. Kedua server Anda **tetap berjalan**. Anda sekarang bisa menutup koneksi SSH Anda.
+5. Menyambungkan Kembali Sesi (Reattach)
+Ketika Anda kembali masuk ke server, sambungkan kembali ke sesi yang sudah berjalan:
 
-### 5\. Menyambungkan Kembali Sesi (Reattach)
+Bash
 
-Ketika Anda kembali masuk ke server Debian Anda, Anda dapat menyambungkan kembali ke sesi yang sedang berjalan:
-
-```bash
 tmux attach -t skoola
-```
-
-Anda akan kembali melihat kedua server Anda berjalan di panel yang sama persis saat Anda meninggalkannya.
-
-### ⚠️ Peringatan Penting\!
-
-  * **JANGAN** ketik `exit` di dalam panel `tmux` jika Anda ingin server tetap berjalan.
-  * Selalu gunakan **`Ctrl+b`** diikuti **`d`** untuk **Detach**.
-  * Jika Anda menggunakan `screen` (alternatif `tmux`), perintah *detach*-nya adalah **`Ctrl+a`** diikuti **`d`**.
+Anda akan kembali ke sesi tmux dengan semua proses dan log yang sedang berjalan.
