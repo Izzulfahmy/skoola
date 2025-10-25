@@ -36,7 +36,7 @@ const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 const { CheckableTag } = Tag;
 
-// --- INTERFACE & DATA DUMMY LENGKAP ---
+// --- INTERFACE & DATA DUMMY LENGKAP (TETAP SAMA) ---
 
 interface DataType {
     key: string; no: number; namaSiswa: string; nisn: string; status: 'belum_final' | 'sudah_final' | 'belum_lengkap';
@@ -388,7 +388,8 @@ const RaporPage = () => {
     );
   
     return (
-      <div>
+      // MODIFIKASI: Tambahkan `className` di sini
+      <div className="rapor-page-wrapper">
         <Breadcrumb style={{ marginBottom: 16 }}>
           <Breadcrumb.Item><Link to="/">Dashboard</Link></Breadcrumb.Item>
           <Breadcrumb.Item>Manajemen Rapor</Breadcrumb.Item>

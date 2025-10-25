@@ -1,5 +1,6 @@
 /* frontend/src/pages/RaporPage.css */
 
+/* == KODE CSS ASLI ANDA (TETAP SAMA) == */
 .rapor-container {
     background-color: #f5f5f5;
     padding: 24px;
@@ -60,5 +61,38 @@
         margin: 0;
         box-shadow: none;
         border: none;
+    }
+}
+
+/* ========================================================== */
+/* == MODIFIKASI: TAMBAHAN UNTUK SCROLL HORIZONTAL KESELURUHAN == */
+/* ========================================================== */
+
+@media (max-width: 768px) {
+    .rapor-page-wrapper {
+        /* Tentukan lebar minimum layout desktop Anda. 
+          Jika 1000px kurang lebar, ganti ke 1200px atau 1400px 
+          hingga layout desktop Anda pas.
+        */
+        min-width: 1000px;
+        
+        /* Aktifkan scroll horizontal jika lebih lebar dari layar */
+        overflow-x: auto;
+    }
+
+    /* Kita juga perlu sedikit padding agar tidak terlalu mepet 
+       ke tepi layar HP saat di-scroll
+    */
+    .rapor-page-wrapper .ant-card-body {
+        padding: 12px;
+    }
+    
+    .rapor-container {
+        padding: 12px;
+    }
+
+    .rapor-paper {
+        /* Kecilkan padding kertas di mobile agar tidak boros tempat */
+        padding: 20px;
     }
 }
