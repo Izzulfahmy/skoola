@@ -82,7 +82,8 @@ const LoginPage = () => {
 
           <Form name="login" form={form} onFinish={onFinish} layout="vertical">
             {errorMessage && (
-              <Form.Item>
+              // MODIFIKASI: Tambahkan style margin
+              <Form.Item style={{ marginBottom: '12px' }}>
                 <Alert message={errorMessage} type="error" showIcon />
               </Form.Item>
             )}
@@ -92,26 +93,32 @@ const LoginPage = () => {
                 label="ID Sekolah"
                 name="tenantId"
                 rules={[{ required: true, message: 'Harap masukkan ID Sekolah!' }]}
+                // MODIFIKASI: Tambahkan style margin
+                style={{ marginBottom: '12px' }}
               >
-                <Input prefix={<IdcardOutlined />} placeholder="Contoh: NPSN/NPYP" />
+                <Input size="large" prefix={<IdcardOutlined />} placeholder="Contoh: NPSN/NPYP" />
               </Form.Item>
             )}
             <Form.Item
               label="Email"
               name="email"
               rules={[{ required: true, message: 'Harap masukkan email Anda!', type: 'email' }]}
+              // MODIFIKASI: Tambahkan style margin
+              style={{ marginBottom: '12px' }}
             >
-              <Input prefix={<UserOutlined />} placeholder="Email" />
+              <Input size="large" prefix={<UserOutlined />} placeholder="Email" />
             </Form.Item>
             <Form.Item
               label="Password"
               name="password"
               rules={[{ required: true, message: 'Harap masukkan password Anda!' }]}
+              // MODIFIKASI: Tambahkan style margin
+              style={{ marginBottom: '12px' }}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+              <Input.Password size="large" prefix={<LockOutlined />} placeholder="Password" />
             </Form.Item>
             <Form.Item style={{ marginBottom: 0 }}>
-              <Button type="primary" htmlType="submit" style={{ width: '100%' }} loading={loading}>
+              <Button type="primary" htmlType="submit" style={{ width: '100%' }} loading={loading} size="large">
                 Masuk
               </Button>
             </Form.Item>
