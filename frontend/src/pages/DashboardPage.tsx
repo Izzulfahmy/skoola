@@ -1,4 +1,3 @@
-// file: src/pages/DashboardPage.tsx
 import { useEffect, useState } from 'react';
 import { Card, Col, Row, Spin, Statistic, Typography, Button, message, Space, List, Avatar, Empty, Divider } from 'antd';
 import { 
@@ -79,32 +78,35 @@ const DashboardPage = () => {
     fetchData();
   }, []);
 
+  // --- PERBAIKAN DI TERAPKAN DI SINI ---
+  // Path disesuaikan dengan route di App.tsx (menggunakan prefix /admin)
   const quickActions = [
     {
       icon: <ApartmentOutlined />,
       title: 'Manajemen Rombel',
       description: 'Kelola kelas, siswa, dan guru pengajar.',
-      path: '/rombel'
+      path: '/admin/rombel'
     },
     {
       icon: <TeamOutlined />,
       title: 'Manajemen Siswa',
       description: 'Tambah, edit, atau hapus data siswa.',
-      path: '/students'
+      path: '/admin/students'
     },
     {
       icon: <UserOutlined />,
       title: 'Manajemen Guru',
       description: 'Kelola data guru dan riwayat kepegawaian.',
-      path: '/teachers'
+      path: '/admin/teachers'
     },
     {
       icon: <SettingOutlined />,
       title: 'Pengaturan Sekolah',
       description: 'Profil sekolah, tingkatan, jabatan, dll.',
-      path: '/settings'
+      path: '/admin/settings'
     }
   ];
+  // --- BATAS PERBAIKAN ---
 
   if (loading) {
     return (
