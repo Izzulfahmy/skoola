@@ -43,8 +43,6 @@ const DashboardPage = () => {
           getAllTahunAjaran(),
         ]);
         
-        // --- PERBAIKAN DI SINI ---
-        // Memastikan `teachers` dan `students` adalah array sebelum mengakses length
         setStats(prev => ({
           ...prev,
           teacherCount: teachers?.length || 0,
@@ -60,7 +58,6 @@ const DashboardPage = () => {
             getAllKelasByTahunAjaran(aktif.id),
             getKurikulumByTahunAjaran(aktif.id),
           ]);
-          // Memastikan `rombelData` dan `kurikulumData` adalah array
           setStats(prev => ({
             ...prev,
             rombelCount: rombelData?.length || 0,
@@ -78,8 +75,6 @@ const DashboardPage = () => {
     fetchData();
   }, []);
 
-  // --- PERBAIKAN DI TERAPKAN DI SINI ---
-  // Path disesuaikan dengan route di App.tsx (menggunakan prefix /admin)
   const quickActions = [
     {
       icon: <ApartmentOutlined />,
@@ -106,7 +101,6 @@ const DashboardPage = () => {
       path: '/admin/settings'
     }
   ];
-  // --- BATAS PERBAIKAN ---
 
   if (loading) {
     return (
@@ -182,14 +176,19 @@ const DashboardPage = () => {
               dataSource={quickActions}
               renderItem={(item) => (
                 <List.Item
-                  actions={[<Button type="text" shape="circle" icon={<ArrowRightOutlined />} onClick={() => navigate(item.path)} />]}
+                  // --- PERBAIKAN UX DI SINI ---
+                  onClick={() => navigate(item.path)}
+                  style={{ cursor: 'pointer' }}
+                  actions={[<Button type="text" shape="circle" icon={<ArrowRightOutlined />} />]} 
+                  // onClick pada Button dihapus, karena sudah ditangani List.Item
                 >
                   <List.Item.Meta
                     avatar={<Avatar size="large" icon={item.icon} style={{ backgroundColor: '#e6f7ff', color: '#1890ff' }} />}
-                    title={<a onClick={() => navigate(item.path)}>{item.title}</a>}
+                    title={item.title} // <a> tag dan onClick-nya dihapus
                     description={item.description}
                   />
                 </List.Item>
+                // --- BATAS PERBAIKAN UX ---
               )}
             />
            </Card>
