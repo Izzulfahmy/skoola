@@ -1,6 +1,7 @@
 // file: frontend/src/pages/MataPelajaranPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { App, Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm, Typography, Tooltip, Collapse, InputNumber, Spin, Flex, Tag } from 'antd';
+// --- 1. 'Tooltip' dihapus dari import di bawah ---
+import { App, Button, message, Modal, Table, Alert, Form, Input, Space, Popconfirm, Typography, Collapse, InputNumber, Spin, Flex, Tag } from 'antd';
 import type { TableProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { createMataPelajaran, updateMataPelajaran, deleteMataPelajaran, updateUrutanMataPelajaran } from '../api/mataPelajaran';
@@ -21,11 +22,11 @@ const useWindowSize = () => {
 };
 
 interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
-	'data-row-key': string;
+  'data-row-key': string;
 }
 
 const DraggableRow = ({ className, ...props }: DraggableRowProps) => {
-	return <tr {...props} className={`${className} draggable-row`} style={{ cursor: 'move' }} />;
+  return <tr {...props} className={`${className} draggable-row`} style={{ cursor: 'move' }} />;
 };
 
 
@@ -56,9 +57,6 @@ const MataPelajaranPageContent = () => {
     setLoading(true);
     try {
       const data = await getAllKelompokMapel();
-      // --- PERBAIKAN UTAMA DI SINI ---
-      // Memastikan setiap kelompok dan mata pelajaran memiliki array `children` dan `mata_pelajaran`
-      // untuk mencegah error saat data kosong.
       const sanitizedData = (data || []).map(kelompok => ({
         ...kelompok,
         mata_pelajaran: (kelompok.mata_pelajaran || []).map(mp => ({
@@ -92,38 +90,38 @@ const MataPelajaranPageContent = () => {
 
   const onRow = (record: MataPelajaran): React.HTMLAttributes<HTMLElement> => ({
     draggable: true,
-	className: dropIndicator?.id === record.id ? `drop-indicator-${dropIndicator.position}` : '',
+  className: dropIndicator?.id === record.id ? `drop-indicator-${dropIndicator.position}` : '',
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.setData('text/plain', record.id);
     },
-	onDragLeave: () => {
-		setDropIndicator(null);
-	},
+  onDragLeave: () => {
+    setDropIndicator(null);
+  },
     onDragOver: (e: React.DragEvent) => {
       e.preventDefault();
-	  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const midY = rect.top + rect.height / 2;
       const position = e.clientY < midY ? 'top' : 'bottom';
       setDropIndicator({ id: record.id, position });
     },
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
-	  setDropIndicator(null);
+    setDropIndicator(null);
       const dragId = e.dataTransfer.getData('text/plain');
       const dropId = record.id;
   
       if (dragId === dropId) return;
   
       const findItem = (id: string, list: KelompokMataPelajaran[]): {item?: MataPelajaran, parent?: MataPelajaran, kelompok?: KelompokMataPelajaran} => {
-		for (const kelompok of list) {
-			for (const parent of kelompok.mata_pelajaran) {
-				if (parent.id === id) return { item: parent, kelompok };
-				if (parent.children) {
-					const child = parent.children.find(c => c.id === id);
-					if (child) return { item: child, parent, kelompok };
-				}
-			}
-		}
+    for (const kelompok of list) {
+      for (const parent of kelompok.mata_pelajaran) {
+        if (parent.id === id) return { item: parent, kelompok };
+        if (parent.children) {
+          const child = parent.children.find(c => c.id === id);
+          if (child) return { item: child, parent, kelompok };
+        }
+      }
+    }
         return {};
       };
       
@@ -138,19 +136,19 @@ const MataPelajaranPageContent = () => {
       const originalList = [...kelompokList];
 
       const reorder = (list: MataPelajaran[]): MataPelajaran[] => {
-		let dragIndex = list.findIndex(item => item.id === dragId);
-		let dropIndex = list.findIndex(item => item.id === dropId);
-		
-		const newList = [...list];
-		const [reorderedItem] = newList.splice(dragIndex, 1);
-		
-		dropIndex = newList.findIndex(item => item.id === dropId);
+    let dragIndex = list.findIndex(item => item.id === dragId);
+    let dropIndex = list.findIndex(item => item.id === dropId);
+    
+    const newList = [...list];
+    const [reorderedItem] = newList.splice(dragIndex, 1);
+    
+    dropIndex = newList.findIndex(item => item.id === dropId);
 
-		if (dropIndicator?.position === 'top') {
-			newList.splice(dropIndex, 0, reorderedItem);
-		} else {
-			newList.splice(dropIndex + 1, 0, reorderedItem);
-		}
+    if (dropIndicator?.position === 'top') {
+      newList.splice(dropIndex, 0, reorderedItem);
+    } else {
+      newList.splice(dropIndex + 1, 0, reorderedItem);
+    }
         
         handleDragEnd(newList, originalList);
         return newList;
@@ -158,10 +156,10 @@ const MataPelajaranPageContent = () => {
       
       setKelompokList(prev => prev.map(kelompok => {
         if (dragParent && kelompok.id === dragKelompok?.id) {
-			const newMataPelajaran = kelompok.mata_pelajaran.map(mp => 
-				mp.id === dragParent.id ? {...mp, children: reorder(mp.children || [])} : mp
-			)
-			return { ...kelompok, mata_pelajaran: newMataPelajaran };
+      const newMataPelajaran = kelompok.mata_pelajaran.map(mp => 
+        mp.id === dragParent.id ? {...mp, children: reorder(mp.children || [])} : mp
+      )
+      return { ...kelompok, mata_pelajaran: newMataPelajaran };
         }
         if (!dragParent && kelompok.id === dragKelompok?.id) {
           return { ...kelompok, mata_pelajaran: reorder(kelompok.mata_pelajaran) };
@@ -174,7 +172,7 @@ const MataPelajaranPageContent = () => {
   const showMapelModal = (mapel: MataPelajaran | null, parent?: MataPelajaran, kelompok?: KelompokMataPelajaran) => {
     setEditingMapel(mapel);
     setParentMapel(parent || null);
-	setCurrentKelompok(kelompok || null);
+  setCurrentKelompok(kelompok || null);
     
     mapelForm.setFieldsValue({
       ...mapel,
@@ -186,7 +184,7 @@ const MataPelajaranPageContent = () => {
     setIsMapelModalOpen(false);
     setEditingMapel(null);
     setParentMapel(null);
-	setCurrentKelompok(null);
+  setCurrentKelompok(null);
     mapelForm.resetFields();
   };
 
@@ -216,39 +214,39 @@ const MataPelajaranPageContent = () => {
   };
 
   const showKelompokModal = (kelompok: KelompokMataPelajaran | null) => {
-	setEditingKelompok(kelompok);
-	if (kelompok) {
-		kelompokForm.setFieldsValue(kelompok);
-	} else {
-		const nextUrutan = kelompokList.length > 0 ? Math.max(...kelompokList.map(k => k.urutan || 0)) + 1 : 1;
-		kelompokForm.setFieldsValue({ nama_kelompok: '', urutan: nextUrutan });
-	}
-	setIsKelompokModalOpen(true);
+  setEditingKelompok(kelompok);
+  if (kelompok) {
+    kelompokForm.setFieldsValue(kelompok);
+  } else {
+    const nextUrutan = kelompokList.length > 0 ? Math.max(...kelompokList.map(k => k.urutan || 0)) + 1 : 1;
+    kelompokForm.setFieldsValue({ nama_kelompok: '', urutan: nextUrutan });
+  }
+  setIsKelompokModalOpen(true);
   };
 
   const handleKelompokCancel = () => {
-	setIsKelompokModalOpen(false);
-	setEditingKelompok(null);
-	kelompokForm.resetFields();
+  setIsKelompokModalOpen(false);
+  setEditingKelompok(null);
+  kelompokForm.resetFields();
   }
 
   const handleKelompokFinish = async (values: UpsertKelompokMataPelajaranInput) => {
-	setIsKelompokSubmitting(true);
-	try {
-		if (editingKelompok) {
-			await updateKelompokMapel(editingKelompok.id, values);
-			message.success('Kelompok berhasil diperbarui!');
-		} else {
-			await createKelompokMapel(values);
-			message.success('Kelompok baru berhasil ditambahkan!');
-		}
-		handleKelompokCancel();
+  setIsKelompokSubmitting(true);
+  try {
+    if (editingKelompok) {
+      await updateKelompokMapel(editingKelompok.id, values);
+      message.success('Kelompok berhasil diperbarui!');
+    } else {
+      await createKelompokMapel(values);
+      message.success('Kelompok baru berhasil ditambahkan!');
+    }
+    handleKelompokCancel();
         fetchData();
-	} catch (error) {
-		message.error('Gagal menyimpan kelompok.');
-	} finally {
-		setIsKelompokSubmitting(false);
-	}
+  } catch (error) {
+    message.error('Gagal menyimpan kelompok.');
+  } finally {
+    setIsKelompokSubmitting(false);
+  }
   }
 
   const handleDelete = async (id: string) => {
@@ -262,107 +260,106 @@ const MataPelajaranPageContent = () => {
   };
 
   const handleDeleteKelompok = async (id: number) => {
-	try {
-		await deleteKelompokMapel(id);
-		message.success('Kelompok berhasil dihapus!');
+  try {
+    await deleteKelompokMapel(id);
+    message.success('Kelompok berhasil dihapus!');
         fetchData();
-	  } catch (err: any) {
-		message.error(err.response?.data || 'Gagal menghapus kelompok.');
-	  }
+    } catch (err: any) {
+    message.error(err.response?.data || 'Gagal menghapus kelompok.');
+    }
   }
   
   const renderMapelTable = (mapelData: MataPelajaran[], kelompok: KelompokMataPelajaran) => {
-	const columns: TableProps<MataPelajaran>['columns'] = [
-		{
-		  title: 'Nama Mata Pelajaran',
-		  dataIndex: 'nama_mapel',
-		  key: 'nama_mapel',
-		  render: (text) => (
-			<Flex>
-				<Text>{text}</Text>
-			</Flex>
-		  ),
-		},
-		{
-		  title: 'Kode',
-		  dataIndex: 'kode_mapel',
-		  key: 'kode_mapel',
-		  width: 100,
-		  align: 'center',
+  const columns: TableProps<MataPelajaran>['columns'] = [
+    {
+      title: 'Nama Mata Pelajaran',
+      dataIndex: 'nama_mapel',
+      key: 'nama_mapel',
+      render: (text) => (
+      <Flex>
+        <Text>{text}</Text>
+      </Flex>
+      ),
+    },
+    {
+      title: 'Kode',
+      dataIndex: 'kode_mapel',
+      key: 'kode_mapel',
+      width: 100,
+      align: 'center',
           responsive: ['sm'],
-		  render: (text) => <Tag>{text}</Tag>
-		},
-		{
-		  title: 'Aksi',
-		  key: 'action',
-		  align: 'center',
-		  width: isMobile ? 120 : 150,
-		  render: (_, record) => (
-			<Space>
-			  {!record.parent_id && (
-				<Tooltip title="Tambah Turunan">
-				  <Button shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, record, kelompok)} />
-				</Tooltip>
-			  )}
-			  <Tooltip title="Edit">
-				<Button shape="circle" icon={<EditOutlined />} onClick={() => showMapelModal(record, undefined, kelompok)} />
-			  </Tooltip>
-			  <Popconfirm
-				title="Hapus Mata Pelajaran?"
-				description={record.children && record.children.length > 0 ? "Menghapus ini akan membuat turunannya menjadi mapel mandiri." : "Apakah Anda yakin?"}
-				onConfirm={() => handleDelete(record.id)}
-				okText="Ya, Hapus"
-				cancelText="Batal"
-			  >
-				<Tooltip title="Hapus">
-				  <Button danger shape="circle" icon={<DeleteOutlined />} />
-				</Tooltip>
-			  </Popconfirm>
-			</Space>
-		  ),
-		},
-	];
+      render: (text) => <Tag>{text}</Tag>
+    },
+    {
+      title: 'Aksi',
+      key: 'action',
+      align: 'center',
+      width: isMobile ? 120 : 150,
+      render: (_, record) => (
+      <Space>
+        {/* --- 2. PERBAIKAN DI SINI: <Tooltip> dihapus --- */}
+        {!record.parent_id && (
+          <Button shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, record, kelompok)} />
+        )}
+        
+        {/* --- 2. PERBAIKAN DI SINI: <Tooltip> dihapus --- */}
+        <Button shape="circle" icon={<EditOutlined />} onClick={() => showMapelModal(record, undefined, kelompok)} />
 
-	return (
-		<Table
-			components={{
-				body: { row: DraggableRow },
-			}}
-			columns={columns}
-			dataSource={mapelData}
-			rowKey="id"
-			pagination={false}
-			size="small"
-			expandable={{
-				childrenColumnName: 'children',
-				expandRowByClick: true,
-				defaultExpandAllRows: true,
-			}}
+        <Popconfirm
+        title="Hapus Mata Pelajaran?"
+        description={record.children && record.children.length > 0 ? "Menghapus ini akan membuat turunannya menjadi mapel mandiri." : "Apakah Anda yakin?"}
+        onConfirm={() => handleDelete(record.id)}
+        okText="Ya, Hapus"
+        cancelText="Batal"
+        >
+          {/* --- 2. PERBAIKAN DI SINI: <Tooltip> dihapus --- */}
+          <Button danger shape="circle" icon={<DeleteOutlined />} />
+        </Popconfirm>
+      </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      components={{
+        body: { row: DraggableRow },
+      }}
+      columns={columns}
+      dataSource={mapelData}
+      rowKey="id"
+      pagination={false}
+      size="small"
+      expandable={{
+        childrenColumnName: 'children',
+        expandRowByClick: true,
+        defaultExpandAllRows: true,
+      }}
             onRow={onRow}
-			showHeader={false}
-		/>
-	)
+      showHeader={false}
+    />
+  )
   }
 
   const collapseItems = kelompokList.map(kelompok => ({
-	key: kelompok.id,
-	label: <Title level={5}>{kelompok.nama_kelompok}</Title>,
-	children: renderMapelTable(kelompok.mata_pelajaran, kelompok),
-	extra: (
-		<Space onClick={(e) => e.stopPropagation()}>
-			<Tooltip title="Tambah Mata Pelajaran ke Kelompok Ini">
-				<Button size="small" type="primary" shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, undefined, kelompok)} />
-			</Tooltip>
-			{kelompok.id !== 0 && (
-				<>
-					<Button size="small" type="text" icon={<EditOutlined />} onClick={() => showKelompokModal(kelompok)} />
-					<Popconfirm title="Hapus Kelompok?" onConfirm={() => handleDeleteKelompok(kelompok.id)}>
-						<Button size="small" type="text" danger icon={<DeleteOutlined />} />
-					</Popconfirm>
-				</>
-			)}
-		</Space>
-	),
+  key: kelompok.id,
+  label: <Title level={5}>{kelompok.nama_kelompok}</Title>,
+  children: renderMapelTable(kelompok.mata_pelajaran, kelompok),
+  extra: (
+    <Space onClick={(e) => e.stopPropagation()}>
+      {/* --- 3. PERBAIKAN DI SINI: <Tooltip> dihapus --- */}
+      <Button size="small" type="primary" shape="circle" icon={<PlusOutlined />} onClick={() => showMapelModal(null, undefined, kelompok)} />
+
+      {kelompok.id !== 0 && (
+        <>
+          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => showKelompokModal(kelompok)} />
+          <Popconfirm title="Hapus Kelompok?" onConfirm={() => handleDeleteKelompok(kelompok.id)}>
+            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </>
+      )}
+    </Space>
+  ),
   }));
 
   if (error) {
@@ -376,9 +373,9 @@ const MataPelajaranPageContent = () => {
           <Button type="primary" onClick={() => showKelompokModal(null)}>Tambah Kelompok</Button>
       </Flex>
 
-	  {loading ? <Spin /> : (
-		<Collapse ghost defaultActiveKey={kelompokList.map(k => k.id)} items={collapseItems} />
-	  )}
+    {loading ? <Spin /> : (
+    <Collapse ghost defaultActiveKey={kelompokList.map(k => k.id)} items={collapseItems} />
+    )}
 
       <Modal
         title={editingMapel ? 'Edit Mata Pelajaran' : (parentMapel ? `Tambah Turunan dari ${parentMapel.nama_mapel}` : 'Tambah Mata Pelajaran Baru')}
@@ -403,28 +400,28 @@ const MataPelajaranPageContent = () => {
         </Form>
       </Modal>
 
-	  <Modal
+    <Modal
         title={editingKelompok ? 'Edit Kelompok' : 'Tambah Kelompok Baru'}
         open={isKelompokModalOpen}
         onCancel={handleKelompokCancel}
         footer={null}
         destroyOnClose
       >
-		<Form form={kelompokForm} layout="vertical" onFinish={handleKelompokFinish} style={{ marginTop: 24 }}>
-			<Form.Item name="nama_kelompok" label="Nama Kelompok" rules={[{ required: true }]}>
-				<Input placeholder="Contoh: Mata Pelajaran Umum"/>
-			</Form.Item>
-			<Form.Item name="urutan" label="Nomor Urut">
-				<InputNumber placeholder="Untuk mengurutkan tampilan" style={{ width: '100%' }} />
-			</Form.Item>
-			<Form.Item style={{ textAlign: 'right', marginTop: 24, marginBottom: 0 }}>
-				<Button onClick={handleKelompokCancel} style={{ marginRight: 8 }}>Batal</Button>
-				<Button type="primary" htmlType="submit" loading={isKelompokSubmitting}>
-				Simpan
-				</Button>
-			</Form.Item>
-		</Form>
-	  </Modal>
+    <Form form={kelompokForm} layout="vertical" onFinish={handleKelompokFinish} style={{ marginTop: 24 }}>
+      <Form.Item name="nama_kelompok" label="Nama Kelompok" rules={[{ required: true }]}>
+        <Input placeholder="Contoh: Mata Pelajaran Umum"/>
+      </Form.Item>
+      <Form.Item name="urutan" label="Nomor Urut">
+        <InputNumber placeholder="Untuk mengurutkan tampilan" style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item style={{ textAlign: 'right', marginTop: 24, marginBottom: 0 }}>
+        <Button onClick={handleKelompokCancel} style={{ marginRight: 8 }}>Batal</Button>
+        <Button type="primary" htmlType="submit" loading={isKelompokSubmitting}>
+        Simpan
+        </Button>
+      </Form.Item>
+    </Form>
+    </Modal>
 
     </div>
   );
