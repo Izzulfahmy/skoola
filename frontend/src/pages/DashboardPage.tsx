@@ -129,7 +129,7 @@ const DashboardPage = () => {
       >
         <Col xs={24} md={16}>
           <Title level={2} style={{ margin: 0 }}>Selamat Datang</Title>
-          <Text type="secondary">Ringkasan utama untuk {schoolName}.</Text>
+          <Text type="secondary">Ringkasan utama untuk {schoolName}</Text>
         </Col>
         <Col xs={24} md={8}>
           {activeTahunAjaran ? (
