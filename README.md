@@ -98,6 +98,8 @@ Ketika kembali masuk ke server, sambungkan kembali ke sesi yang telah dibuat:
 
 ```bash
 tmux attach -t skoola
+
+git pull
 ```
 
 Anda akan dikembalikan ke status terminal dan proses yang sama persis saat sesi dilepaskan.
