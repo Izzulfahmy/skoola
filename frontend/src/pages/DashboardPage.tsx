@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Spin, Statistic, Typography, Button, message, Space, List, Avatar, Empty, Divider } from 'antd';
+// 1. Impor 'Grid' dari antd
+import { Card, Col, Row, Spin, Statistic, Typography, message, Space, List, Avatar, Empty, Tag, Grid } from 'antd';
 import { 
   UserOutlined, 
   TeamOutlined, 
@@ -20,9 +21,14 @@ import { getKurikulumByTahunAjaran } from '../api/kurikulum';
 import type { TahunAjaran } from '../types';
 
 const { Title, Text } = Typography;
+// 2. Deklarasikan hook useBreakpoint
+const { useBreakpoint } = Grid;
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  // 3. Gunakan hook di dalam komponen
+  const screens = useBreakpoint(); 
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ 
     teacherCount: 0, 
@@ -65,7 +71,8 @@ const DashboardPage = () => {
           }));
         }
 
-      } catch (error) {
+      } catch (error)
+ {
         message.error('Gagal memuat data dasbor. Silakan coba lagi.');
       } finally {
         setLoading(false);
@@ -104,7 +111,7 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin size="large" />
       </div>
     );
@@ -112,83 +119,106 @@ const DashboardPage = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div>
-        <Title level={2}>Selamat Datang di Dasbor</Title>
-        <Text type="secondary">Ini adalah ringkasan untuk {schoolName}.</Text>
-      </div>
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-            <Card title="Statistik Utama">
-                <Row>
-                    <Col xs={12} sm={12}>
-                        <Statistic
-                          title="Total Guru"
-                          value={stats.teacherCount}
-                          prefix={<UserOutlined />}
-                        />
-                    </Col>
-                    <Col xs={12} sm={12}>
-                        <Statistic
-                          title="Total Siswa"
-                          value={stats.studentCount}
-                          prefix={<TeamOutlined />}
-                        />
-                    </Col>
-                </Row>
-            </Card>
+      
+      {/* 1. Header Halaman (Responsif) */}
+      <Row 
+        justify="space-between" 
+        align="middle" 
+        style={{ marginBottom: 16 }}
+        gutter={[16, 16]}
+      >
+        <Col xs={24} md={16}>
+          <Title level={2} style={{ margin: 0 }}>Selamat Datang</Title>
+          <Text type="secondary">Ringkasan utama untuk {schoolName}.</Text>
         </Col>
-
-        <Col xs={24} lg={12}>
-            <Card title="Tahun Ajaran Aktif">
-                <Statistic
-                  value={activeTahunAjaran ? `${activeTahunAjaran.nama_tahun_ajaran} - ${activeTahunAjaran.semester}` : 'Tidak Ada'}
-                  prefix={<CalendarOutlined />}
-                  valueStyle={{marginBottom: 16}}
-                />
-                <Divider style={{margin: '12px 0'}}/>
-                <Row>
-                    <Col span={12}>
-                        <Statistic
-                          title="Jumlah Rombel"
-                          value={stats.rombelCount}
-                          prefix={<ApartmentOutlined />}
-                        />
-                    </Col>
-                     <Col span={12}>
-                        <Statistic
-                          title="Kurikulum"
-                          value={stats.kurikulumCount}
-                          prefix={<ReadOutlined />}
-                        />
-                    </Col>
-                </Row>
-            </Card>
+        <Col xs={24} md={8}>
+          {activeTahunAjaran ? (
+            <Space 
+              direction="vertical" 
+              // 4. TERAPKAN PERBAIKAN DI SINI
+              // Jika layar 'md' (medium) atau lebih besar, align 'end' (kanan)
+              // Jika tidak (layar 'xs' atau 'sm'), align 'start' (kiri)
+              align={screens.md ? 'end' : 'start'}
+              size={0} 
+              style={{ width: '100%' }}
+            >
+              <Text strong>Tahun Ajaran Aktif</Text>
+              <Tag icon={<CalendarOutlined />} color="success">
+                {activeTahunAjaran.nama_tahun_ajaran} - {activeTahunAjaran.semester}
+              </Tag>
+            </Space>
+          ) : (
+             // Pastikan tag ini juga rata kiri di mobile
+            <div style={{ textAlign: screens.md ? 'right' : 'left' }}>
+              <Tag color="error">Tahun Ajaran Belum Diatur</Tag>
+            </div>
+          )}
         </Col>
       </Row>
 
-      {/* --- BAGIAN AKSES CEPAT YANG DIPERBARUI --- */}
+      {/* 2. Baris Statistik KPI */}
+      <Row gutter={[16, 16]}>
+        <Col xs={12} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
+              title="Total Guru"
+              value={stats.teacherCount}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#3f8600' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
+              title="Total Siswa"
+              value={stats.studentCount}
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
+              title="Jumlah Rombel"
+              value={stats.rombelCount}
+              prefix={<ApartmentOutlined />}
+              valueStyle={{ color: '#d46b08' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
+              title="Kurikulum Aktif"
+              value={stats.kurikulumCount}
+              prefix={<ReadOutlined />}
+              valueStyle={{ color: '#cf1322' }}
+            />
+          </Card>
+        </Col>
+      </Row> 
+
+      {/* 3. Baris Konten (Akses Cepat & Aktivitas) */}
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
-           <Card title="Akses Cepat">
+           <Card title="Akses Cepat" style={{ height: '100%' }}>
             <List
               itemLayout="horizontal"
               dataSource={quickActions}
               renderItem={(item) => (
                 <List.Item
-                  // --- PERBAIKAN UX DI SINI ---
                   onClick={() => navigate(item.path)}
-                  style={{ cursor: 'pointer' }}
-                  actions={[<Button type="text" shape="circle" icon={<ArrowRightOutlined />} />]} 
-                  // onClick pada Button dihapus, karena sudah ditangani List.Item
+                  style={{ cursor: 'pointer', padding: '12px 0' }}
+                  actions={[<ArrowRightOutlined />]}
                 >
                   <List.Item.Meta
                     avatar={<Avatar size="large" icon={item.icon} style={{ backgroundColor: '#e6f7ff', color: '#1890ff' }} />}
-                    title={item.title} // <a> tag dan onClick-nya dihapus
+                    title={<Text strong>{item.title}</Text>}
                     description={item.description}
                   />
                 </List.Item>
-                // --- BATAS PERBAIKAN UX ---
               )}
             />
            </Card>
