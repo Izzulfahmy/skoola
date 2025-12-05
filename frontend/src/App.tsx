@@ -98,10 +98,9 @@ const App: React.FC = () => {
             <Route path="biodata" element={<TeacherBiodataPage />} />
             <Route path="kelas-saya" element={<KelasSayaPage />} />
             
-            {/* PERBAIKAN DI SINI: Hapus parameter :pengajarKelasID agar bisa diakses langsung */}
+            {/* Routes Materi Ajar & Penilaian tanpa parameter ID */}
             <Route path="materi-ajar" element={<MateriAjarPage />} />
-            
-            <Route path="penilaian/:pengajarKelasID/:kelasID" element={<PenilaianPage />} />
+            <Route path="penilaian" element={<PenilaianPage />} />
           </Route>
 
           {/* Superadmin Routes */}

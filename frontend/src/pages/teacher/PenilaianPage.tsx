@@ -1,103 +1,169 @@
 // frontend/src/pages/teacher/PenilaianPage.tsx
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import {
   Typography,
-  Breadcrumb,
   Card,
-  Spin,
-  message,
-  Button,
-  Empty
+  Select,
+  Row,
+  Col,
+  Alert,
+  Empty,
+  Button
+  // Space dihapus karena tidak digunakan
 } from 'antd';
-import { HomeOutlined, BookOutlined, EditOutlined } from '@ant-design/icons';
+import { EditOutlined, SaveOutlined } from '@ant-design/icons';
 
-// --- MENGGUNAKAN FUNGSI DAN TIPE YANG BENAR DARI FILE ANDA ---
-import { getPenilaianLengkap, upsertNilaiBulk } from '../../api/penilaian';
-import { useAuth } from '../../context/AuthContext';
-import type { FullPenilaianData, RencanaPembelajaranItem, BulkUpsertNilaiInput } from '../../types';
+// API
+import { getMyClasses } from '../../api/teachers';
+import { getAllPengajarByKelas } from '../../api/rombel';
+
+// Types & Components
+import type { Kelas, PengajarKelas } from '../../types';
+import PenilaianPanel, { type PenilaianPanelRef, type ViewMode } from '../../components/PenilaianPanel';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 const PenilaianPage = () => {
-  const { kelasID, pengajarKelasID } = useParams<{ kelasID: string, pengajarKelasID: string }>();
-  
-  const [penilaianData, setPenilaianData] = useState<FullPenilaianData | null>(null);
-  const [rencanaPembelajaran, setRencanaPembelajaran] = useState<RencanaPembelajaranItem[]>([]);
+  // State untuk Dropdown
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [myClasses, setMyClasses] = useState<Kelas[]>([]);
+  const [selectedKelasId, setSelectedKelasId] = useState<string | null>(null);
+  
+  const [pengajarList, setPengajarList] = useState<PengajarKelas[]>([]);
+  const [selectedPengajarId, setSelectedPengajarId] = useState<string | null>(null);
+  
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('rata-rata');
 
+  // Ref untuk memanggil fungsi save di dalam PenilaianPanel
+  const panelRef = useRef<PenilaianPanelRef>(null);
+
+  // 1. Ambil Data Kelas saat component mount
   useEffect(() => {
-    if (kelasID && pengajarKelasID) {
-      const loadPenilaianData = async () => {
+    const fetchClasses = async () => {
+      try {
+        const classesData = await getMyClasses();
+        setMyClasses(classesData || []);
+      } catch (err) {
+        setError('Gagal memuat daftar kelas Anda.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClasses();
+  }, []);
+
+  // 2. Ambil Data Mapel saat Kelas dipilih
+  useEffect(() => {
+    if (selectedKelasId) {
+      const fetchPengajar = async () => {
         setLoading(true);
+        setSelectedPengajarId(null); // Reset pilihan mapel
         try {
-          const response = await getPenilaianLengkap(kelasID, pengajarKelasID);
-          setPenilaianData(response.penilaian);
-          setRencanaPembelajaran(response.rencana);
-        } catch (error) {
-          message.error('Gagal memuat data penilaian lengkap untuk kelas ini.');
-          console.error(error);
+          const pengajarData = await getAllPengajarByKelas(selectedKelasId);
+          setPengajarList(pengajarData || []);
+        } catch (err) {
+          setError('Gagal memuat daftar mata pelajaran.');
         } finally {
           setLoading(false);
         }
       };
-      loadPenilaianData();
+      fetchPengajar();
+    } else {
+      setPengajarList([]);
+      setSelectedPengajarId(null);
     }
-  }, [kelasID, pengajarKelasID]);
+  }, [selectedKelasId]);
 
-  const handleSave = async () => {
-    if (!penilaianData) {
-        // --- PERBAIKAN DI SINI ---
-        message.warning('Tidak ada data untuk disimpan.');
-        return;
-    }
-    
-    // Logika untuk mengumpulkan data nilai yang diubah (jika ada tabel input)
-    // Untuk saat ini, kita simulasikan payload kosong karena UI input belum ada
-    const payload: BulkUpsertNilaiInput = {
-        nilai_formatif: [],
-        nilai_sumatif: [],
-    };
-
-    message.loading({ content: 'Menyimpan data...', key: 'upsert' });
-    try {
-        await upsertNilaiBulk(payload);
-        message.success({ content: 'Data berhasil disimpan!', key: 'upsert', duration: 2 });
-    } catch (error) {
-        message.error({ content: 'Gagal menyimpan data.', key: 'upsert', duration: 2 });
+  // Fungsi Wrapper untuk tombol Save di luar panel
+  const triggerSave = () => {
+    if (panelRef.current) {
+      panelRef.current.handleSave();
     }
   };
+
+  if (error) {
+    return <Alert message="Error" description={error} type="error" showIcon />;
+  }
   
   return (
-    <Spin spinning={loading}>
-      <Title level={2}><EditOutlined /> Penilaian Siswa</Title>
-      
-      <Breadcrumb style={{ marginBottom: 16 }}>
-          <Breadcrumb.Item><Link to="/teacher"><HomeOutlined /></Link></Breadcrumb.Item>
-          <Breadcrumb.Item><Link to="/teacher/kelas-saya"><BookOutlined /><span> Kelas Saya</span></Link></Breadcrumb.Item>
-          <Breadcrumb.Item>Penilaian</Breadcrumb.Item>
-      </Breadcrumb>
-      
-      <Card>
-        <Title level={4}>Data Penilaian Kelas</Title>
-        <Text>Selamat datang, {user?.name}. Halaman ini akan menampilkan data penilaian siswa.</Text>
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: 0 }}><EditOutlined /> Penilaian Siswa</Title>
+          <Text type="secondary">Pilih kelas dan mata pelajaran untuk melakukan penilaian.</Text>
+        </div>
         
-        {penilaianData && penilaianData.siswa.length > 0 ? (
-            <div style={{marginTop: 20}}>
-                <p>Berhasil memuat data untuk {penilaianData.siswa.length} siswa.</p>
-                <p>Terdapat {rencanaPembelajaran.length} item rencana pembelajaran (materi/ujian).</p>
-                {/* Di sini Anda bisa membangun tabel penilaian menggunakan data 'penilaianData' dan 'rencanaPembelajaran' */}
-            </div>
-        ) : (
-            !loading && <Empty description="Belum ada data penilaian yang ditemukan untuk kelas ini." />
+        {/* Tombol Simpan hanya muncul jika Mapel sudah dipilih */}
+        {selectedPengajarId && (
+            <Button type="primary" icon={<SaveOutlined />} onClick={triggerSave}>
+              Simpan Perubahan
+            </Button>
         )}
-        
-        <Button onClick={handleSave} type="primary" style={{marginTop: 24}}>
-          Simpan Perubahan
-        </Button>
-      </Card>
-    </Spin>
+      </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} md={8}>
+          <Text strong>1. Pilih Kelas</Text>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Pilih Kelas"
+            onChange={(val) => setSelectedKelasId(val)}
+            loading={loading}
+          >
+            {myClasses.map((c) => (
+              <Option key={c.id} value={c.id}>{c.nama_kelas}</Option>
+            ))}
+          </Select>
+        </Col>
+
+        <Col xs={24} md={8}>
+          <Text strong>2. Pilih Mata Pelajaran</Text>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Pilih Mapel"
+            onChange={(val) => setSelectedPengajarId(val)}
+            value={selectedPengajarId}
+            disabled={!selectedKelasId}
+          >
+            {pengajarList.map((p) => (
+              <Option key={p.id} value={p.id}>{p.nama_mapel}</Option>
+            ))}
+          </Select>
+        </Col>
+
+        <Col xs={24} md={8}>
+            <Text strong>3. Mode Tampilan</Text>
+            <Select 
+                style={{ width: '100%' }}
+                value={viewMode}
+                onChange={(val: ViewMode) => setViewMode(val)}
+                disabled={!selectedPengajarId}
+            >
+                <Option value="rata-rata">Ringkas (Rata-rata TP)</Option>
+                <Option value="detail">Detail (Semua Nilai)</Option>
+            </Select>
+        </Col>
+      </Row>
+
+      {/* Render Panel Penilaian jika semua sudah dipilih */}
+      <div style={{ minHeight: 400 }}>
+        {selectedKelasId && selectedPengajarId ? (
+          <PenilaianPanel 
+            ref={panelRef}
+            kelasId={selectedKelasId} 
+            pengajarKelasId={selectedPengajarId} 
+            viewMode={viewMode}
+          />
+        ) : (
+          <Empty 
+            description="Silakan pilih Kelas dan Mata Pelajaran terlebih dahulu." 
+            style={{ marginTop: 60 }} 
+          />
+        )}
+      </div>
+    </Card>
   );
 };
 

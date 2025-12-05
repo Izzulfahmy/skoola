@@ -6,7 +6,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   UserOutlined,
-  IdcardOutlined, // <-- SAYA TAMBAHKAN KEMBALI DI SINI
+  IdcardOutlined,
   ApartmentOutlined,
   BookOutlined,
   EditOutlined,
@@ -60,18 +60,14 @@ const TeacherLayout = () => {
     { type: 'divider' },
     { key: '/teacher/kelas-saya', icon: <ApartmentOutlined />, label: 'Kelas Saya' },
     { key: '/teacher/materi-ajar', icon: <BookOutlined />, label: 'Materi Ajar' },
-    { key: 'penilaian-siswa', icon: <EditOutlined />, label: 'Penilaian Siswa' },
+    // PERBAIKAN: Gunakan path rute sebagai key
+    { key: '/teacher/penilaian', icon: <EditOutlined />, label: 'Penilaian Siswa' },
   ];
   
   // --- FUNGSI NAVIGASI ---
   const handleMenuClick: MenuProps['onClick'] = (e) => {
-    let path = e.key;
-
-    if (e.key === 'penilaian-siswa') {
-      path = '/teacher/kelas-saya';
-    }
-
-    navigate(path);
+    // PERBAIKAN: Langsung navigasi ke key tanpa redirect khusus
+    navigate(e.key);
 
     // Tutup drawer jika di mode mobile
     if (isMobile) {
@@ -86,9 +82,9 @@ const TeacherLayout = () => {
   if (location.pathname === '/teacher' || location.pathname === '/teacher/') {
     activeKey = '/teacher/dashboard';
   } else if (location.pathname.startsWith('/teacher/penilaian')) {
-    activeKey = 'penilaian-siswa';
+    activeKey = '/teacher/penilaian'; // Highlight menu penilaian
   } else if (location.pathname.startsWith('/teacher/materi-ajar')) {
-    activeKey = '/teacher/materi-ajar';
+    activeKey = '/teacher/materi-ajar'; // Highlight menu materi ajar
   }
   
   const menuContent = (
