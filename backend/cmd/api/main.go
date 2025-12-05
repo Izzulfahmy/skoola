@@ -295,7 +295,8 @@ func main() {
 		})
 
 		r.Route("/tahun-ajaran", func(r chi.Router) {
-			r.With(auth.Authorize("admin")).Get("/", tahunAjaranHandler.GetAll)
+			// PERBAIKAN: Menambahkan 'teacher' di sini agar guru bisa mengakses data tahun ajaran
+			r.With(auth.Authorize("admin", "teacher")).Get("/", tahunAjaranHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", tahunAjaranHandler.Create)
 			r.With(auth.Authorize("admin")).Get("/{id}", tahunAjaranHandler.GetByID)
 			r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
