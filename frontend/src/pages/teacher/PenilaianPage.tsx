@@ -8,8 +8,9 @@ import {
   Col,
   Alert,
   Empty,
-  Button
-  // Space dihapus karena tidak digunakan
+  Button,
+  Radio, // <--- Import Radio ditambahkan
+  type RadioChangeEvent // <--- Import tipe event jika menggunakan TypeScript ketat
 } from 'antd';
 import { EditOutlined, SaveOutlined } from '@ant-design/icons';
 
@@ -83,6 +84,11 @@ const PenilaianPage = () => {
     }
   };
 
+  // Handler untuk perubahan mode tampilan
+  const handleViewModeChange = (e: RadioChangeEvent) => {
+    setViewMode(e.target.value);
+  };
+
   if (error) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
@@ -103,11 +109,11 @@ const PenilaianPage = () => {
         )}
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} align="middle">
         <Col xs={24} md={8}>
           <Text strong>1. Pilih Kelas</Text>
           <Select
-            style={{ width: '100%' }}
+            style={{ width: '100%', marginTop: 4 }}
             placeholder="Pilih Kelas"
             onChange={(val) => setSelectedKelasId(val)}
             loading={loading}
@@ -121,7 +127,7 @@ const PenilaianPage = () => {
         <Col xs={24} md={8}>
           <Text strong>2. Pilih Mata Pelajaran</Text>
           <Select
-            style={{ width: '100%' }}
+            style={{ width: '100%', marginTop: 4 }}
             placeholder="Pilih Mapel"
             onChange={(val) => setSelectedPengajarId(val)}
             value={selectedPengajarId}
@@ -133,18 +139,20 @@ const PenilaianPage = () => {
           </Select>
         </Col>
 
+        {/* --- BAGIAN INI YANG DIUBAH MENJADI RADIO BUTTON --- */}
         <Col xs={24} md={8}>
-            <Text strong>3. Mode Tampilan</Text>
-            <Select 
-                style={{ width: '100%' }}
-                value={viewMode}
-                onChange={(val: ViewMode) => setViewMode(val)}
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>3. Mode Tampilan</Text>
+            <Radio.Group 
+                value={viewMode} 
+                onChange={handleViewModeChange}
+                buttonStyle="solid"
                 disabled={!selectedPengajarId}
             >
-                <Option value="rata-rata">Ringkas (Rata-rata TP)</Option>
-                <Option value="detail">Detail (Semua Nilai)</Option>
-            </Select>
+                <Radio.Button value="rata-rata">Ringkasan</Radio.Button>
+                <Radio.Button value="detail">Detail</Radio.Button>
+            </Radio.Group>
         </Col>
+        {/* --------------------------------------------------- */}
       </Row>
 
       {/* Render Panel Penilaian jika semua sudah dipilih */}
