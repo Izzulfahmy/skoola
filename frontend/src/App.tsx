@@ -97,7 +97,10 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<TeacherDashboardPage />} />
             <Route path="biodata" element={<TeacherBiodataPage />} />
             <Route path="kelas-saya" element={<KelasSayaPage />} />
-            <Route path="materi-ajar/:pengajarKelasID" element={<MateriAjarPage />} />
+            
+            {/* PERBAIKAN DI SINI: Hapus parameter :pengajarKelasID agar bisa diakses langsung */}
+            <Route path="materi-ajar" element={<MateriAjarPage />} />
+            
             <Route path="penilaian/:pengajarKelasID/:kelasID" element={<PenilaianPage />} />
           </Route>
 

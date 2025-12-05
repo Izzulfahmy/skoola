@@ -6,7 +6,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   UserOutlined,
-  IdcardOutlined,
+  IdcardOutlined, // <-- SAYA TAMBAHKAN KEMBALI DI SINI
   ApartmentOutlined,
   BookOutlined,
   EditOutlined,
@@ -53,23 +53,21 @@ const TeacherLayout = () => {
     },
   ];
 
-  // --- MENU ITEMS (LABEL DIBUAT STRING BIASA, TANPA <Link>) ---
+  // --- MENU ITEMS ---
   const allMenuItems: MenuProps['items'] = [
-    { key: '/teacher', icon: <DesktopOutlined />, label: 'Dashboard' },
+    { key: '/teacher/dashboard', icon: <DesktopOutlined />, label: 'Dashboard' },
     { key: '/teacher/biodata', icon: <IdcardOutlined />, label: 'Biodata' },
     { type: 'divider' },
     { key: '/teacher/kelas-saya', icon: <ApartmentOutlined />, label: 'Kelas Saya' },
-    // Kita berikan key unik, navigasi akan diatur di handleMenuClick
-    { key: 'materi-ajar', icon: <BookOutlined />, label: 'Materi Ajar' },
+    { key: '/teacher/materi-ajar', icon: <BookOutlined />, label: 'Materi Ajar' },
     { key: 'penilaian-siswa', icon: <EditOutlined />, label: 'Penilaian Siswa' },
   ];
   
-  // --- FUNGSI BARU UNTUK MENANGANI NAVIGASI SAAT MENU DIKLIK ---
+  // --- FUNGSI NAVIGASI ---
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     let path = e.key;
 
-    // Jika yang diklik adalah materi atau penilaian, arahkan ke kelas-saya
-    if (e.key === 'materi-ajar' || e.key === 'penilaian-siswa') {
+    if (e.key === 'penilaian-siswa') {
       path = '/teacher/kelas-saya';
     }
 
@@ -82,14 +80,15 @@ const TeacherLayout = () => {
   };
 
   // Logika untuk menyorot menu yang aktif
-  let activeKey = '/teacher'; // Default
-  if (location.pathname.startsWith('/teacher/kelas-saya') || 
-      location.pathname.startsWith('/teacher/materi-ajar') || 
-      location.pathname.startsWith('/teacher/penilaian')) 
-  {
-    activeKey = '/teacher/kelas-saya';
-  } else if (location.pathname.startsWith('/teacher/biodata')) {
-    activeKey = '/teacher/biodata';
+  let activeKey = location.pathname;
+
+  // Penyesuaian highlight jika berada di sub-halaman
+  if (location.pathname === '/teacher' || location.pathname === '/teacher/') {
+    activeKey = '/teacher/dashboard';
+  } else if (location.pathname.startsWith('/teacher/penilaian')) {
+    activeKey = 'penilaian-siswa';
+  } else if (location.pathname.startsWith('/teacher/materi-ajar')) {
+    activeKey = '/teacher/materi-ajar';
   }
   
   const menuContent = (
@@ -106,7 +105,7 @@ const TeacherLayout = () => {
         mode="inline"
         selectedKeys={[activeKey]}
         items={allMenuItems}
-        onClick={handleMenuClick} // <-- Menggunakan fungsi onClick yang baru
+        onClick={handleMenuClick}
         style={{ flex: 1, borderRight: 0 }}
       />
     </div>
