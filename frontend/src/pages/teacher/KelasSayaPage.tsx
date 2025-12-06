@@ -1,4 +1,3 @@
-// file: src/pages/teacher/KelasSayaPage.tsx
 import { useEffect, useState } from 'react';
 import { Card, Spin, Typography, message, Table, Alert, Space, Tag } from 'antd';
 import { getMyClasses } from '../../api/teachers';
