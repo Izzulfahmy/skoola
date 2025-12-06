@@ -1,10 +1,8 @@
 // file: src/pages/teacher/KelasSayaPage.tsx
 import { useEffect, useState } from 'react';
-import { Card, Spin, Typography, message, List, Tag, Empty, Alert } from 'antd';
-import { UserOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { Card, Spin, Typography, message, Table, Alert, Space, Tag } from 'antd';
 import { getMyClasses } from '../../api/teachers';
 import type { Kelas } from '../../types';
-import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +27,82 @@ const KelasSayaPage = () => {
     fetchClasses();
   }, []);
 
+  // Fungsi helper untuk menghasilkan warna konsisten berdasarkan nama mapel
+  const getTagColor = (mapel: string) => {
+    const colors = [
+      'magenta', 'red', 'volcano', 'orange', 'gold', 
+      'lime', 'green', 'cyan', 'blue', 'geekblue', 'purple'
+    ];
+    let hash = 0;
+    for (let i = 0; i < mapel.length; i++) {
+      hash = mapel.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
+  const columns = [
+    {
+      title: 'No',
+      key: 'index',
+      width: 50,
+      align: 'center' as const,
+      render: (_: any, __: any, index: number) => index + 1,
+    },
+    {
+      title: 'Kelas',
+      dataIndex: 'nama_kelas',
+      key: 'nama_kelas',
+      width: 150,
+      render: (text: string, record: Kelas) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{text}</Text>
+          <Text type="secondary" style={{ fontSize: '11px' }}>{record.nama_tingkatan}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Mata Pelajaran',
+      dataIndex: 'mata_pelajaran',
+      key: 'mata_pelajaran',
+      render: (text: string) => {
+        if (!text) return <Text type="secondary">-</Text>;
+        // Memisahkan string "Mapel A, Mapel B" menjadi array dan me-render Tag
+        const mapelList = text.split(', ');
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {mapelList.map((mapel) => (
+              <Tag 
+                key={mapel} 
+                color={getTagColor(mapel)} 
+                style={{ marginRight: 0 }}
+              >
+                {mapel}
+              </Tag>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Jumlah Siswa',
+      dataIndex: 'jumlah_siswa',
+      key: 'jumlah_siswa',
+      align: 'center' as const,
+      width: 120,
+      render: (count: number) => <Text>{count}</Text>,
+    },
+    {
+      title: 'Wali Kelas',
+      dataIndex: 'nama_wali_kelas',
+      key: 'nama_wali_kelas',
+      width: 200,
+      render: (text: string) => (
+        <Text type={text ? undefined : "secondary"}>{text || 'Belum ditentukan'}</Text>
+      ),
+    },
+  ];
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -42,31 +116,20 @@ const KelasSayaPage = () => {
   }
 
   return (
-    <Card>
-      <Title level={2}>Kelas yang Saya Ajar</Title>
-      <Text type="secondary">Berikut adalah daftar kelas yang Anda ajar pada tahun ajaran aktif.</Text>
+    <Card bodyStyle={{ padding: '24px' }}>
+      <div style={{ marginBottom: 16 }}>
+        <Title level={2} style={{ marginBottom: 4 }}>Kelas yang Saya Ajar</Title>
+        <Text type="secondary">Daftar kelas dan mata pelajaran yang Anda ampu pada tahun ajaran aktif.</Text>
+      </div>
       
-      {myClasses.length > 0 ? (
-        <List
-          grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 3, xl: 4, xxl: 4 }}
-          dataSource={myClasses}
-          renderItem={(kelas) => (
-            <List.Item>
-              <Card 
-                hoverable
-                title={kelas.nama_kelas}
-                actions={[<Link to={`/rombel/${kelas.id}`}>Lihat Detail <ArrowRightOutlined /></Link>]}
-              >
-                <p><Tag color="geekblue">{kelas.nama_tingkatan}</Tag></p>
-                <p><UserOutlined style={{ marginRight: 8 }}/> {kelas.jumlah_siswa} Siswa</p>
-                <Text type="secondary">Wali: {kelas.nama_wali_kelas || '-'}</Text>
-              </Card>
-            </List.Item>
-          )}
-        />
-      ) : (
-        <Empty description="Anda belum ditugaskan untuk mengajar di kelas manapun pada tahun ajaran aktif." style={{marginTop: 32}}/>
-      )}
+      <Table 
+        columns={columns} 
+        dataSource={myClasses} 
+        rowKey="id"
+        pagination={false} 
+        size="small" // Membuat tabel lebih pendek/minimalis
+        bordered
+      />
     </Card>
   );
 };

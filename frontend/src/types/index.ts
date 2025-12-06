@@ -401,6 +401,7 @@ export interface Kelas {
   jumlah_pengajar: number;
   nama_tahun_ajaran?: string;
   semester?: string;
+  mata_pelajaran?: string; // <-- TAMBAHAN BARU
 }
 
 export interface AnggotaKelas {

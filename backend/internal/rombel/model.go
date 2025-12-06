@@ -13,13 +13,14 @@ type Kelas struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	NamaTingkatan   *string   `json:"nama_tingkatan,omitempty"`    // Untuk join
-	JenjangID       *int      `json:"jenjang_id,omitempty"`        // <-- PERBAIKAN: Field baru
-	NamaJenjang     *string   `json:"nama_jenjang,omitempty"`      // <-- PERBAIKAN: Field baru
+	JenjangID       *int      `json:"jenjang_id,omitempty"`        // Untuk join
+	NamaJenjang     *string   `json:"nama_jenjang,omitempty"`      // Untuk join
 	NamaWaliKelas   *string   `json:"nama_wali_kelas,omitempty"`   // Untuk join
 	JumlahSiswa     int       `json:"jumlah_siswa,omitempty"`      // Untuk join
 	JumlahPengajar  int       `json:"jumlah_pengajar,omitempty"`   // Untuk join
 	NamaTahunAjaran *string   `json:"nama_tahun_ajaran,omitempty"` // Untuk join
 	Semester        *string   `json:"semester,omitempty"`          // Untuk join
+	MataPelajaran   *string   `json:"mata_pelajaran,omitempty"`    // <-- TAMBAHAN BARU: Untuk menampung nama mapel
 }
 
 // AnggotaKelas merepresentasikan siswa dalam sebuah rombel.
