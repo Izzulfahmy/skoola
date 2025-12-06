@@ -96,7 +96,9 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<TeacherDashboardPage />} />
             <Route path="biodata" element={<TeacherBiodataPage />} />
-            <Route path="kelas-saya" element={<KelasSayaPage />} />
+            
+            {/* PERBAIKAN: Mengganti route 'kelas-saya' menjadi 'penugasan' */}
+            <Route path="penugasan" element={<KelasSayaPage />} />
             
             {/* Routes Materi Ajar & Penilaian tanpa parameter ID */}
             <Route path="materi-ajar" element={<MateriAjarPage />} />

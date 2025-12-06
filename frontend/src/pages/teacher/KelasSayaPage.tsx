@@ -123,8 +123,9 @@ const KelasSayaPage = () => {
     >
       {/* Header Compact */}
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ marginBottom: 0, marginTop: 0 }}>Kelas yang Saya Ajar</Title>
-        <Text type="secondary" style={{ fontSize: '13px' }}>Daftar kelas dan mata pelajaran yang Anda ampu pada tahun ajaran aktif.</Text>
+        {/* PERBAIKAN: Mengganti Judul dan Deskripsi menjadi Penugasan */}
+        <Title level={4} style={{ marginBottom: 0, marginTop: 0 }}>Penugasan</Title>
+        <Text type="secondary" style={{ fontSize: '13px' }}>Daftar penugasan kelas dan mata pelajaran yang Anda ampu pada tahun ajaran aktif.</Text>
       </div>
       
       <Table 

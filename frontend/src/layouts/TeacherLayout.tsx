@@ -1,4 +1,3 @@
-// file: src/layouts/TeacherLayout.tsx
 import { useState, useEffect } from 'react';
 import {
   DesktopOutlined,
@@ -58,15 +57,14 @@ const TeacherLayout = () => {
     { key: '/teacher/dashboard', icon: <DesktopOutlined />, label: 'Dashboard' },
     { key: '/teacher/biodata', icon: <IdcardOutlined />, label: 'Biodata' },
     { type: 'divider' },
-    { key: '/teacher/kelas-saya', icon: <ApartmentOutlined />, label: 'Kelas Saya' },
+    // PERBAIKAN: Mengganti Kelas Saya menjadi Penugasan
+    { key: '/teacher/penugasan', icon: <ApartmentOutlined />, label: 'Penugasan' },
     { key: '/teacher/materi-ajar', icon: <BookOutlined />, label: 'Materi Ajar' },
-    // PERBAIKAN: Gunakan path rute sebagai key
     { key: '/teacher/penilaian', icon: <EditOutlined />, label: 'Penilaian Siswa' },
   ];
   
   // --- FUNGSI NAVIGASI ---
   const handleMenuClick: MenuProps['onClick'] = (e) => {
-    // PERBAIKAN: Langsung navigasi ke key tanpa redirect khusus
     navigate(e.key);
 
     // Tutup drawer jika di mode mobile
@@ -85,6 +83,8 @@ const TeacherLayout = () => {
     activeKey = '/teacher/penilaian'; // Highlight menu penilaian
   } else if (location.pathname.startsWith('/teacher/materi-ajar')) {
     activeKey = '/teacher/materi-ajar'; // Highlight menu materi ajar
+  } else if (location.pathname.startsWith('/teacher/penugasan')) {
+    activeKey = '/teacher/penugasan'; // Highlight menu penugasan
   }
   
   const menuContent = (
