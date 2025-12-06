@@ -3,88 +3,118 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Typography,
   Card,
-  Select,
-  Row,
-  Col,
   Alert,
   Empty,
   Button,
-  Radio, // <--- Import Radio ditambahkan
-  type RadioChangeEvent // <--- Import tipe event jika menggunakan TypeScript ketat
+  Radio,
+  Cascader,
+  Space,
+  type RadioChangeEvent
 } from 'antd';
-import { EditOutlined, SaveOutlined } from '@ant-design/icons';
+import { 
+  SaveOutlined, 
+  TableOutlined, 
+  AppstoreOutlined,
+  BlockOutlined
+} from '@ant-design/icons';
 
 // API
 import { getMyClasses } from '../../api/teachers';
 import { getAllPengajarByKelas } from '../../api/rombel';
 
 // Types & Components
-import type { Kelas, PengajarKelas } from '../../types';
+import type { Kelas } from '../../types';
 import PenilaianPanel, { type PenilaianPanelRef, type ViewMode } from '../../components/PenilaianPanel';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
+
+// --- PERBAIKAN 1: Menambahkan properti disabled ke Interface ---
+interface Option {
+  value: string;
+  label: string;
+  isLeaf?: boolean;
+  children?: Option[];
+  loading?: boolean;
+  disabled?: boolean; // Menambahkan ini agar tidak error
+}
 
 const PenilaianPage = () => {
-  // State untuk Dropdown
-  const [loading, setLoading] = useState(true);
-  const [myClasses, setMyClasses] = useState<Kelas[]>([]);
+  const [options, setOptions] = useState<Option[]>([]);
   const [selectedKelasId, setSelectedKelasId] = useState<string | null>(null);
-  
-  const [pengajarList, setPengajarList] = useState<PengajarKelas[]>([]);
   const [selectedPengajarId, setSelectedPengajarId] = useState<string | null>(null);
-  
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('rata-rata');
 
-  // Ref untuk memanggil fungsi save di dalam PenilaianPanel
   const panelRef = useRef<PenilaianPanelRef>(null);
 
-  // 1. Ambil Data Kelas saat component mount
+  // 1. Load Kelas Awal untuk Level 1 Cascader
   useEffect(() => {
     const fetchClasses = async () => {
       try {
         const classesData = await getMyClasses();
-        setMyClasses(classesData || []);
+        if (classesData) {
+          const classOptions: Option[] = classesData.map((c: Kelas) => ({
+            value: c.id,
+            label: c.nama_kelas,
+            isLeaf: false, // false berarti punya anak (mata pelajaran)
+          }));
+          setOptions(classOptions);
+        }
       } catch (err) {
-        setError('Gagal memuat daftar kelas Anda.');
-      } finally {
-        setLoading(false);
+        setError('Gagal memuat daftar kelas.');
       }
     };
     fetchClasses();
   }, []);
 
-  // 2. Ambil Data Mapel saat Kelas dipilih
-  useEffect(() => {
-    if (selectedKelasId) {
-      const fetchPengajar = async () => {
-        setLoading(true);
-        setSelectedPengajarId(null); // Reset pilihan mapel
-        try {
-          const pengajarData = await getAllPengajarByKelas(selectedKelasId);
-          setPengajarList(pengajarData || []);
-        } catch (err) {
-          setError('Gagal memuat daftar mata pelajaran.');
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchPengajar();
+  // 2. Fungsi Load Data Mapel saat Kelas di-expand
+  const loadData = async (selectedOptions: Option[]) => {
+    const targetOption = selectedOptions[selectedOptions.length - 1];
+    targetOption.loading = true;
+
+    try {
+      // Ambil data mapel berdasarkan kelas ID (targetOption.value)
+      const pengajarData = await getAllPengajarByKelas(targetOption.value);
+      
+      targetOption.loading = false;
+      
+      if (pengajarData && pengajarData.length > 0) {
+        targetOption.children = pengajarData.map(p => ({
+          label: p.nama_mapel,
+          value: p.id, // Ini adalah pengajarKelasId
+          isLeaf: true,
+        }));
+      } else {
+        targetOption.children = [{ label: 'Tidak ada mapel', value: 'none', disabled: true, isLeaf: true }];
+      }
+      
+      // Update state options agar re-render
+      setOptions([...options]);
+    } catch (err) {
+      targetOption.loading = false;
+      targetOption.children = [];
+      setOptions([...options]);
+      setError('Gagal memuat mata pelajaran.');
+    }
+  };
+
+  // --- PERBAIKAN 2: Menghapus parameter selectedOptions yang tidak dipakai ---
+  const onChange = (value: (string | number)[]) => {
+    if (value && value.length === 2) {
+      setSelectedKelasId(value[0] as string);
+      setSelectedPengajarId(value[1] as string);
     } else {
-      setPengajarList([]);
+      setSelectedKelasId(null);
       setSelectedPengajarId(null);
     }
-  }, [selectedKelasId]);
+  };
 
-  // Fungsi Wrapper untuk tombol Save di luar panel
   const triggerSave = () => {
     if (panelRef.current) {
       panelRef.current.handleSave();
     }
   };
 
-  // Handler untuk perubahan mode tampilan
   const handleViewModeChange = (e: RadioChangeEvent) => {
     setViewMode(e.target.value);
   };
@@ -92,70 +122,80 @@ const PenilaianPage = () => {
   if (error) {
     return <Alert message="Error" description={error} type="error" showIcon />;
   }
-  
+
+  // Styles Helpers (Compact & Clean)
+  const toolbarStyle: React.CSSProperties = { 
+    background: '#fafafa', 
+    padding: '12px 16px', // Lebih pendek tingginya
+    borderRadius: '8px', 
+    border: '1px solid #f0f0f0', 
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '12px'
+  };
+
   return (
-    <Card>
+    <Card bodyStyle={{ padding: '20px 24px' }} bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)' }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <Title level={2} style={{ marginBottom: 0 }}><EditOutlined /> Penilaian Siswa</Title>
-          <Text type="secondary">Pilih kelas dan mata pelajaran untuk melakukan penilaian.</Text>
+          <Title level={4} style={{ marginBottom: 0, marginTop: 0 }}>
+             Penilaian Siswa
+          </Title>
+          <Text type="secondary" style={{ fontSize: '13px' }}>Input nilai formatif dan sumatif siswa.</Text>
         </div>
         
-        {/* Tombol Simpan hanya muncul jika Mapel sudah dipilih */}
         {selectedPengajarId && (
-            <Button type="primary" icon={<SaveOutlined />} onClick={triggerSave}>
-              Simpan Perubahan
+            <Button type="primary" icon={<SaveOutlined />} onClick={triggerSave} size="middle">
+              Simpan
             </Button>
         )}
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} align="middle">
-        <Col xs={24} md={8}>
-          <Text strong>1. Pilih Kelas</Text>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder="Pilih Kelas"
-            onChange={(val) => setSelectedKelasId(val)}
-            loading={loading}
-          >
-            {myClasses.map((c) => (
-              <Option key={c.id} value={c.id}>{c.nama_kelas}</Option>
-            ))}
-          </Select>
-        </Col>
+      {/* Minimalist Horizontal Toolbar */}
+      <div style={toolbarStyle}>
+        <Space size="middle" wrap style={{ flex: 1 }}>
+          
+          {/* 1. Cascader Kelas & Mapel - LEBAR DIPERPANJANG */}
+          <div style={{ minWidth: 350 }}> 
+            <span style={{ fontSize: '12px', color: '#8c8c8c', marginRight: 8, fontWeight: 500 }}>
+              <BlockOutlined /> Kelas & Mapel:
+            </span>
+            <Cascader
+              options={options}
+              loadData={loadData}
+              onChange={onChange as any}
+              changeOnSelect
+              placeholder="Pilih Kelas lalu Mapel"
+              style={{ width: 350 }} // Diperpanjang menjadi 350px
+              size="middle"
+              expandTrigger="hover"
+            />
+          </div>
 
-        <Col xs={24} md={8}>
-          <Text strong>2. Pilih Mata Pelajaran</Text>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder="Pilih Mapel"
-            onChange={(val) => setSelectedPengajarId(val)}
-            value={selectedPengajarId}
-            disabled={!selectedKelasId}
-          >
-            {pengajarList.map((p) => (
-              <Option key={p.id} value={p.id}>{p.nama_mapel}</Option>
-            ))}
-          </Select>
-        </Col>
-
-        {/* --- BAGIAN INI YANG DIUBAH MENJADI RADIO BUTTON --- */}
-        <Col xs={24} md={8}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>3. Mode Tampilan</Text>
+          {/* 2. Mode Tampilan */}
+          <div>
+            <span style={{ fontSize: '12px', color: '#8c8c8c', marginRight: 8, fontWeight: 500 }}>
+              Mode:
+            </span>
             <Radio.Group 
                 value={viewMode} 
                 onChange={handleViewModeChange}
                 buttonStyle="solid"
                 disabled={!selectedPengajarId}
+                size="middle"
             >
-                <Radio.Button value="rata-rata">Ringkasan</Radio.Button>
-                <Radio.Button value="detail">Detail</Radio.Button>
+                <Radio.Button value="rata-rata"><TableOutlined /> Ringkas</Radio.Button>
+                <Radio.Button value="detail"><AppstoreOutlined /> Detail</Radio.Button>
             </Radio.Group>
-        </Col>
-        {/* --------------------------------------------------- */}
-      </Row>
+          </div>
+        </Space>
+      </div>
 
-      {/* Render Panel Penilaian jika semua sudah dipilih */}
+      {/* Main Content */}
       <div style={{ minHeight: 400 }}>
         {selectedKelasId && selectedPengajarId ? (
           <PenilaianPanel 
@@ -166,7 +206,8 @@ const PenilaianPage = () => {
           />
         ) : (
           <Empty 
-            description="Silakan pilih Kelas dan Mata Pelajaran terlebih dahulu." 
+            image={Empty.PRESENTED_IMAGE_SIMPLE} 
+            description={<span style={{ color: '#bfbfbf' }}>Pilih Kelas dan Mata Pelajaran pada menu di atas untuk memulai.</span>} 
             style={{ marginTop: 60 }} 
           />
         )}

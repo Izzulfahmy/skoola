@@ -45,7 +45,7 @@ const KelasSayaPage = () => {
     {
       title: 'No',
       key: 'index',
-      width: 50,
+      width: 60,
       align: 'center' as const,
       render: (_: any, __: any, index: number) => index + 1,
     },
@@ -56,8 +56,8 @@ const KelasSayaPage = () => {
       width: 150,
       render: (text: string, record: Kelas) => (
         <Space direction="vertical" size={0}>
-          <Text strong>{text}</Text>
-          <Text type="secondary" style={{ fontSize: '11px' }}>{record.nama_tingkatan}</Text>
+          <Text strong style={{ fontSize: '14px' }}>{text}</Text>
+          <Text type="secondary" style={{ fontSize: '12px' }}>{record.nama_tingkatan}</Text>
         </Space>
       ),
     },
@@ -66,16 +66,16 @@ const KelasSayaPage = () => {
       dataIndex: 'mata_pelajaran',
       key: 'mata_pelajaran',
       render: (text: string) => {
-        if (!text) return <Text type="secondary">-</Text>;
-        // Memisahkan string "Mapel A, Mapel B" menjadi array dan me-render Tag
+        if (!text) return <Text type="secondary" style={{ fontSize: '13px' }}>-</Text>;
         const mapelList = text.split(', ');
         return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {mapelList.map((mapel) => (
               <Tag 
                 key={mapel} 
                 color={getTagColor(mapel)} 
-                style={{ marginRight: 0 }}
+                style={{ marginRight: 0, borderRadius: '4px', fontSize: '12px' }}
+                bordered={false} // Membuat tag terlihat lebih modern/flat
               >
                 {mapel}
               </Tag>
@@ -85,27 +85,27 @@ const KelasSayaPage = () => {
       },
     },
     {
-      title: 'Jumlah Siswa',
+      title: 'Siswa',
       dataIndex: 'jumlah_siswa',
       key: 'jumlah_siswa',
       align: 'center' as const,
-      width: 120,
-      render: (count: number) => <Text>{count}</Text>,
+      width: 100,
+      render: (count: number) => <Text style={{ fontSize: '13px' }}>{count}</Text>,
     },
     {
       title: 'Wali Kelas',
       dataIndex: 'nama_wali_kelas',
       key: 'nama_wali_kelas',
-      width: 200,
+      width: 220,
       render: (text: string) => (
-        <Text type={text ? undefined : "secondary"}>{text || 'Belum ditentukan'}</Text>
+        <Text style={{ fontSize: '13px' }} type={text ? undefined : "secondary"}>{text || 'Belum ditentukan'}</Text>
       ),
     },
   ];
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
         <Spin size="large" />
       </div>
     );
@@ -116,10 +116,16 @@ const KelasSayaPage = () => {
   }
 
   return (
-    <Card bodyStyle={{ padding: '24px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={2} style={{ marginBottom: 4 }}>Kelas yang Saya Ajar</Title>
-        <Text type="secondary">Daftar kelas dan mata pelajaran yang Anda ampu pada tahun ajaran aktif.</Text>
+    // Style Card disesuaikan dengan halaman lain (Padding 20px 24px)
+    <Card 
+      bodyStyle={{ padding: '20px 24px' }} 
+      bordered={false} 
+      style={{ borderRadius: 8, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)' }}
+    >
+      {/* Header Compact */}
+      <div style={{ marginBottom: 20 }}>
+        <Title level={4} style={{ marginBottom: 0, marginTop: 0 }}>Kelas yang Saya Ajar</Title>
+        <Text type="secondary" style={{ fontSize: '13px' }}>Daftar kelas dan mata pelajaran yang Anda ampu pada tahun ajaran aktif.</Text>
       </div>
       
       <Table 
@@ -127,7 +133,7 @@ const KelasSayaPage = () => {
         dataSource={myClasses} 
         rowKey="id"
         pagination={false} 
-        size="small" // Membuat tabel lebih pendek/minimalis
+        size="small" // Tabel minimalis (baris pendek)
         bordered
       />
     </Card>
