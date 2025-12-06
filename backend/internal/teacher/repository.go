@@ -44,12 +44,15 @@ func NewRepository(db *sql.DB) Repository {
 	}
 }
 
-// --- IMPLEMENTASI FUNGSI BARU ---
+// --- IMPLEMENTASI FUNGSI BARU (DIPERBAIKI) ---
 func (r *postgresRepository) GetKelasByTeacherID(ctx context.Context, schemaName string, teacherID string, tahunAjaranID string) ([]rombel.Kelas, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
 		return nil, fmt.Errorf("gagal mengatur skema tenant: %w", err)
 	}
+
+	// PERBAIKAN: Menggunakan Subquery IN (...) alih-alih JOIN langsung untuk menghindari duplikasi
+	// jika guru mengajar lebih dari 1 mapel di kelas yang sama.
 	query := `
 		SELECT
 			k.id, k.nama_kelas, k.tahun_ajaran_id, k.tingkatan_id, k.wali_kelas_id,
@@ -61,13 +64,18 @@ func (r *postgresRepository) GetKelasByTeacherID(ctx context.Context, schemaName
 			(SELECT COUNT(*) FROM anggota_kelas ak WHERE ak.kelas_id = k.id) as jumlah_siswa,
 			(SELECT COUNT(DISTINCT pk.teacher_id) FROM pengajar_kelas pk WHERE pk.kelas_id = k.id) as jumlah_pengajar
 		FROM kelas k
-		JOIN pengajar_kelas pk ON k.id = pk.kelas_id
 		LEFT JOIN tingkatan t ON k.tingkatan_id = t.id
 		LEFT JOIN teachers guru ON k.wali_kelas_id = guru.id
 		LEFT JOIN tahun_ajaran ta ON k.tahun_ajaran_id = ta.id
-		WHERE pk.teacher_id = $1 AND k.tahun_ajaran_id = $2
+		WHERE k.tahun_ajaran_id = $2
+		AND k.id IN (
+			SELECT pk.kelas_id 
+			FROM pengajar_kelas pk 
+			WHERE pk.teacher_id = $1
+		)
 		ORDER BY t.urutan, k.nama_kelas
 	`
+	// Perhatikan urutan argumen tetap: $1 = teacherID, $2 = tahunAjaranID
 	rows, err := r.db.QueryContext(ctx, query, teacherID, tahunAjaranID)
 	if err != nil {
 		return nil, err
@@ -145,8 +153,6 @@ func (r *postgresRepository) DeleteHistory(ctx context.Context, schemaName strin
 	return nil
 }
 
-// ... (sisa kode di file ini tetap sama)
-// ... (CreateHistory, GetHistoryByTeacherID, Create, GetAll, dll...)
 func (r *postgresRepository) CreateHistory(ctx context.Context, schemaName string, history *RiwayatKepegawaian) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -169,6 +175,7 @@ func (r *postgresRepository) CreateHistory(ctx context.Context, schemaName strin
 	}
 	return nil
 }
+
 func (r *postgresRepository) GetHistoryByTeacherID(ctx context.Context, schemaName string, teacherID string) ([]RiwayatKepegawaian, error) {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := r.db.ExecContext(ctx, setSchemaQuery); err != nil {
@@ -198,6 +205,7 @@ func (r *postgresRepository) GetHistoryByTeacherID(ctx context.Context, schemaNa
 	}
 	return histories, nil
 }
+
 func (r *postgresRepository) Create(ctx context.Context, querier Querier, schemaName string, user *User, teacher *Teacher) error {
 	setSchemaQuery := fmt.Sprintf("SET search_path TO %q", schemaName)
 	if _, err := querier.ExecContext(ctx, setSchemaQuery); err != nil {

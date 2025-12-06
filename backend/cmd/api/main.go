@@ -18,7 +18,7 @@ import (
 	"skoola/internal/kelompokmapel"
 	"skoola/internal/kurikulum"
 	"skoola/internal/matapelajaran"
-	"skoola/internal/papersize" // TAMBAHKAN IMPOR BARU INI
+	"skoola/internal/papersize"
 	"skoola/internal/pembelajaran"
 	"skoola/internal/penilaian"
 	"skoola/internal/penilaiansumatif"
@@ -120,7 +120,6 @@ func main() {
 	ekstrakurikulerRepo := ekstrakurikuler.NewRepository(db)
 	prestasiRepo := prestasi.NewRepository(db)
 	ujianMasterRepo := ujianmaster.NewRepository(db)
-	// ADD NEW REPO
 	paperSizeRepo := papersize.NewRepository(db)
 
 	// Services
@@ -147,7 +146,6 @@ func main() {
 	ekstrakurikulerService := ekstrakurikuler.NewService(ekstrakurikulerRepo, validate)
 	prestasiService := prestasi.NewService(prestasiRepo, validate)
 	ujianMasterService := ujianmaster.NewService(ujianMasterRepo, rombelService)
-	// ADD NEW SERVICE
 	paperSizeService := papersize.NewService(paperSizeRepo, validate)
 
 	// Handlers
@@ -176,7 +174,6 @@ func main() {
 	ekstrakurikulerHandler := ekstrakurikuler.NewHandler(ekstrakurikulerService)
 	prestasiHandler := prestasi.NewHandler(prestasiService)
 	ujianMasterHandler := ujianmaster.NewHandler(ujianMasterService)
-	// ADD NEW HANDLER
 	paperSizeHandler := papersize.NewHandler(paperSizeService)
 
 	r := chi.NewRouter()
@@ -295,10 +292,10 @@ func main() {
 		})
 
 		r.Route("/tahun-ajaran", func(r chi.Router) {
-			// PERBAIKAN: Menambahkan 'teacher' di sini agar guru bisa mengakses data tahun ajaran
+			// PERBAIKAN: Teacher boleh melihat data tahun ajaran
 			r.With(auth.Authorize("admin", "teacher")).Get("/", tahunAjaranHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", tahunAjaranHandler.Create)
-			r.With(auth.Authorize("admin")).Get("/{id}", tahunAjaranHandler.GetByID)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{id}", tahunAjaranHandler.GetByID)
 			r.With(auth.Authorize("admin")).Put("/{id}", tahunAjaranHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", tahunAjaranHandler.Delete)
 		})
@@ -308,7 +305,10 @@ func main() {
 			r.With(auth.Authorize("admin")).Get("/", kelompokMapelHandler.GetAll)
 			r.With(auth.Authorize("admin")).Get("/taught", mataPelajaranHandler.GetAllTaught)
 			r.With(auth.Authorize("admin")).Post("/", mataPelajaranHandler.Create)
-			r.With(auth.Authorize("admin")).Get("/{id}", mataPelajaranHandler.GetByID)
+
+			// PERBAIKAN UTAMA: Teacher boleh melihat detail mata pelajaran (untuk header panel)
+			r.With(auth.Authorize("admin", "teacher")).Get("/{id}", mataPelajaranHandler.GetByID)
+
 			r.With(auth.Authorize("admin")).Put("/{id}", mataPelajaranHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", mataPelajaranHandler.Delete)
 		})
@@ -321,8 +321,10 @@ func main() {
 		})
 
 		r.Route("/kurikulum", func(r chi.Router) {
-			r.With(auth.Authorize("admin")).Get("/", kurikulumHandler.GetAll)
-			r.With(auth.Authorize("admin")).Get("/by-tahun-ajaran", kurikulumHandler.GetByTahunAjaran)
+			// PERBAIKAN UTAMA: Teacher boleh melihat kurikulum
+			r.With(auth.Authorize("admin", "teacher")).Get("/", kurikulumHandler.GetAll)
+			r.With(auth.Authorize("admin", "teacher")).Get("/by-tahun-ajaran", kurikulumHandler.GetByTahunAjaran)
+
 			r.With(auth.Authorize("admin")).Post("/", kurikulumHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", kurikulumHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", kurikulumHandler.Delete)
@@ -380,25 +382,21 @@ func main() {
 		})
 
 		r.Route("/jenis-ujian", func(r chi.Router) {
-			r.With(auth.Authorize("admin")).Get("/", jenisUjianHandler.GetAll)
+			// PERBAIKAN: Teacher boleh melihat jenis ujian
+			r.With(auth.Authorize("admin", "teacher")).Get("/", jenisUjianHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", jenisUjianHandler.Create)
 			r.With(auth.Authorize("admin")).Get("/{id}", jenisUjianHandler.GetByID)
 			r.With(auth.Authorize("admin")).Put("/{id}", jenisUjianHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", jenisUjianHandler.Delete)
 		})
 
-		// --- ROUTES BARU UNTUK UKURAN KERTAS ---
 		r.Route("/paper-size", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/", paperSizeHandler.GetAll)
 			r.With(auth.Authorize("admin")).Post("/", paperSizeHandler.Create)
 			r.With(auth.Authorize("admin")).Put("/{id}", paperSizeHandler.Update)
 			r.With(auth.Authorize("admin")).Delete("/{id}", paperSizeHandler.Delete)
 		})
-		// ----------------------------------------
 
-		// =================================================================================
-		// UJIAN MASTER ROUTING (UPDATED)
-		// =================================================================================
 		r.Route("/ujian-master", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Post("/", ujianMasterHandler.Create)
 			r.With(auth.Authorize("admin")).Get("/tahun-ajaran/{taID}", ujianMasterHandler.GetAllByTA)
@@ -411,36 +409,26 @@ func main() {
 			r.With(auth.Authorize("admin")).Delete("/{id}/peserta/kelas/{kelasID}", ujianMasterHandler.DeletePesertaFromKelas)
 			r.With(auth.Authorize("admin")).Post("/{id}/generate-nomor-ujian", ujianMasterHandler.GenerateNomorUjian)
 
-			// NEW: Excel Export/Import routes
 			r.With(auth.Authorize("admin")).Get("/{id}/export-excel", ujianMasterHandler.ExportPesertaToExcel)
 			r.With(auth.Authorize("admin")).Post("/{id}/import-excel", ujianMasterHandler.ImportPesertaFromExcel)
 
-			// --- KARTU UJIAN ROUTES BARU ---
-			// Gunakan :ujianMasterID sebagai parameter ID ujian
 			r.With(auth.Authorize("admin")).Get("/{ujianMasterID}/kartu-ujian/filters", ujianMasterHandler.GetKartuUjianFilters)
 			r.With(auth.Authorize("admin")).Get("/{ujianMasterID}/kartu-ujian", ujianMasterHandler.GetKartuUjianData)
 			r.With(auth.Authorize("admin")).Post("/{ujianMasterID}/kartu-ujian/export-pdf", ujianMasterHandler.GenerateKartuUjianPDF)
-			// --- END KARTU UJIAN ROUTES BARU ---
 
-			// --- NEW: ROOM ENDPOINTS ---
-			// Room Master Data (CRUD Ruangan Fisik)
 			r.With(auth.Authorize("admin")).Get("/ruangan", ujianMasterHandler.GetAllRuangan)
 			r.With(auth.Authorize("admin")).Post("/ruangan", ujianMasterHandler.CreateRuangan)
 			r.With(auth.Authorize("admin")).Put("/ruangan/{ruanganID}", ujianMasterHandler.UpdateRuangan)
 			r.With(auth.Authorize("admin")).Delete("/ruangan/{ruanganID}", ujianMasterHandler.DeleteRuangan)
 
-			// Room Allocation for Exam (Alokasi Ruangan ke Paket Ujian)
 			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-ruangan", ujianMasterHandler.AssignRuangan)
 			r.With(auth.Authorize("admin")).Get("/{id}/alokasi-ruangan", ujianMasterHandler.GetAlokasiRuangan)
 			r.With(auth.Authorize("admin")).Delete("/{id}/alokasi-ruangan/{alokasiRuanganID}", ujianMasterHandler.RemoveAlokasiRuangan)
 
-			// Seating Allocation & Algorithms (Phase 1 & 3)
 			r.With(auth.Authorize("admin")).Get("/{id}/alokasi-kursi", ujianMasterHandler.GetAlokasiKursi)
-			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/manual", ujianMasterHandler.UpdateSeating)  // Untuk drag/drop manual
-			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/smart", ujianMasterHandler.DistributeSmart) // Untuk algoritma cerdas
-			// --- END NEW ROOM ENDPOINTS ---
+			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/manual", ujianMasterHandler.UpdateSeating)
+			r.With(auth.Authorize("admin")).Post("/{id}/alokasi-kursi/smart", ujianMasterHandler.DistributeSmart)
 		})
-		// =================================================================================
 
 		r.Route("/presensi", func(r chi.Router) {
 			r.With(auth.Authorize("admin")).Get("/kelas/{kelasID}", presensiHandler.GetPresensi)
