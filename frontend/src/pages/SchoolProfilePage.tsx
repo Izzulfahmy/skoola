@@ -1,17 +1,101 @@
 // file: frontend/src/pages/SchoolProfilePage.tsx
 import { useEffect, useState } from 'react';
-import { Form, Input, Button, message, Spin, Typography, Row, Col, Card } from 'antd';
+import { Form, Input, Button, message, Spin, Typography, Row, Col, Card, notification } from 'antd';
+import { CheckCircleFilled, CloseOutlined } from '@ant-design/icons';
 import { getSchoolProfile, updateSchoolProfile } from '../api/profile';
 import type { SchoolProfile } from '../types';
 
 const { Title } = Typography;
 const { TextArea } = Input;
 
+// --- KOMPONEN NOTIFIKASI MINIMALIS ---
+const CompactNotification = ({ onClose }: { onClose: () => void }) => {
+  const [progress, setProgress] = useState(100);
+
+  useEffect(() => {
+    const duration = 3000; // 3 detik
+    const intervalTime = 30;
+    const steps = duration / intervalTime;
+    const decrement = 100 / steps;
+
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev <= 0) {
+          clearInterval(timer);
+          onClose();
+          return 0;
+        }
+        return prev - decrement;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [onClose]);
+
+  return (
+    <div style={{ padding: '12px 16px' }}> 
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        
+        {/* Sisi Kiri: Ikon + Teks */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckCircleFilled style={{ color: '#52c41a', fontSize: '18px' }} />
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#262626' }}>
+            Perubahan Disimpan
+          </span>
+        </div>
+
+        {/* Sisi Kanan: Tombol Tutup Custom */}
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          style={{ 
+            cursor: 'pointer',
+            width: '20px',
+            height: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            color: '#bfbfbf',
+            transition: 'all 0.2s',
+            zIndex: 10 // Pastikan berada di atas layer lain
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            e.currentTarget.style.color = '#595959';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#bfbfbf';
+          }}
+        >
+          <CloseOutlined style={{ fontSize: '10px' }} />
+        </div>
+      </div>
+      
+      {/* Progress Bar Menyatu */}
+      <div style={{ height: '3px', background: '#f0f0f0', borderRadius: '1.5px', overflow: 'hidden' }}>
+        <div style={{ 
+          height: '100%', 
+          background: '#52c41a', 
+          width: `${progress}%`, 
+          transition: 'width 0.03s linear' 
+        }} />
+      </div>
+    </div>
+  );
+};
+
 const SchoolProfilePage = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [initialData, setInitialData] = useState<SchoolProfile | null>(null);
+
+  // Hook notifikasi
+  const [api, contextHolder] = notification.useNotification();
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -20,7 +104,6 @@ const SchoolProfilePage = () => {
       setInitialData(profileData);
       form.setFieldsValue(profileData);
     } catch (error) {
-      // Notifikasi saat gagal memuat data awal
       message.error('Gagal memuat data profil sekolah.');
     } finally {
       setLoading(false);
@@ -31,21 +114,36 @@ const SchoolProfilePage = () => {
     fetchProfile();
   }, []);
 
-  // --- FUNGSI onFinish DENGAN NOTIFIKASI LENGKAP ---
   const onFinish = async (values: SchoolProfile) => {
     setSubmitting(true);
     try {
       const dataToSubmit = { ...initialData, ...values };
       await updateSchoolProfile(dataToSubmit);
       
-      // Notifikasi saat berhasil menyimpan
-      message.success('Profil sekolah berhasil diperbarui!');
+      // --- NOTIFIKASI POJOK KANAN ATAS (FINAL FIX) ---
+      const key = `notif-${Date.now()}`;
+      
+      api.open({
+        key,
+        message: <CompactNotification onClose={() => api.destroy(key)} />,
+        description: null,
+        duration: 0,
+        closable: false, // [PENTING] Ini menghilangkan tombol tutup bawaan sepenuhnya
+        placement: 'topRight',
+        style: {
+          width: '280px',
+          padding: 0,
+          borderRadius: '8px',
+          backgroundColor: '#fff',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          border: 'none',
+          overflow: 'hidden'
+        },
+      });
       
     } catch (error: any) {
-      // Notifikasi saat gagal menyimpan
       const errorMessage = error.response?.data?.message || 'Gagal memperbarui profil sekolah.';
       message.error(errorMessage);
-      
     } finally {
       setSubmitting(false);
     }
@@ -57,7 +155,11 @@ const SchoolProfilePage = () => {
 
   return (
     <Card>
+      {/* Context Holder untuk menampilkan notifikasi */}
+      {contextHolder}
+      
       <Title level={3} style={{ marginBottom: '24px' }}>Profil Sekolah</Title>
+      
       <Form
         form={form}
         layout="vertical"
