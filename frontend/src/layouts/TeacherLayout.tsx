@@ -93,7 +93,7 @@ const TeacherLayout = () => {
         height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', fontWeight: 'bold', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
-        {isMobile || !collapsed ? 'Menu Guru' : ''}
+        {isMobile || !collapsed ? 'Guru Panel' : ''}
       </div>
       
       <Menu
